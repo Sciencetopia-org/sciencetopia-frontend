@@ -1,28 +1,54 @@
 <template>
   <div class="avatar-container icon-item">
     <!-- 已登录状态 -->
-    <div v-if="isAuthenticated" @mouseleave="hovering = false" class="icon-item">
-      <v-tooltip :text="$store.state.userInfo.userName" location="right" open-delay="300">
+    <div
+      v-if="isAuthenticated"
+      @mouseleave="hovering = false"
+      class="icon-item"
+    >
+      <v-tooltip
+        :text="$store.state.userInfo.userName"
+        location="bottom"
+        open-delay="300"
+        :disabled="!isSmallScreen"
+      >
         <template v-slot:activator="slotProps">
-          <div v-bind="slotProps.props" @mouseenter="hovering = true" @mouseleave="hovering = false"
-            class="avatar-hover-container">
+          <div
+            v-bind="slotProps.props"
+            @mouseenter="hovering = true"
+            @mouseleave="hovering = false"
+            class="avatar-hover-container"
+          >
             <!-- 用户头像按钮 -->
-            <v-btn variant="text" class="icon-btn default-avatar avatar-hover"
-              :style="{ width: iconSize + 'px', height: iconSize + 'px' }" @click="personalcenter">
+            <v-btn
+              variant="plain"
+              class="icon-btn default-avatar avatar-hover"
+              :style="{ width: iconSize + 'px', height: iconSize + 'px' }"
+              @click="personalcenter"
+            >
               <v-avatar :size="iconSize">
                 <img :src="avatarUrl" :alt="$t('user.useravatar')" />
               </v-avatar>
             </v-btn>
 
             <!-- 悬浮弹出卡片 -->
-            <v-card v-if="hovering" class="user-info-card animated-card st-card" elevation="3" width="250">
+            <v-card
+              v-if="hovering"
+              class="user-info-card animated-card st-card"
+              elevation="3"
+              width="250"
+            >
               <v-card-title @click="personalcenter">
                 <v-row>
                   <v-col cols="auto">
-                    <v-btn icon class="default-avatar" :style="{
-                      width: iconSize * 1.3 + 'px',
-                      height: iconSize * 1.3 + 'px',
-                    }">
+                    <v-btn
+                      icon
+                      class="default-avatar"
+                      :style="{
+                        width: iconSize * 1.3 + 'px',
+                        height: iconSize * 1.3 + 'px',
+                      }"
+                    >
                       <v-avatar :size="iconSize * 1.25">
                         <img :src="avatarUrl" :alt="$t('user.useravatar')" />
                       </v-avatar>
@@ -35,7 +61,12 @@
                   </v-col>
                 </v-row>
               </v-card-title>
-              <v-divider color="text" opacity="0.1" :thickness="2" style="margin: 5px 0" />
+              <v-divider
+                color="text"
+                opacity="0.1"
+                :thickness="2"
+                style="margin: 5px 0"
+              />
               <v-list class="list-on-card" dense>
                 <v-list-item @click="personalcenter">
                   <v-list-item-title>
@@ -61,21 +92,60 @@
           </div>
         </template>
       </v-tooltip>
+
+      <!-- 大屏下在图标旁边显示用户名（与其他带文字说明的图标对齐） -->
+      <span v-if="!isSmallScreen" class="icon-label">
+        {{ $store.state.userInfo.userName }}
+      </span>
     </div>
 
     <!-- 未登录状态 -->
     <div v-else class="icon-item">
-      <v-tooltip :text="$t('header.login')" location="right" open-delay="300">
+      <v-tooltip
+        :text="$t('header.login') + ' / ' + $t('header.register')"
+        location="bottom"
+        open-delay="300"
+        :disabled="!isSmallScreen"
+      >
         <template v-slot:activator="slotProps">
           <!-- 默认头像按钮，点击跳转到登录 -->
-          <v-btn v-bind="slotProps.props" variant="text" class="icon-btn default-avatar avatar-container-fix"
-            @click="login">
-            <v-avatar :size="iconSize" class="avatar-circle">
-              <img src="../assets/images/avatar.svg" alt="avatar" class="avatar-image" />
+          <v-btn
+            v-bind="slotProps.props"
+            variant="plain"
+            class="icon-btn default-avatar"
+            :style="{ width: iconSize + 'px', height: iconSize + 'px' }"
+            @click="login"
+          >
+            <v-avatar :size="iconSize">
+              <img
+                src="../assets/images/avatar.svg"
+                alt="avatar"
+                style="width: 100%; height: 100%; border-radius: 50%"
+              />
             </v-avatar>
           </v-btn>
         </template>
       </v-tooltip>
+
+      <!-- 大屏下显示“登录”和“注册”按钮 -->
+      <div v-if="!isSmallScreen" class="auth-buttons">
+        <v-btn
+          variant="flat"
+          style="background-color: #de2910; color: black"
+          class="auth-btn"
+          @click="login"
+        >
+          {{ $t('header.login') }}
+        </v-btn>
+        <v-btn
+          variant="flat"
+          style="background-color: black; color: white"
+          class="auth-btn"
+          @click="register"
+        >
+          {{ $t('header.register') }}
+        </v-btn>
+      </div>
     </div>
   </div>
 </template>
@@ -142,6 +212,8 @@ export default {
 .avatar-container {
   display: flex;
   align-items: center;
+  gap: 16px;
+  /* 保持与其他图标相同的左右间距 */
 }
 
 /* 用于统一整体样式，跟 icons-section 内其他 icon-item 保持一致 */
@@ -156,21 +228,21 @@ export default {
 .icon-btn {
   width: 48px;
   height: 48px;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
 .icon-btn:hover {
-  transform: scale(1.1);
-  background-color: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
-.icon-btn:active {
-  transform: scale(0.95);
+/* 图标旁边的文字，用于已登录时大屏显示用户名 */
+.icon-label {
+  font-size: 14px;
+  margin-top: 6px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 /* 悬浮弹出卡片样式 */
@@ -188,7 +260,7 @@ export default {
 .user-info-card {
   position: absolute !important;
   top: -20px !important;
-  left: 60px !important;
+  left: -160px !important;
   z-index: 1000 !important;
 }
 
@@ -198,8 +270,8 @@ export default {
 }
 
 .avatar-hover-container:hover .avatar-hover {
-  opacity: 0.9;
-  transform: scale(0.95);
+  opacity: 0;
+  transform: scale(0.9);
 }
 
 .avatar-hover-container:hover .user-info-card {
@@ -250,93 +322,38 @@ export default {
   animation-name: fadeOutScale;
 }
 
-/* 中屏 */
-@media (max-width: 1200px) {
-  .icon-btn {
-    width: 42px;
-    height: 42px;
+/* 新增样式 */
+
+/* 大屏下的“登录”和“注册”按钮容器 */
+.auth-buttons {
+  display: flex;
+  justify-content: center;
+  /* 居中对齐 */
+  align-items: center;
+  padding: auto;
+  gap: 10px;
+  /* 调整按钮之间的间距 */
+  width: 100%;
+  /* 使容器占满父容器的宽度 */
+}
+
+/* “登录”和“注册”按钮的统一样式 */
+.auth-btn {
+  /* 移除最小宽度和固定高度 */
+  min-width: unset;
+  height: unset;
+  /* 保持按钮文字的原始大小写和字体大小 */
+  text-transform: none;
+  font-size: 14px;
+  /* 调整内边距以减小按钮尺寸 */
+  padding: 0 8px;
+  border-radius: 4px;
+}
+
+/* 确保按钮在小屏下不显示 */
+@media (max-width: 600px) {
+  .auth-buttons {
+    display: none;
   }
-}
-
-/* 小屏 */
-@media (max-width: 800px) {
-  .icon-btn {
-    width: 36px;
-    height: 36px;
-  }
-}
-
-/* 确保头像为正圆形 */
-.avatar-circle {
-  border-radius: 50% !important;
-  overflow: hidden !important;
-  aspect-ratio: 1/1 !important;
-  width: v-bind(iconSize + 'px') !important;
-  height: v-bind(iconSize + 'px') !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.avatar-image {
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: 50% !important;
-  object-fit: cover !important;
-  aspect-ratio: 1/1 !important;
-}
-
-/* 修复Vuetify的overlay和underlay元素，确保它们也是圆形的 */
-:deep(.v-avatar__underlay),
-:deep(.v-btn__overlay),
-:deep(.v-btn__underlay) {
-  border-radius: 50% !important;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-:deep(.v-btn__content) {
-  width: 100% !important;
-  height: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-/* 专门修复未登录状态下头像椭圆形问题 */
-.avatar-container-fix {
-  width: v-bind(iconSize + 'px') !important;
-  height: v-bind(iconSize + 'px') !important;
-  border-radius: 50% !important;
-  min-width: v-bind(iconSize + 'px') !important;
-  max-width: v-bind(iconSize + 'px') !important;
-  min-height: v-bind(iconSize + 'px') !important;
-  max-height: v-bind(iconSize + 'px') !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-}
-
-.avatar-container-fix :deep(.v-btn__content) {
-  padding: 0 !important;
-  margin: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-radius: 50% !important;
-}
-
-/* 确保SVG图像本身是正方形 */
-.avatar-image {
-  min-width: 100% !important;
-  min-height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-  width: 100% !important;
-  height: 100% !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  object-fit: contain !important;
-  box-sizing: border-box !important;
 }
 </style>
