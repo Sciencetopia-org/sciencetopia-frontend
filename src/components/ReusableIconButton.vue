@@ -1,36 +1,15 @@
 <template>
-  <div
-    class="icon-item"
-    @click.prevent="handleClick"
-    role="button"
-    tabindex="0"
-    @keydown.enter.prevent="handleClick"
-    :aria-label="computedLabel"
-  >
-    <!-- Tooltip 根据屏幕大小动态显示 -->
-    <v-tooltip
-      :text="computedLabel"
-      location="bottom"
-      open-delay="300"
-      :disabled="!isSmallScreen"
-    >
+  <div class="icon-item" @click.prevent="handleClick" role="button" tabindex="0" @keydown.enter.prevent="handleClick"
+    :aria-label="computedLabel" :data-tooltip="computedLabel">
+    <v-tooltip :text="computedLabel" location="right" open-delay="300">
       <template v-slot:activator="{ props }">
-        <v-btn
-          v-bind="props"
-          class="icon-btn"
-          variant="plain"
-          :disabled="disabled"
-          :aria-label="computedLabel"
-        >
+        <v-btn v-bind="props" class="icon-btn" variant="text" :disabled="disabled" :aria-label="computedLabel">
           <v-icon :size="computedIconSize">{{ computedIcon }}</v-icon>
         </v-btn>
       </template>
     </v-tooltip>
 
-    <!-- 如果在大屏上还想显示文字，则保留这一行 -->
-    <span v-if="!isSmallScreen && showLabel" class="icon-label">
-      {{ computedLabel }}
-    </span>
+    <!-- 纯图标设计，移除标签显示 -->
   </div>
 </template>
 <script>
@@ -121,55 +100,48 @@ export default {
   align-items: center;
   cursor: pointer;
   position: relative;
+  transition: all 0.2s ease;
 }
 
 /* 按钮本身 */
 .icon-btn {
   width: 48px;
   height: 48px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  border-radius: 50%;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: transparent;
 }
 
 .icon-btn:hover {
-  transform: scale(1.05);
-  background-color: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* 大屏下按钮下方展示文字 */
+.icon-btn:active {
+  transform: scale(0.95);
+}
+
+/* 移除图标下方文字 */
 .icon-label {
-  font-size: 14px;
-  margin-top: 6px;
-  text-align: center;
-  white-space: nowrap;
+  display: none;
 }
 
 /* 中屏 */
 @media (max-width: 1200px) {
   .icon-btn {
-    width: 36px;
-    height: 36px;
-  }
-
-  .icon-label {
-    display: none;
-    /* 中屏隐藏文字，只显示图标 */
+    width: 42px;
+    height: 42px;
   }
 }
 
 /* 小屏 */
 @media (max-width: 800px) {
   .icon-btn {
-    width: 32px;
-    height: 32px;
-  }
-
-  .icon-label {
-    display: none;
-    /* 小屏同样不显示文字 */
+    width: 36px;
+    height: 36px;
   }
 }
 </style>

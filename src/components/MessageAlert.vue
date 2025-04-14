@@ -1,19 +1,9 @@
 <template>
-  <div
-    class="icon-item"
-    role="button"
-    tabindex="0"
-    @keydown.enter.prevent="directMessages"
-  >
+  <div class="icon-item" role="button" tabindex="0" @keydown.enter.prevent="directMessages">
     <!-- 根据登录状态动态显示悬停提示 -->
-    <v-tooltip
-      v-if="!isAuthenticated"
-      text="请先登录以查看信息"
-      location="bottom"
-      open-delay="300"
-    >
+    <v-tooltip v-if="!isAuthenticated" :text="$t('header.toseemessage')" location="right" open-delay="300">
       <template v-slot:activator="{ props }">
-        <v-btn v-bind="props" class="icon-btn" variant="plain" disabled>
+        <v-btn v-bind="props" class="icon-btn" variant="text" disabled>
           <v-icon :size="iconSize">mdi-bell</v-icon>
           <div v-if="messageCount > 0" class="alert-badge">
             {{ messageCount > 99 ? '99+' : messageCount }}
@@ -26,7 +16,7 @@
     <!-- 登录状态下显示下拉菜单 -->
     <v-menu v-else open-on-hover>
       <template v-slot:activator="{ props }">
-        <v-btn v-bind="props" class="icon-btn" variant="plain">
+        <v-btn v-bind="props" class="icon-btn" variant="text">
           <v-icon :size="iconSize">mdi-bell</v-icon>
           <div v-if="messageCount > 0" class="alert-badge">
             {{ messageCount > 99 ? '99+' : messageCount }}
@@ -40,24 +30,18 @@
         <v-list-item variant="plain" @click="directMessages">
           <v-list-item-title>{{
             $t('message.privatemessage')
-          }}</v-list-item-title>
+            }}</v-list-item-title>
         </v-list-item>
-        <v-divider
-          color="text"
-          style="margin-top: 5px; margin-bottom: 5px"
-        ></v-divider>
+        <v-divider color="text" style="margin-top: 5px; margin-bottom: 5px"></v-divider>
         <v-list-item variant="plain" @click="notifications">
           <v-list-item-title>{{
             $t('message.notification')
-          }}</v-list-item-title>
+            }}</v-list-item-title>
         </v-list-item>
       </v-list>
     </v-menu>
 
-    <!-- 根据屏幕大小动态显示文字 -->
-    <span v-if="!computedIsSmallScreen" class="icon-label">{{
-      $t('header.messages')
-    }}</span>
+    <!-- 移除文字说明部分 -->
   </div>
 </template>
 <script>
@@ -130,29 +114,34 @@ export default {
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  /* 显示手型指针 */
   position: relative;
-}
-
-.icon-item:hover .icon-btn {
-  transform: scale(1.05);
-  background-color: rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
 }
 
 .icon-btn {
   width: 48px;
   height: 48px;
-  border-radius: 8px;
+  border-radius: 50%;
   position: relative;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: transparent;
+}
+
+.icon-btn:hover {
+  transform: scale(1.1);
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.icon-btn:active {
+  transform: scale(0.95);
 }
 
 .icon-btn:disabled {
-  cursor: inherit;
-  /* 禁用按钮的手型指针，避免冲突 */
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .alert-badge {
@@ -164,6 +153,11 @@ export default {
   border-radius: 50%;
   padding: 0.3em;
   font-size: 0.7em;
+  min-width: 18px;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .alert-badge-dot {
@@ -176,10 +170,19 @@ export default {
   height: 10px;
 }
 
-.icon-label {
-  font-size: 14px;
-  margin-top: 6px;
-  text-align: center;
-  white-space: nowrap;
+/* 中屏 */
+@media (max-width: 1200px) {
+  .icon-btn {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+/* 小屏 */
+@media (max-width: 800px) {
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
 }
 </style>
