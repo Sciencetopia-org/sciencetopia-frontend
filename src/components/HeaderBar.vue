@@ -1,66 +1,25 @@
 <template>
   <div class="large-header">
     <v-container class="header-grid" fluid>
-      <!-- Logo -->
-      <div class="logo-section">
-        <v-btn variant="plain" class="logo-btn" @click.prevent="backToHomePage">
-          <img
-            :src="isSmallScreen ? smallLogo : largeLogo"
-            alt="Logo"
-            class="responsive-logo"
-          />
-        </v-btn>
-      </div>
-
-      <!-- Search -->
-      <div class="search-section">
-        <v-text-field
-          v-model="searchQuery"
-          :placeholder="$t('searchbar.iwanttolearn')"
-          variant="plain"
-          density="comfortable"
-          hide-details
-          clearable
-          @keydown.enter.prevent="globalSearch"
-          append-inner-icon="mdi-magnify"
-          @click:append-inner="globalSearch"
-          class="search-input"
-        />
-      </div>
-
       <!-- Icons (nav + actions) -->
       <div class="icons-section">
+        <!-- 搜索图标 / Search -->
+        <ReusableIconButton icon="mdi-magnify" :label="$t('header.search')" :iconSize="iconSize"
+          @click="openSearchInput" />
+
         <!-- 趋势 / Trend -->
-        <ReusableIconButton
-          icon="mdi-rss"
-          :label="$t('header.trend')"
-          :iconSize="iconSize"
-          @click="scrollToSection"
-        />
+        <ReusableIconButton icon="mdi-rss" :label="$t('header.trend')" :iconSize="iconSize" @click="scrollToSection" />
 
         <!-- 学习小组 / StudyGroup -->
-        <ReusableIconButton
-          icon="mdi-account-group"
-          :label="$t('header.studygroup')"
-          :iconSize="iconSize"
-          @click="RouteToStudyGroup"
-        />
+        <ReusableIconButton icon="mdi-account-group" :label="$t('header.studygroup')" :iconSize="iconSize"
+          @click="RouteToStudyGroup" />
 
         <!-- 学习计划 / StudyPlan -->
-        <ReusableIconButton
-          icon="mdi-book-open-variant"
-          :label="$t('header.studyplan')"
-          :iconSize="iconSize"
-          @click="handleStudyPlan"
-        />
+        <ReusableIconButton icon="mdi-book-open-variant" :label="$t('header.studyplan')" :iconSize="iconSize"
+          @click="handleStudyPlan" />
 
         <!-- 明/暗模式切换 -->
-        <ReusableIconButton
-          :icon="themeIcon"
-          :label="themeLabel"
-          :iconSize="iconSize"
-          @click="toggleTheme"
-        />
+        <ReusableIconButton :icon="themeIcon" :label="themeLabel" :iconSize="iconSize" @click="toggleTheme" />
 
         <!-- 登录 / Login (handled by LogInPartial) -->
         <LogInPartial :is-small-screen="isSmallScreen" :icon-size="iconSize" />
@@ -71,18 +30,32 @@
 
       <!-- 语言切换栏 -->
       <div class="language-section">
-        <v-select
-          v-model="$i18n.locale"
-          :items="languageOptions"
-          density="comfortable"
-          hide-details
-          variant="plain"
-          class="language-select"
-          @update:model-value="handleLanguageChange"
-          :style="computeLangWidthStyle"
-        />
+        <div class="language-button-container">
+          <v-btn class="language-toggle" variant="text" @click="toggleLanguage"
+            :aria-label="$t('header.languageSwitch')">
+            <v-icon size="24">mdi-translate</v-icon>
+          </v-btn>
+        </div>
       </div>
     </v-container>
+
+    <!-- 搜索对话框 -->
+    <v-dialog v-model="searchDialogOpen" max-width="600px" class="search-dialog">
+      <v-card>
+        <v-card-text>
+          <v-text-field v-model="searchQuery" :placeholder="$t('searchbar.iwanttolearn')" variant="outlined"
+            density="comfortable" hide-details clearable @keydown.enter.prevent="globalSearch"
+            append-inner-icon="mdi-magnify" @click:append-inner="globalSearch" class="search-input-dialog" autofocus />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+  </div>
+
+  <!-- Logo Island -->
+  <div class="logo-island">
+    <v-btn variant="plain" class="logo-btn" @click.prevent="backToHomePage">
+      <img :src="smallLogo" alt="Logo" class="responsive-logo" />
+    </v-btn>
   </div>
 </template>
 
@@ -103,6 +76,7 @@ export default {
     return {
       isDarkThemeEnabled: false,
       searchQuery: '',
+      searchDialogOpen: false,
       largeLogo: require('@/assets/images/logo_banner.png'),
       smallLogo: require('@/assets/images/logo.png'),
       isSmallScreen: window.innerWidth <= 1200,
@@ -138,8 +112,23 @@ export default {
         maxWidth: `${maxW}px`,
       }
     },
+    currentLanguageLabel() {
+      const currentLang = this.languageOptions.find(
+        (item) => item.value === this.$i18n.locale
+      )
+      return currentLang ? currentLang.title : ''
+    },
+    nextLanguageLabel() {
+      const nextLang = this.languageOptions.find(
+        (item) => item.value !== this.$i18n.locale
+      )
+      return nextLang ? nextLang.title : ''
+    },
   },
   methods: {
+    openSearchInput() {
+      this.searchDialogOpen = true
+    },
     handleResize() {
       this.isSmallScreen = window.innerWidth <= 1200
     },
@@ -154,12 +143,7 @@ export default {
       this.$router.push({ name: 'HomePage' })
     },
     scrollToSection() {
-      const section = document.getElementById('feed-section')
-      if (section) {
-        const yOffset = -60
-        const y = section.getBoundingClientRect().top + window.scrollY + yOffset
-        window.scrollTo({ top: y, behavior: 'smooth' })
-      }
+      this.$router.push({ name: 'allFeeds' })
     },
     async globalSearch() {
       const query = this.searchQuery.trim()
@@ -172,6 +156,7 @@ export default {
         query: { q: query },
       }).href
       window.open(path, '_blank')
+      this.searchDialogOpen = false
     },
     RouteToStudyGroup() {
       this.$router.push({ name: 'studyGroupList' })
@@ -183,12 +168,13 @@ export default {
         this.$emit('showStudyPlanDialog', true)
       }
     },
-    handleLanguageChange(val) {
-      this.$i18n.locale = val
-      this.$vuetify.locale.current = val
-      this.$nextTick(() => {
-        this.measureLangTextWidth()
-      })
+    toggleLanguage() {
+      const currentIndex = this.languageOptions.findIndex(
+        (item) => item.value === this.$i18n.locale
+      )
+      const nextIndex = (currentIndex + 1) % this.languageOptions.length
+      this.$i18n.locale = this.languageOptions[nextIndex].value
+      this.$vuetify.locale.current = this.languageOptions[nextIndex].value
     },
     measureLangTextWidth() {
       const tempSpan = document.createElement('span')
@@ -228,119 +214,85 @@ export default {
 
 <style scoped>
 .large-header {
-  background-color: rgba(232, 218, 189, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
+  background-color: #e8dabd;
   z-index: 1000;
-  padding: 16px 0;
-  /* Ensure padding is visible */
-  width: 100%;
-  position: relative;
-  min-height: 80px;
+  position: fixed;
+  left: 16px;
+  /* 确保与logo岛保持最小间距 */
+  top: 154px;
+  /* logo岛的top(64px) + height(70px) + 最小间距(20px) */
+  height: auto;
+  max-height: calc(100vh - 250px);
+  /* 确保不会超出视口，并与logo岛保持距离 */
+  width: 70px;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Logo岛设计 */
+.logo-island {
+  position: fixed;
+  left: 16px;
+  top: 64px;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background-color: #e8dabd;
   display: flex;
   align-items: center;
-  overflow: hidden;
-  /* Fix overflow issues */
+  justify-content: center;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.logo-island:hover {
+  transform: scale(1.05);
 }
 
 .header-grid {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  grid-template-areas: 'logo search icons language';
-  align-items: center;
-  column-gap: 24px;
-  padding: 0 24px;
-  position: relative;
-}
-
-/* Logo区域 */
-.logo-section {
-  grid-area: logo;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: visible;
-}
-
-.logo-btn {
-  height: 100%;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    'icons'
+    'language';
+  gap: 16px;
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.responsive-logo {
-  display: block;
-  transition: all 0.3s ease;
-  height: 64px;
-  width: auto;
-  object-fit: contain;
-  max-height: 100%;
-}
-
-/* 搜索区域 */
-.search-section {
-  grid-area: search;
-  max-width: 600px;
   width: 100%;
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.search-input {
-  background-color: rgba(255, 255, 255, 1);
-  border: none;
-  border-radius: 999px;
-  padding-left: 16px;
-  padding-right: 48px;
-  box-shadow: 0 0 0 0 transparent;
-  position: relative;
-  height: 48px;
-}
-
-.search-input .v-input__slot {
-  border: none !important;
-  box-shadow: none !important;
   height: 100%;
-  display: flex;
-  align-items: center;
-}
-
-.search-input .v-field__append-inner {
-  position: absolute;
-  top: 50%;
-  right: 16px;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.search-input .v-field__append-inner i.v-icon {
-  font-size: 1.25rem;
 }
 
 /* 图标区域 */
 .icons-section {
   grid-area: icons;
   display: flex;
-  flex-wrap: nowrap;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
-  overflow-x: auto;
+  gap: 24px;
+  overflow-y: auto;
+  margin: 10px 0;
+  padding: 10px 0;
 }
 
 .icons-section::-webkit-scrollbar {
-  display: none;
+  width: 3px;
+}
+
+.icons-section::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
 }
 
 .icons-section {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
 /* 语言切换栏 */
@@ -348,112 +300,171 @@ export default {
   grid-area: language;
   display: flex;
   align-items: center;
-  margin-left: 16px;
+  justify-content: center;
+  margin-top: auto;
+  width: 100%;
+  padding: 0 5px;
+  margin-bottom: 16px;
+}
+
+.language-toggle {
+  min-width: 40px !important;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.language-toggle:hover {
+  transform: scale(1.1);
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.language-text {
+  font-weight: bold;
+  font-size: 0.9rem;
+  text-transform: none;
+  padding: 0;
+}
+
+.language-code {
+  margin-left: 8px;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+/* 搜索对话框 */
+.search-dialog {
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.search-input-dialog {
+  background-color: rgba(255, 255, 255, 1);
+  border-radius: 999px;
+  padding: 0 16px;
 }
 
 /* 响应式调整 */
-@media (max-width: 1600px) {
-  .header-grid {
-    grid-template-columns: auto 1fr auto auto;
-  }
-}
-
-@media (max-width: 1200px) {
-  .header-grid {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      'logo icons language'
-      'search search search';
-    row-gap: 12px;
-  }
-
-  .search-section {
-    margin: 0 auto;
-    width: 100%;
-  }
-
-  .icons-section {
-    flex-wrap: nowrap;
-    gap: 12px;
-    justify-content: flex-start;
-  }
-
-  .language-section {
-    margin-left: 24px;
-  }
-
-  .logo-section {
-    margin-top: 14px;
-  }
-}
-
-@media (max-width: 800px) {
-  .header-grid {
-    grid-template-columns: auto;
-    grid-template-areas:
-      'logo'
-      'search'
-      'icons'
-      'language';
-    row-gap: 8px;
-  }
-
+@media (max-width: 768px) {
   .large-header {
-    padding: 10px 16px;
+    width: 60px;
+    top: 144px;
+    /* 调整后的间距计算：60px + 64px + 20px */
+  }
+
+  .logo-island {
+    width: 60px;
+    height: 60px;
   }
 
   .responsive-logo {
-    height: 40px;
-  }
-
-  .search-section {
-    margin: 10px 5px 20px 5px;
-    min-width: 100%;
+    width: 36px;
   }
 
   .icons-section {
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
+    gap: 16px;
+  }
+}
+
+@media (max-height: 600px) {
+  .large-header {
+    top: 154px;
+    /* 保持固定间距 */
+    height: calc(100vh - 250px);
   }
 
-  .language-section {
-    justify-content: center;
-    margin-left: 0;
+  .icons-section {
+    gap: 16px;
   }
 }
 
 .language-select {
   text-align: center;
+  min-width: 60px !important;
+  font-size: 0.8rem;
 }
 
-.nav-section,
-.actions-section {
-  display: flex;
-  align-items: center;
-  margin-top: 5px;
-  margin-bottom: 5px;
+/* 移动端显示的汉堡菜单按钮 */
+.menu-toggle {
+  display: none;
 }
 
-.logo-section {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: visible;
+@media (max-width: 600px) {
+
+  .large-header,
+  .logo-island {
+    transform: translateX(-100px);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  .large-header.menu-open,
+  .logo-island.menu-open {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .menu-toggle {
+    display: block;
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1001;
+    background-color: rgba(232, 218, 189, 0.8);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
 }
 
-.logo-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* 按钮激活态样式 */
+.active-btn {
+  background-color: rgba(206, 184, 136, 0.7);
+  border-radius: 12px;
+  transform: scale(1.05);
 }
 
-.responsive-logo {
-  display: block;
-  transition: all 0.3s ease;
-  height: 64px;
-  width: auto;
-  object-fit: contain;
-  max-height: 100%;
+/* 移除图标按钮文字 */
+:deep(.icon-button-label) {
+  display: none;
+}
+
+/* 为图标按钮添加悬停提示效果 */
+.icon-btn-container {
+  position: relative;
+}
+
+.icon-btn-container:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 85px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  z-index: 1002;
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
 }
 </style>

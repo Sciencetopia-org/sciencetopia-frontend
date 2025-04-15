@@ -2,41 +2,21 @@
   <div class="layout-wrapper">
     <HeaderBar @showStudyPlanDialog="handleDialogClick" />
 
-    <transition name="header-transition">
-      <v-app-bar
-        app
-        fixed
-        dense
-        elevated
-        v-if="scrolledPastHeader"
-        class="thin-app-bar"
-      >
-        <ThinHeaderBar @showStudyPlanDialog="handleDialogClick" />
-      </v-app-bar>
-    </transition>
+    <!-- 移动端汉堡菜单按钮 -->
+    <div v-if="isSmallScreen" class="menu-toggle" @click="toggleMobileMenu">
+      <v-icon>{{ mobileMenuOpen ? 'mdi-close' : 'mdi-menu' }}</v-icon>
+    </div>
 
-    <v-dialog
-      v-model="dialog"
-      persistent
-      :max-width="$vuetify.display.smAndDown ? '100%' : '800px'"
-      :fullscreen="$vuetify.display.smAndDown"
-    >
+    <v-dialog v-model="dialog" persistent :max-width="$vuetify.display.smAndDown ? '100%' : '800px'"
+      :fullscreen="$vuetify.display.smAndDown">
       <v-card>
         <v-card-title>{{ $t('header.studyplan') }}</v-card-title>
         <v-card-text>
-          <LearningPlanner
-            ref="learningPlanner"
-            @update:showStudyPlan="handleShowStudyPlanUpdate"
-          />
+          <LearningPlanner ref="learningPlanner" @update:showStudyPlan="handleShowStudyPlanUpdate" />
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn
-            color="red darken-1"
-            text
-            v-if="showStudyPlan"
-            @click="triggerSavePlan"
-          >
+          <v-btn color="red darken-1" text v-if="showStudyPlan" @click="triggerSavePlan">
             {{ $t('save') }}{{ $t('wordbreaker') }}{{ $t('header.studyplan') }}
           </v-btn>
           <v-btn color="blue darken-1" text @click="closeDialog">{{
@@ -46,15 +26,12 @@
       </v-card>
     </v-dialog>
 
-    <main class="main-content" :class="{ 'pt-16': $vuetify.display.smAndDown }">
+    <main class="main-content" :class="{ 'mobile-content': isSmallScreen }">
       <slot></slot>
     </main>
 
     <div class="footer-container">
-      <transition
-        name="footer-transition"
-        :style="{ height: $vuetify.display.smAndDown ? '8vh' : '6vh' }"
-      >
+      <transition name="footer-transition" :style="{ height: $vuetify.display.smAndDown ? '8vh' : '6vh' }">
         <v-footer app v-if="!showFinalFooter" class="dynamic-footer">
           <FooterBar />
         </v-footer>
@@ -70,7 +47,6 @@
 <script>
 import LearningPlanner from './LearningPlanner.vue'
 import HeaderBar from './HeaderBar.vue'
-import ThinHeaderBar from './ThinHeaderBar.vue'
 import FooterBar from './FooterBar.vue'
 import DefaultFooterBar from './DefaultFooterBar.vue'
 import ScrollToTopButton from './ScrollToTopButton.vue'
@@ -80,7 +56,6 @@ export default {
   components: {
     LearningPlanner,
     HeaderBar,
-    ThinHeaderBar,
     FooterBar,
     DefaultFooterBar,
     ScrollToTopButton,
@@ -90,23 +65,52 @@ export default {
       isLoading: false,
       dialog: false,
       showStudyPlan: false,
-      scrolledPastHeader: false,
       showFinalFooter: false,
+      isSmallScreen: window.innerWidth <= 600,
+      mobileMenuOpen: false,
     }
   },
   mounted() {
-    window.addEventListener('scroll', this.handleScroll)
+    window.addEventListener('resize', this.handleResize)
+    this.handleResize()
+
+    // 添加侧边栏状态到body类
+    document.body.classList.add('sidebar-layout')
   },
   beforeUnmount() {
-    window.removeEventListener('scroll', this.handleScroll)
+    window.removeEventListener('resize', this.handleResize)
+
+    // 移除侧边栏状态
+    document.body.classList.remove('sidebar-layout')
   },
   methods: {
-    handleScroll() {
-      const headerHeight =
-        document.querySelector('.large-header')?.offsetHeight || 0
-      this.scrolledPastHeader = window.scrollY > headerHeight
-      const bottomThreshold = window.scrollY >= 60
-      this.showFinalFooter = bottomThreshold
+    handleResize() {
+      this.isSmallScreen = window.innerWidth <= 600
+
+      // 更新HeaderBar状态
+      const header = document.querySelector('.large-header')
+      if (header) {
+        if (this.isSmallScreen && this.mobileMenuOpen) {
+          header.classList.add('menu-open')
+        } else if (this.isSmallScreen && !this.mobileMenuOpen) {
+          header.classList.remove('menu-open')
+        } else {
+          header.classList.remove('menu-open')
+        }
+      }
+    },
+    toggleMobileMenu() {
+      this.mobileMenuOpen = !this.mobileMenuOpen
+      const header = document.querySelector('.large-header')
+      const logo = document.querySelector('.logo-island')
+
+      if (header) {
+        header.classList.toggle('menu-open')
+      }
+
+      if (logo) {
+        logo.classList.toggle('menu-open')
+      }
     },
     triggerSavePlan() {
       this.$refs.learningPlanner.savePlan()
@@ -141,16 +145,60 @@ export default {
 
 .main-content {
   flex: 1;
+  margin-left: 0;
+  /* 移除左侧边距，让内容完全全宽显示 */
   padding: var(--content-padding, 16px);
+  transition: margin-left 0.3s ease;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  background-color: white;
+  background-image: none;
 }
 
-.thin-app-bar {
-  min-height: 80px;
-  /* 确保有足够的高度显示 padding */
-  background-color: rgba(232, 218, 189, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: none;
+.mobile-content {
+  margin-left: 0;
+  padding-top: 60px;
+  /* 为移动设备上的汉堡菜单腾出空间 */
+}
+
+.menu-toggle {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1001;
+  background-color: rgba(232, 218, 189, 0.8);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .main-content {
+    margin-left: 0;
+    --content-padding: 8px;
+  }
+
+  .menu-toggle {
+    display: flex;
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1001;
+    background-color: rgba(232, 218, 189, 0.8);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+  }
 }
 
 .header-container {
@@ -222,11 +270,7 @@ body.modal-open .main-content {
 @media (max-width: 600px) {
   .main-content {
     --content-padding: 8px;
-  }
-
-  .thin-app-bar {
-    min-height: 80px;
-    /* 确保有足够的高度显示 padding */
+    margin-left: 0;
   }
 
   .dynamic-footer {
@@ -241,16 +285,6 @@ body.modal-open .main-content {
 }
 
 @media (min-width: 961px) {
-  .main-content {
-    --content-padding: 24px;
-  }
-}
-
-@media (max-width: 1600px) {
-  .header-btn {
-    padding: 0px;
-  }
-
   .dot-col .dot {
     font-size: 12px;
   }

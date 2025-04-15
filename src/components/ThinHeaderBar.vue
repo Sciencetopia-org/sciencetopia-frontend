@@ -4,47 +4,23 @@
       <!-- Logo -->
       <div class="logo-section">
         <v-btn variant="plain" class="logo-btn" @click.prevent="backToHomePage">
-          <img
-            :src="isSmallScreen ? smallLogo : largeLogo"
-            alt="Logo"
-            class="responsive-logo"
-          />
+          <img :src="isSmallScreen ? smallLogo : largeLogo" alt="Logo" class="responsive-logo" />
         </v-btn>
       </div>
 
       <!-- Search -->
       <div class="search-section">
-        <v-text-field
-          v-model.trim="searchQuery"
-          :placeholder="$t('searchbar.iwanttolearn')"
-          variant="plain"
-          density="comfortable"
-          hide-details
-          clearable
-          @keydown.enter.prevent="globalSearch"
-          append-inner-icon="mdi-magnify"
-          @click:append-inner="globalSearch"
-          class="search-input"
-        />
+        <v-text-field v-model.trim="searchQuery" :placeholder="$t('searchbar.iwanttolearn')" variant="plain"
+          density="comfortable" hide-details clearable @keydown.enter.prevent="globalSearch"
+          append-inner-icon="mdi-magnify" @click:append-inner="globalSearch" class="search-input" />
       </div>
 
       <!-- Icons (nav + actions) -->
       <div class="icons-section">
-        <ReusableIconButton
-          v-for="(item, index) in navItems"
-          :key="index"
-          :icon="item.icon"
-          :label="item.label"
-          :iconSize="iconSize"
-          @click="item.action"
-        />
+        <ReusableIconButton v-for="(item, index) in navItems" :key="index" :icon="item.icon" :label="item.label"
+          :iconSize="iconSize" @click="item.action" />
 
-        <ReusableIconButton
-          :icon="themeIcon"
-          :label="themeLabel"
-          :iconSize="iconSize"
-          @click="toggleTheme"
-        />
+        <ReusableIconButton :icon="themeIcon" :label="themeLabel" :iconSize="iconSize" @click="toggleTheme" />
 
         <LogInPartial :is-small-screen="isSmallScreen" :icon-size="iconSize" />
         <MessageAlert :is-small-screen="isSmallScreen" :icon-size="iconSize" />
@@ -52,16 +28,8 @@
 
       <!-- 语言切换栏 -->
       <div class="language-section">
-        <v-select
-          v-model="currentLocale"
-          :items="languageOptions"
-          density="comfortable"
-          hide-details
-          variant="plain"
-          class="language-select"
-          @update:model-value="handleLanguageChange"
-          :style="computeLangWidthStyle"
-        />
+        <v-select v-model="currentLocale" :items="languageOptions" density="comfortable" hide-details variant="plain"
+          class="language-select" @update:model-value="handleLanguageChange" :style="computeLangWidthStyle" />
       </div>
     </v-container>
   </div>
@@ -167,12 +135,7 @@ export default {
     },
 
     scrollToSection() {
-      const section = document.getElementById('feed-section')
-      if (section) {
-        const yOffset = -60
-        const y = section.getBoundingClientRect().top + window.scrollY + yOffset
-        window.scrollTo({ top: y, behavior: 'smooth' })
-      }
+      this.$router.push({ name: 'allFeeds' })
     },
 
     RouteToStudyGroup() {
@@ -254,20 +217,17 @@ export default {
 
 <style scoped>
 .large-header {
-  background-color: rgba(232, 218, 189, 0.6);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background-color: #e8dabd;
+  /* 移除模糊效果和透明度 */
   transition: all 0.3s ease;
   z-index: 1000;
   padding: 16px 0;
-  /* Ensure padding is visible */
   width: 100%;
   position: relative;
   min-height: 80px;
   display: flex;
   align-items: center;
   overflow: hidden;
-  /* Fix overflow issues */
 }
 
 .header-grid {
