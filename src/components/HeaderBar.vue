@@ -40,7 +40,7 @@
     </v-container>
 
     <!-- 搜索对话框 -->
-    <v-dialog v-model="searchDialogOpen" max-width="600px" class="search-dialog">
+    <!-- <v-dialog v-model="searchDialogOpen" max-width="600px" class="search-dialog">
       <v-card>
         <v-card-text>
           <v-text-field v-model="searchQuery" :placeholder="$t('searchbar.iwanttolearn')" variant="outlined"
@@ -48,7 +48,7 @@
             append-inner-icon="mdi-magnify" @click:append-inner="globalSearch" class="search-input-dialog" autofocus />
         </v-card-text>
       </v-card>
-    </v-dialog>
+    </v-dialog> -->
   </div>
 
   <!-- Logo Island -->
@@ -64,6 +64,7 @@ import { debounce } from 'lodash-es'
 import MessageAlert from './MessageAlert.vue'
 import LogInPartial from './LogInPartial.vue'
 import ReusableIconButton from './ReusableIconButton.vue'
+import { eventBus } from '@/eventBus'
 
 export default {
   name: 'HeaderBar',
@@ -76,7 +77,6 @@ export default {
     return {
       isDarkThemeEnabled: false,
       searchQuery: '',
-      searchDialogOpen: false,
       largeLogo: require('@/assets/images/logo_banner.png'),
       smallLogo: require('@/assets/images/logo.png'),
       isSmallScreen: window.innerWidth <= 1200,
@@ -127,7 +127,7 @@ export default {
   },
   methods: {
     openSearchInput() {
-      this.searchDialogOpen = true
+      eventBus.emit('show-search-bar')
     },
     handleResize() {
       this.isSmallScreen = window.innerWidth <= 1200
@@ -145,19 +145,19 @@ export default {
     scrollToSection() {
       this.$router.push({ name: 'allFeeds' })
     },
-    async globalSearch() {
-      const query = this.searchQuery.trim()
-      if (!query) {
-        console.log('Search query is empty!')
-        return
-      }
-      const path = this.$router.resolve({
-        name: 'searchList',
-        query: { q: query },
-      }).href
-      window.open(path, '_blank')
-      this.searchDialogOpen = false
-    },
+    // async globalSearch() {
+    //   const query = this.searchQuery.trim()
+    //   if (!query) {
+    //     console.log('Search query is empty!')
+    //     return
+    //   }
+    //   const path = this.$router.resolve({
+    //     name: 'searchList',
+    //     query: { q: query },
+    //   }).href
+    //   window.open(path, '_blank')
+    //   this.searchDialogOpen = false
+    // },
     RouteToStudyGroup() {
       this.$router.push({ name: 'studyGroupList' })
     },

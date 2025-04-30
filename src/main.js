@@ -1,6 +1,6 @@
 /* Set up using Vue 3 */
 import { createApp } from 'vue'
-import store from './store'
+import store from './store/store'
 import App from './App.vue'
 import i18n from './i18n'
 import GlobalLoader from './components/GlobalLoader.vue'

@@ -1,8 +1,8 @@
 // router.js
 import { createRouter, createWebHistory } from 'vue-router'
-import store from '@/store.js'
+import store from '@/store/store.js'
 import HomePageVue from '@/views/HomePage.vue'
-import SearchListPage from '@/views/SearchListPage.vue'
+// import SearchListPage from '@/views/SearchListPage.vue'
 import LogIn from '@/components/LogIn.vue'
 import ReGister from '@/components/ReGister.vue'
 import PersonalCenter from '@/components/PersonalCenter.vue'
@@ -18,6 +18,9 @@ import AboutUs from '@/components/AboutUs.vue'
 import ContactUs from '@/components/ContactUs.vue'
 import TestHeight from '@/components/TestHeight.vue'
 import StudyPlanDetail from '@/components/StudyPlanDetail.vue'
+// import SearchBarVue from '@/components/search/SearchBar.vue'
+// import SearchResultItemVue from '@/components/search/SearchResultItem.vue'
+import SearchResultsVue from '@/components/search/SearchResults.vue'
 
 const routes = [
   {
@@ -33,8 +36,8 @@ const routes = [
   {
     path: '/search',
     name: 'searchList',
-    component: SearchListPage,
-    props: true,
+    component: SearchResultsVue,
+    props: route => ({ query: route.query.q }),
   },
   {
     path: '/login',

@@ -1,5 +1,5 @@
 import { HubConnectionBuilder } from '@microsoft/signalr'
-import store from '@/store'
+import store from '@/store/store'
 
 let connection = null
 

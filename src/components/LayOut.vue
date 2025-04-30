@@ -1,5 +1,6 @@
 <template>
   <div class="layout-wrapper">
+    <SearchBar v-if="searchBarVisible" />
     <HeaderBar @showStudyPlanDialog="handleDialogClick" />
 
     <!-- 移动端汉堡菜单按钮 -->
@@ -47,9 +48,11 @@
 <script>
 import LearningPlanner from './LearningPlanner.vue'
 import HeaderBar from './HeaderBar.vue'
+import SearchBar from './search/SearchBar.vue'
 import FooterBar from './FooterBar.vue'
 import DefaultFooterBar from './DefaultFooterBar.vue'
 import ScrollToTopButton from './ScrollToTopButton.vue'
+import { eventBus } from '@/eventBus'
 
 export default {
   name: 'LayOut',
@@ -57,6 +60,7 @@ export default {
     LearningPlanner,
     HeaderBar,
     FooterBar,
+    SearchBar,
     DefaultFooterBar,
     ScrollToTopButton,
   },
@@ -68,17 +72,24 @@ export default {
       showFinalFooter: false,
       isSmallScreen: window.innerWidth <= 600,
       mobileMenuOpen: false,
+      searchBarVisible: false,
     }
   },
   mounted() {
     window.addEventListener('resize', this.handleResize)
     this.handleResize()
 
+    eventBus.on('show-search-bar', this.showSearchBar)
+    eventBus.on('hide-search-bar', this.hideSearchBar)
+
     // 添加侧边栏状态到body类
     document.body.classList.add('sidebar-layout')
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.handleResize)
+
+    eventBus.off('show-search-bar', this.showSearchBar)
+    eventBus.off('hide-search-bar', this.hideSearchBar)
 
     // 移除侧边栏状态
     document.body.classList.remove('sidebar-layout')
@@ -125,6 +136,12 @@ export default {
     handleDialogClick() {
       this.dialog = true
       console.log('Dialog clicked')
+    },
+    showSearchBar() {
+      this.searchBarVisible = true
+    },
+    hideSearchBar() {
+      this.searchBarVisible = false
     },
   },
 }

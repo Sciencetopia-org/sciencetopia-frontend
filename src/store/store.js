@@ -219,7 +219,7 @@ export default createStore({
         return response.data.avatarUrl
       } catch (error) {
         console.error('Error fetching avatar URL:', error)
-        return require('@/assets/images/default_avatar.png') // Fallback avatar
+        return (await import('@/assets/images/default_avatar.png')).default // Fallback avatar
       }
     },
     async fetchUserInfoById(_, userId) {
