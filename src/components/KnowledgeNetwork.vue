@@ -182,7 +182,7 @@ export default {
       contextMenuState,
       hideContextMenu,
       showFavoritedNodes,
-    } = useKnowledgeGraph('/KnowledgeGraph/GetNodes')
+    } = useKnowledgeGraph('/KnowledgeGraph/GetNodeInView')
 
     const isFavorited = ref(false)
 
