@@ -20,8 +20,6 @@ export default function useKnowledgeGraph(endpoint) {
   let link, node, svg, labels, zoom, simulation
   const selectedNodes = computed(() => store.state.selectedNodes)
   let currentZoomLevel = 1
-  // let lastZoomLevel = 1; // 或者根据你的需求赋予一个默认值
-  // let lastParentIds = [];  // 初始化为空数组，或你想要的值
 
   const strokeWidth = 1 // Default stroke width for nodes
   const linkColor = '#000' // Default link color
@@ -235,78 +233,10 @@ export default function useKnowledgeGraph(endpoint) {
     updateVisibilityBasedOnZoom()
   }
 
-  // // 获取当前视图内所有节点的 ID
-  // const getParentIdsInView = () => {
-  //   console.log('getParentIdsInView called, nodes:', nodes.value)
-  //   return nodes.value.map(node => node.id)
-  // }
-
-  // // —— 无序数组相等（把 parentIds 当集合比较）——
-  // function arraysEqualUnordered(a, b) {
-  //   if (a === b) return true
-  //   if (!Array.isArray(a) || !Array.isArray(b)) return false
-  //   if (a.length !== b.length) return false
-  //   const freq = new Map()
-  //   for (const x of a) freq.set(x, (freq.get(x) || 0) + 1)
-  //   for (const y of b) {
-  //     const c = freq.get(y)
-  //     if (!c) return false
-  //     c === 1 ? freq.delete(y) : freq.set(y, c - 1)
-  //   }
-  //   return freq.size === 0
-  // }
-
-  // // —— 连续缩放比例 k 映射到离散层级 ——
-  // // 按你之前的判断顺序：k 小→Subject→Field→Topic→Keyword
-  // function levelOf(k, keywordThreshold, topicThreshold, fieldThreshold) {
-  //   if (k <= fieldThreshold) return 'Subject'
-  //   if (k <= topicThreshold) return 'Field'
-  //   if (k <= keywordThreshold) return 'Topic'
-  //   return 'Keyword'
-  // }
-
-  // // —— 记忆上次触发的层级与父节点 —— 
-  // let lastLevelName = null
-  // let lastParentIds = null
-
-  // // 你原来的 handleZoom（JS 版）
-  // const handleZoom = (event) => {
-  //   currentZoomLevel = event.transform.k
-  //   svg.selectAll('g').attr('transform', event.transform)
-  //   updateVisibilityBasedOnZoom()
-
-  //   const levelName = levelOf(currentZoomLevel, keywordThreshold, topicThreshold, fieldThreshold)
-
-  //   // 获取视图内所有节点并去重
-  //   const currentParentIdsRaw = getParentIdsInView()
-  //   const currentParentIds = Array.from(new Set(currentParentIdsRaw || []))
-
-  //   console.log('currentParentIds:', currentParentIds, 'levelName:', levelName)
-
-  //   // 视图为空则短路（与你的后端“空传空返”一致）
-  //   if (currentParentIds.length === 0) {
-  //     lastLevelName = levelName
-  //     lastParentIds = []
-  //     return
-  //   }
-
-  //   const levelChanged = levelName !== lastLevelName
-  //   const idsChanged = !arraysEqualUnordered(currentParentIds, lastParentIds || [])
-
-  //   // 规则：层级变 AND parentIds 变 才懒加载
-  //   if (levelChanged && idsChanged) {
-  //     fetchLazyLoadData(currentParentIds, levelName)
-  //     lastLevelName = levelName
-  //     lastParentIds = currentParentIds.slice() // 快照
-  //   }
-  // }
-
   const handleZoom = (event) => {
     currentZoomLevel = event.transform.k
     svg.selectAll('g').attr('transform', event.transform)
     updateVisibilityBasedOnZoom()
-
-    // onViewportChanged()
   }
 
   // 根据缩放级别更新节点、标签及链接的显示
@@ -431,66 +361,6 @@ export default function useKnowledgeGraph(endpoint) {
   const MAX_CONCURRENCY = 2           // 同时跑几条请求
   const BATCH_SIZE = 25               // 每批带多少 parentId，避免一次太大
 
-  // // ===== 增量渲染队列，避免每批都全量重绘 =====
-  // const RENDER_BATCH = 180   // 每帧最多合入多少条（可按机器调 120~300）
-  // let renderScheduled = false
-  // const pendingRender = { nodes: [], links: [] }
-
-  // function enqueueRender(newNodes = [], newLinks = []) {
-  //   if (Array.isArray(newNodes) && newNodes.length) pendingRender.nodes.push(...newNodes)
-  //   if (Array.isArray(newLinks) && newLinks.length) pendingRender.links.push(...newLinks)
-  //   if (!renderScheduled) {
-  //     renderScheduled = true
-  //     requestAnimationFrame(flushRender)
-  //   }
-  // }
-
-  // function flushRender() {
-  //   renderScheduled = false
-
-  //   // 1) 一小批增量
-  //   const takeNodes = pendingRender.nodes.splice(0, RENDER_BATCH)
-  //   const takeLinksRaw = pendingRender.links.splice(0, RENDER_BATCH)
-
-  //   // 2) 先合并节点
-  //   if (takeNodes.length) nodes.value.push(...takeNodes)
-
-  //   // 3) 只合并端点都已存在的链接；孤儿边回队列重试
-  //   const knownIds = new Set(nodes.value.map(n => n.id))
-  //   const readyLinks = []
-  //   const orphanLinks = []
-  //   for (const e of takeLinksRaw) {
-  //     const s = typeof e.source === 'object' ? e.source?.id : e.source
-  //     const t = typeof e.target === 'object' ? e.target?.id : e.target
-  //     if (s && t && knownIds.has(s) && knownIds.has(t)) readyLinks.push(e)
-  //     else orphanLinks.push(e)
-  //   }
-  //   if (readyLinks.length) links.value.push(...readyLinks)
-  //   if (orphanLinks.length) pendingRender.links.unshift(...orphanLinks) // 下一帧优先
-
-  //   // 4) 新到某层 → 立即为“下一层”排任务（链式预热）
-  //   if (takeNodes.length) {
-  //     const byLevel = takeNodes.reduce((acc, n) => {
-  //       (acc[n.tagLevel] ||= []).push(n.id)
-  //       return acc
-  //     }, {})
-  //       ; (['Subject', 'Field', 'Topic'].forEach(L => {
-  //         const next = NEXT_OF[L]
-  //         const parents = byLevel[L] || []
-  //         if (next && parents.length) addPreloadTask(next, parents)
-  //       }))
-  //   }
-
-  //   // 5) 一帧一次全量 join
-  //   updateD3Graph(nodes.value, links.value)
-
-  //   // 6) 队列未空 → 下一帧继续
-  //   if (pendingRender.nodes.length || pendingRender.links.length) {
-  //     renderScheduled = true
-  //     requestAnimationFrame(flushRender)
-  //   }
-  // }
-
   // ===== 批渲染队列（保证一批的节点和边同帧进入）=====
   const RENDER_BUNDLES_PER_FRAME = 1  // 每帧吃几批；1 最稳，2 更快
   const pendingBundles = []           // 队列元素：{nodes, links}
@@ -582,7 +452,6 @@ export default function useKnowledgeGraph(endpoint) {
     for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n))
     return out
   }
-  // const computeSig = (ids) => (ids || []).slice().sort().join(',')
 
   // ====== 预加载队列/控制 ======
   const preloadQueue = []
@@ -590,14 +459,6 @@ export default function useKnowledgeGraph(endpoint) {
   let currentGen = 0
   let currentSig = null
   const inflight = new Map()   // key: `${gen}|${sig}|${level}|${batchIndex}` -> AbortController
-
-  // // 你已有：根据当前缩放 k 算层级名
-  // function levelOf(k, keywordThreshold, topicThreshold, fieldThreshold) {
-  //   if (k <= fieldThreshold) return 'Subject'
-  //   if (k <= topicThreshold) return 'Field'
-  //   if (k <= keywordThreshold) return 'Topic'
-  //   return 'Keyword'
-  // }
 
   // 取消所有在飞请求，并回滚 loading 标记
   function abortAllInflight() {
@@ -616,28 +477,6 @@ export default function useKnowledgeGraph(endpoint) {
     pump()
   }
 
-  // // —— 外部会调用：开始/更新预加载（在挂载后或视图改变后调用）——
-  // function startPreloadingFor(parentIds, fromLevelName) {
-  //   // 先取消/回滚旧代，避免旧请求回流 & 重复加载
-  //   abortAllInflight()
-
-  //   const sig = computeSig(parentIds)
-  //   currentSig = sig
-  //   const gen = ++currentGen
-
-  //   preloadQueue.length = 0
-
-  //   const startIdx = Math.max(0, LEVELS.indexOf(fromLevelName))
-  //   const targetIdx = LEVELS.indexOf(TARGET_LEVEL)
-
-  //   for (let i = startIdx + 1; i <= targetIdx; i++) {
-  //     const level = LEVELS[i]
-  //     preloadQueue.push({ gen, sig, level, parentIds })
-  //   }
-  //   pump()
-  //   console.log('Preload started:', { gen, sig, fromLevelName, parentIds, queueLength: preloadQueue.length })
-  // }
-
   // —— 队列执行器（并发控制）——
   function pump() {
     console.log('Pump called, running:', running, 'queue:', preloadQueue)
@@ -646,38 +485,6 @@ export default function useKnowledgeGraph(endpoint) {
       runTask(task)
     }
   }
-
-  // function seedPositionsForNewNodes(incNodes, normLinks) {
-  //   if (!incNodes.length) return
-  //   const byIdNew = new Map(incNodes.map(n => [n.id, n]))
-  //   const pos = new Map(nodes.value.map(n => [n.id, { x: n.x ?? (width.value / 2), y: n.y ?? (height.value / 2) }]))
-  //   const siblingIdx = new Map()  // parentId -> 已分配序号
-
-  //   function placeNear(n, parentId, baseRadius) {
-  //     if (n.x != null && n.y != null) return
-  //     const parentPos = pos.get(parentId)
-  //     if (!parentPos) return
-  //     const i = (siblingIdx.get(parentId) || 0) + 1
-  //     siblingIdx.set(parentId, i)
-  //     const ringSize = 12
-  //     const ring = Math.floor((i - 1) / ringSize)
-  //     const angle = ((i - 1) % ringSize) * (2 * Math.PI / ringSize)
-  //     const r = (baseRadius || 36) + ring * 14
-  //     n.x = parentPos.x + r * Math.cos(angle)
-  //     n.y = parentPos.y + r * Math.sin(angle)
-  //   }
-
-  //   // 只用“本批次边”里与老节点相连的关系来布点
-  //   for (const e of normLinks) {
-  //     const s = idOf(e.source), t = idOf(e.target)
-  //     const sNew = byIdNew.get(s), tNew = byIdNew.get(t)
-  //     const sOld = pos.has(s), tOld = pos.has(t)
-  //     const baseR = n => (n?.tagLevel === 'Keyword' ? 30 : 50)
-
-  //     if (sNew && tOld) placeNear(sNew, t, baseR(sNew))
-  //     if (tNew && sOld) placeNear(tNew, s, baseR(tNew))
-  //   }
-  // }
 
   // —— 用“本次 parent 批次”的几何中心给新节点就近布点 ——
   // parentsBatch: 本次 runTask 的 parentIds（来自上层）
@@ -833,34 +640,6 @@ export default function useKnowledgeGraph(endpoint) {
     inflight.clear()
   }
 
-  // // 懒加载数据函数
-  // const fetchLazyLoadData = async (parentIds = [], zoomLevel = 'Field') => {
-  //   try {
-  //     const response = await apiClient.post('/knowledgegraph/lazyload', {
-  //       parentIds,
-  //       zoomLevel
-  //     })
-  //     const backendData = response.data
-
-  //     const newNodes = backendData.nodes.map(node => ({
-  //       id: node.id,
-  //       name: node.name,
-  //       tagLevel: node.tagLevel || '',
-  //     }))
-  //     const newLinks = backendData.links.map(link => ({
-  //       source: link.source,
-  //       target: link.target,
-  //       relationshipType: link.relation
-  //     }))
-
-  //     nodes.value = [...nodes.value, ...newNodes]
-  //     links.value = [...links.value, ...newLinks]
-  //     updateD3Graph(newNodes, newLinks)
-  //   } catch (error) {
-  //     console.error('Error fetching lazy load data:', error)
-  //   }
-  // }
-
   // 更新选中节点的高亮样式
   function highlightSelectedNodes(selectedNodes) {
     if (node && node.style) {
@@ -874,16 +653,6 @@ export default function useKnowledgeGraph(endpoint) {
       console.error('Node selection is undefined.')
     }
   }
-
-  // // 视图发生“实质改变”（例如平移到新区域、或 parent 集合变化明显）时，重启预热
-  // function onViewportChanged() {
-  //   const parents = Array.from(new Set(getParentIdsInView() || []))
-  //   const sig = computeSig(parents)
-  //   if (sig !== currentSig) {
-  //     const fromLevelName = levelOf(currentZoomLevel, keywordThreshold, topicThreshold, fieldThreshold)
-  //     startPreloadingFor(parents, fromLevelName)
-  //   }
-  // }
 
   // 后台从当前数据出发，按层级链式预热到最底层
   function startFullBackgroundPreload() {
