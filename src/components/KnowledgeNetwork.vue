@@ -321,6 +321,33 @@ export default {
 </script>
 
 <style scoped>
+#cy, #cy * {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+#cy svg { touch-action: none; } /* 移动端/触摸板：禁用浏览器默认触摸平移缩放 */
+
+/* 省略号容器（可选：用于整体淡入） */
+.kg-ellipsis { 
+  pointer-events: none; 
+}
+
+/* 三个点的“跳动 + 渐变”动画 */
+.kg-ellipsis-dot {
+  animation: kg-bounce 1.1s infinite ease-in-out, kg-fade 1.1s infinite ease-in-out;
+  transform-origin: center;
+}
+
+@keyframes kg-bounce {
+  0%, 80%, 100% { transform: translateY(0px) scale(1); }
+  40%           { transform: translateY(-3px) scale(1.06); }
+}
+@keyframes kg-fade {
+  0%, 80%, 100% { opacity: 0.25; }
+  40%           { opacity: 0.9; }
+}
+
 .actions {
   transition: transform 0.1s linear;
   /* Smooth movement */

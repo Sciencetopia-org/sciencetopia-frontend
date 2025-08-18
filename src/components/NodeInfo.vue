@@ -1,14 +1,23 @@
 <template>
   <div>
-    <v-card v-for="(node, index) in selectedNodes" :key="index">
-      <v-card-title>{{ node.name }}</v-card-title>
-      <!-- eslint-disable-next-line vue/no-v-text-v-html-on-component --><v-card-text
-        v-html="node.description.replace(/\n/g, '<br>')"></v-card-text><!-- eslint-disable-next-line vue/no-v-text-v-html-on-component -->
-      <v-card-item v-for="resource in node.resources" :key="resource" class="link-preview-container">
-        <LinkPreview :url="resource.link" />
-      </v-card-item>
-    </v-card>
-    <v-card v-if="selectedNodes.length === 0" class="pb-6">
+    <v-skeleton-loader v-if="loading" type="article, actions" class="mb-2" />
+    <template v-if="!loading">
+      <v-card v-for="(node, index) in detailedSelectedNodes" :key="index">
+        <v-card-title>{{ node.name }}</v-card-title>
+
+        <!-- 描述：允许换行；避免 node.description 为空时报错 -->
+        <v-card-text v-if="node.description" v-html="node.description.replace(/\n/g, '<br>')"></v-card-text>
+        <v-card-text v-else class="text-grey">
+          {{ $t('knowledgeGraph.noDescription') || 'No description.' }}
+        </v-card-text>
+
+        <!-- 资源列表（注意你的返回是数组对象：resource.link） -->
+        <v-card-item v-for="(resource, i) in (node.resources || [])" :key="i" class="link-preview-container">
+          <LinkPreview :url="resource.link || resource" />
+        </v-card-item>
+      </v-card>
+    </template>
+    <v-card v-if="detailedSelectedNodes.length === 0 && !loading" class="pb-6">
       <v-card-text style="color: grey">
         {{ $t('knowledgeGraph.defaultmessage') }}
       </v-card-text>
@@ -18,7 +27,7 @@
 
 <script>
 import { computed } from 'vue'
-import { useStore } from 'vuex'
+import { useSelectedNodeDetails } from '@/composables/useSelectedNodeDetails'
 import LinkPreview from '@/components/LinkPreview.vue' // Assuming you have a LinkPreview component
 
 export default {
@@ -27,11 +36,8 @@ export default {
     LinkPreview,
   },
   setup() {
-    const store = useStore()
-    const selectedNodes = computed(() => store.state.selectedNodes)
-    return {
-      selectedNodes,
-    }
+    const { detailedSelectedNodes, loading, error } = useSelectedNodeDetails({ revalidate: true })
+    return { detailedSelectedNodes, loading, error }
   },
 }
 </script>

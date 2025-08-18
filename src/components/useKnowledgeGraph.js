@@ -4,8 +4,10 @@ import { useStore } from 'vuex'
 import { apiClient } from '@/api'
 import * as d3 from 'd3'
 import { useGlobalLoading } from './GlobalLoader.vue'
+import { useNodeDetailsCache } from '@/composables/useNodeDetailsCache'
 
 export default function useKnowledgeGraph(endpoint) {
+  const { getNodeDetail } = useNodeDetailsCache()
   // Context menu state
   const contextMenuState = reactive({
     visible: false,
@@ -40,6 +42,68 @@ export default function useKnowledgeGraph(endpoint) {
   const { showLoading, hideLoading } = useGlobalLoading()
   const isEditing = computed(() => store.state.isEditing)
 
+  // 省略号层 & 激活中的省略号集合
+  let dotsLayer
+  const activeEllipses = new Map()   // parentId -> { g }
+  let nodeById = new Map()           // id -> node（在 updateD3Graph 里维护）
+
+  function radiusFor(n) {
+    const degree = isNaN(n.degree) ? 0 : n.degree
+    if (n.tagLevel === 'Subject') return 12 + degree * 0.5
+    if (n.tagLevel === 'Field') return 8 + degree * 0.4
+    if (n.tagLevel === 'Topic') return 5 + degree * 0.2
+    return 4 + degree * 0.2
+  }
+
+  // 在父节点上方画省略号（…）
+  function showEllipsisForParent(parentNode) {
+    if (!parentNode || !parentNode.id) return
+    removeEllipsisForParent(parentNode.id)
+
+    const g = dotsLayer.append('g')
+      .attr('class', 'kg-ellipsis')         // 用于动画的 CSS 类
+      .attr('data-parent-id', parentNode.id)
+
+    const spacing = 8   // 点与点的水平间距
+    const r = 2.6       // 小点半径
+    const cx = [-spacing, 0, spacing]
+
+    g.selectAll('circle')
+      .data([0, 1, 2])
+      .enter()
+      .append('circle')
+      .attr('class', 'kg-ellipsis-dot')
+      .attr('r', r)
+      .attr('cx', (i) => cx[i])
+      .attr('cy', 0)
+      .attr('fill', '#bdbdbd')
+      .style('opacity', 0.9)
+      // 通过延迟制造“逐个跳动”的感觉
+      .style('animation-delay', (i) => `${i * 0.15}s`)
+
+    activeEllipses.set(parentNode.id, { g })
+    // 放到正确位置
+    updateSingleEllipsisPosition(parentNode.id)
+  }
+
+  function removeEllipsisForParent(parentId) {
+    const entry = activeEllipses.get(parentId)
+    if (entry) { entry.g.remove(); activeEllipses.delete(parentId) }
+  }
+
+  function updateSingleEllipsisPosition(parentId) {
+    const entry = activeEllipses.get(parentId)
+    const p = nodeById.get(parentId)
+    if (!entry || !p) return
+    const offset = radiusFor(p) + 14        // 在节点上方一点
+    entry.g.attr('transform', `translate(${p.x}, ${p.y - offset})`)
+  }
+
+  // 每一帧把所有省略号挪到父节点的当前位置
+  function updateAllEllipsisPositions() {
+    activeEllipses.forEach((_, pid) => updateSingleEllipsisPosition(pid))
+  }
+
   let resizeObserver
 
   // 根据全屏或容器尺寸更新 SVG 尺寸
@@ -64,21 +128,38 @@ export default function useKnowledgeGraph(endpoint) {
 
   // D3 drag behavior
   const drag = (simulation) => {
+    let startX, startY, moved
+
     function dragstarted(event, d) {
       if (!event.active) simulation.alphaTarget(0.3).restart()
       d.fx = d.x
       d.fy = d.y
-      // 拖拽开始就取消悬停定时，避免误触发加载
-      cancelHoverLazyLoad(d)
+
+      startX = event.x
+      startY = event.y
+      moved = false
+
+      // // 拖拽开始就取消悬停定时，避免误触发加载
+      // cancelHoverLazyLoad(d)
     }
     function dragged(event, d) {
       d.fx = event.x
       d.fy = event.y
+
+      // 移动超过阈值时标记为拖拽
+      if (Math.abs(event.x - startX) > 3 || Math.abs(event.y - startY) > 3) {
+        moved = true
+      }
     }
     function dragended(event, d) {
       if (!event.active) simulation.alphaTarget(0)
       d.fx = null
       d.fy = null
+
+      // 如果没移动，就手动触发点击逻辑
+      if (!moved) {
+        handleNodeClick(event, d)
+      }
     }
     return d3.drag()
       .on('start', dragstarted)
@@ -112,6 +193,9 @@ export default function useKnowledgeGraph(endpoint) {
     node = svg.append('g').selectAll('circle')
     labels = svg.append('g').attr('class', 'labels').selectAll('text')
 
+    // 省略号层：放在 labels 之上更醒目（如需在文字下方，可插到 labels 之前）
+    dotsLayer = svg.append('g').attr('class', 'kg-ellipsis-layer')
+
     await fetchData()
     console.log('Graph data fetched:', nodes.value, links.value)
 
@@ -138,6 +222,7 @@ export default function useKnowledgeGraph(endpoint) {
 
     // id->node 索引，少用 .find
     const id2node = new Map(allNodes.map(n => [n.id, n]))
+    nodeById = id2node
 
     // 节点底色/描边 & 度数
     for (const n of allNodes) {
@@ -188,39 +273,18 @@ export default function useKnowledgeGraph(endpoint) {
       })
       .attr('fill', d => d.color)
       .call(drag(simulation))
-      .on('click', (event, d) => {
-        // —— 保留你的点击逻辑不变 —— 
-        if (store.state.isEditing) {
-          if (store.state.displayNodeCreationForm) {
-            if (confirm('确定离开创建节点页面？创建的节点将不会被保存！')) {
-              store.dispatch('toggleNodeCreationForm', false)
-              store.commit('setSelectedNodes', d)
-            }
-          } else if (store.state.displayLinkCreationForm) {
-            if (confirm('确定离开创建关系页面？创建的关系将不会被保存！')) {
-              store.dispatch('toggleLinkCreationForm', false)
-              store.commit('setSelectedNodes', d)
-            }
-          } else if (event.shiftKey) {
-            const isSelected = store.state.selectedNodes.some(n => n.id === d.id)
-            if (isSelected) store.commit('removeSelectedNode', d)
-            else store.commit('addSelectedNode', d)
-          } else {
-            store.commit('setSelectedNodes', d)
-          }
-        } else {
-          store.commit('setSelectedNodes', d)
-        }
-        // 点击也取消悬停（用户已明确操作）
-        cancelHoverLazyLoad(d)
-      })
       .on('mouseover', (event, d) => {
         // 显示标签（你原有的行为）
         labels.filter(l => l.id === d.id).text(l => l.name)
-        // 👉 开始计时：1s 后按 tagLevel 推断下一层并懒加载
-        scheduleHoverLazyLoad(d)
+        // 鼠标变成手指
+        d3.select(event.currentTarget).style('cursor', 'pointer')
+        // // 👉 开始计时：1s 后按 tagLevel 推断下一层并懒加载
+        // scheduleHoverLazyLoad(d)
+        setTimeout(() => { getNodeDetail(d.id, { revalidate: false }).catch(() => { }) }, 300)
       })
       .on('mouseout', (event, d) => {
+        // 变回鼠标
+        d3.select(event.currentTarget).style('cursor', 'default')
         // 按缩放阈值隐藏标签（保留你原逻辑）
         if (currentZoomLevel <= 0.6 && d.tagLevel !== 'Subject') {
           labels.filter(l => l.id === d.id).text('')
@@ -229,11 +293,13 @@ export default function useKnowledgeGraph(endpoint) {
         } else if (currentZoomLevel <= 3.5 && d.tagLevel === 'Topic') {
           labels.filter(l => l.id === d.id).text('')
         }
-        // 退出悬停：取消定时器
-        cancelHoverLazyLoad(d)
+        // // 退出悬停：取消定时器
+        // cancelHoverLazyLoad(d)
       })
       .on('dblclick', (event, d) => {
         event.stopPropagation()  // prevent zoom or other handlers from firing
+        clearTimeout(clickTimeout)  // 取消单击逻辑
+        clickTimeout = null
         if (!isEditing.value) {
           expandNodeChildren(d)   // Load children of this node’s next level
         }
@@ -347,6 +413,8 @@ export default function useKnowledgeGraph(endpoint) {
     });
     node.attr('cx', d => d.x).attr('cy', d => d.y)
     labels.attr('x', d => d.x).attr('y', d => d.y)
+
+    updateAllEllipsisPositions()
   }
 
   // 获取数据并更新图（兼容两种返回体，并种子去重缓存）
@@ -377,6 +445,55 @@ export default function useKnowledgeGraph(endpoint) {
     } catch (error) {
       console.error('Error fetching data:', error)
     }
+  }
+
+  let clickTimeout = null
+
+  function handleNodeClick(event, d) {
+    // 如果已经有 clickTimeout，说明可能是双击 → 延迟取消
+    if (clickTimeout) {
+      clearTimeout(clickTimeout)
+      clickTimeout = null
+      return
+    }
+
+    clickTimeout = setTimeout(() => {
+      clickTimeout = null
+      // —— 保留你的点击逻辑不变 —— 
+      if (store.state.isEditing) {
+        if (store.state.displayNodeCreationForm) {
+          if (confirm('确定离开创建节点页面？创建的节点将不会被保存！')) {
+            store.dispatch('toggleNodeCreationForm', false)
+            store.commit('setSelectedNodes', d)
+            // 点击后（你原来的选中逻辑之后）：
+            getNodeDetail(d.id, { revalidate: true }).catch(() => { })
+          }
+        } else if (store.state.displayLinkCreationForm) {
+          if (confirm('确定离开创建关系页面？创建的关系将不会被保存！')) {
+            store.dispatch('toggleLinkCreationForm', false)
+            store.commit('setSelectedNodes', d)
+            // 点击后（你原来的选中逻辑之后）：
+            getNodeDetail(d.id, { revalidate: true }).catch(() => { })
+          }
+        } else if (event.shiftKey) {
+          const isSelected = store.state.selectedNodes.some(n => n.id === d.id)
+          if (isSelected) store.commit('removeSelectedNode', d)
+          else store.commit('addSelectedNode', d)
+          // 点击后（你原来的选中逻辑之后）：
+          getNodeDetail(d.id, { revalidate: true }).catch(() => { })
+        } else {
+          store.commit('setSelectedNodes', d)
+          // 点击后（你原来的选中逻辑之后）：
+          getNodeDetail(d.id, { revalidate: true }).catch(() => { })
+        }
+      } else {
+        store.commit('setSelectedNodes', d)
+        // 点击后（你原来的选中逻辑之后）：
+        getNodeDetail(d.id, { revalidate: true }).catch(() => { })
+      }
+      // // 点击也取消悬停（用户已明确操作）
+      // cancelHoverLazyLoad(d)
+    }, 250) // 250ms 内如果有 dblclick 会被清掉
   }
 
   // —— 悬停→1s 后懒加载 ——
@@ -420,8 +537,14 @@ export default function useKnowledgeGraph(endpoint) {
     const nextLevel = NEXT_OF[nodeData.tagLevel]  // deduce next level based on tagLevel
     if (!nextLevel) return  // no deeper level (e.g., node is already Keyword)
 
+    // 双击：在该父节点上方显示动态省略号
+    showEllipsisForParent(nodeData)
+
     // Use the lazy-load queue to fetch children of this node at the next level
     addPreloadTask(nextLevel, [nodeData.id])
+
+    // 兜底清理（避免极端情况下残留）
+    setTimeout(() => removeEllipsisForParent(nodeData.id), 5000)
   }
 
   // ====== 配置 ======
@@ -633,7 +756,6 @@ export default function useKnowledgeGraph(endpoint) {
         inflight.set(key, { controller, level, parents: parentsBatch })
 
         showLoaderWithDelay(level)
-        addSkeletonChildrenFor(level)
 
         try {
           const res = await apiClient.post(
@@ -661,7 +783,7 @@ export default function useKnowledgeGraph(endpoint) {
           })
 
           // 设置 Keyword/Topic 新节点的初始位置在父附近
-          seedPositionsNearParents(incNodes, normalized)
+          seedPositionsNearParents(incNodes, parentsBatch, level)
 
           // 交给增量渲染队列（避免每批全量重绘）
           enqueueBundle(incNodes, incLinks)
@@ -680,7 +802,8 @@ export default function useKnowledgeGraph(endpoint) {
           parentsBatch.forEach(pid => loadingChildrenByParent[level].delete(pid))
           inflight.delete(key)
           hideLoaderNow()
-          removeSkeletonChildrenFor(level)
+          // 完成/失败都移除省略号
+          parentsBatch.forEach(pid => removeEllipsisForParent(pid))
         }
       }
     } finally {
@@ -693,8 +816,6 @@ export default function useKnowledgeGraph(endpoint) {
   let loaderTimer = null
   function showLoaderWithDelay() { clearTimeout(loaderTimer); loaderTimer = setTimeout(() => {/* 显示HUD */ }, 180) }
   function hideLoaderNow() { clearTimeout(loaderTimer); /* 隐藏HUD */ }
-  function addSkeletonChildrenFor(level) { /* 在父节点附近画骨架 */ }
-  function removeSkeletonChildrenFor(level) { /* 移除骨架 */ }
 
   // ====== 供外部调用的帮助函数 ======
   function resetPreloadCaches() {
@@ -870,7 +991,7 @@ export default function useKnowledgeGraph(endpoint) {
       const favoritedNodeIds = new Set(favoriteData.map(node => node.identity))
       node.style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
       labels.style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
-      llink.style('opacity', d =>
+      link.style('opacity', d =>
         favoritedNodeIds.has(idOf(d.source)) && favoritedNodeIds.has(idOf(d.target)) ? 1 : 0.1
       )
     } catch (error) {
