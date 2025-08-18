@@ -68,6 +68,8 @@ export default function useKnowledgeGraph(endpoint) {
       if (!event.active) simulation.alphaTarget(0.3).restart()
       d.fx = d.x
       d.fy = d.y
+      // 拖拽开始就取消悬停定时，避免误触发加载
+      cancelHoverLazyLoad(d)
     }
     function dragged(event, d) {
       d.fx = event.x
@@ -209,6 +211,32 @@ export default function useKnowledgeGraph(endpoint) {
         } else {
           store.commit('setSelectedNodes', d)
         }
+        // 点击也取消悬停（用户已明确操作）
+        cancelHoverLazyLoad(d)
+      })
+      .on('mouseover', (event, d) => {
+        // 显示标签（你原有的行为）
+        labels.filter(l => l.id === d.id).text(l => l.name)
+        // 👉 开始计时：1s 后按 tagLevel 推断下一层并懒加载
+        scheduleHoverLazyLoad(d)
+      })
+      .on('mouseout', (event, d) => {
+        // 按缩放阈值隐藏标签（保留你原逻辑）
+        if (currentZoomLevel <= 0.6 && d.tagLevel !== 'Subject') {
+          labels.filter(l => l.id === d.id).text('')
+        } else if (currentZoomLevel <= 1.5 && !['Subject', 'Field'].includes(d.tagLevel)) {
+          labels.filter(l => l.id === d.id).text('')
+        } else if (currentZoomLevel <= 3.5 && d.tagLevel === 'Topic') {
+          labels.filter(l => l.id === d.id).text('')
+        }
+        // 退出悬停：取消定时器
+        cancelHoverLazyLoad(d)
+      })
+      .on('dblclick', (event, d) => {
+        event.stopPropagation()  // prevent zoom or other handlers from firing
+        if (!isEditing.value) {
+          expandNodeChildren(d)   // Load children of this node’s next level
+        }
       })
 
     // —— 标签 join —— 
@@ -219,10 +247,6 @@ export default function useKnowledgeGraph(endpoint) {
       .attr('alignment-baseline', 'central')
       .style('font-weight', 'bold')
       .style('pointer-events', 'none')
-
-    node.on('mouseover', function (event, d) {
-      labels.filter(l => l.id === d.id).text(l => l.name)
-    })
 
     // —— 轻唤醒力导向（避免 alpha(1) 重启）——
     simulation.nodes(allNodes).on('tick', ticked)
@@ -353,6 +377,51 @@ export default function useKnowledgeGraph(endpoint) {
     } catch (error) {
       console.error('Error fetching data:', error)
     }
+  }
+
+  // —— 悬停→1s 后懒加载 ——
+  // 每个节点一个定时器；鼠标移出/拖拽/点击会取消
+  const hoverTimers = new Map()
+
+  function getNextLevelOf(node) {
+    if (!node || !node.tagLevel) return null
+    return NEXT_OF[node.tagLevel] || null   // 复用你已有的 NEXT_OF：Subject→Field→Topic→Keyword
+  }
+
+  function scheduleHoverLazyLoad(nodeDatum) {
+    const id = nodeDatum?.id
+    if (!id) return
+    // 已有计时则重置
+    cancelHoverLazyLoad(nodeDatum)
+
+    const nextLevel = getNextLevelOf(nodeDatum)
+    if (!nextLevel) return // Keyword 已是最深层
+
+    hoverTimers.set(id, setTimeout(() => {
+      // 严格复用你的懒加载队列，享受并发/批处理/去重保护
+      addPreloadTask(nextLevel, [id])
+      hoverTimers.delete(id)
+    }, 1000)) // 1 秒阈值
+  }
+
+  function cancelHoverLazyLoad(nodeDatum) {
+    const id = nodeDatum?.id
+    if (!id) return
+    const t = hoverTimers.get(id)
+    if (t) {
+      clearTimeout(t)
+      hoverTimers.delete(id)
+    }
+  }
+
+  // Determine and load the children of the given node’s next level
+  const expandNodeChildren = (nodeData) => {
+    if (!nodeData || !nodeData.tagLevel) return
+    const nextLevel = NEXT_OF[nodeData.tagLevel]  // deduce next level based on tagLevel
+    if (!nextLevel) return  // no deeper level (e.g., node is already Keyword)
+
+    // Use the lazy-load queue to fetch children of this node at the next level
+    addPreloadTask(nextLevel, [nodeData.id])
   }
 
   // ====== 配置 ======
@@ -654,30 +723,6 @@ export default function useKnowledgeGraph(endpoint) {
     }
   }
 
-  // 后台从当前数据出发，按层级链式预热到最底层
-  function startFullBackgroundPreload() {
-    const byLevel = nodes.value.reduce((acc, n) => {
-      (acc[n.tagLevel] ||= []).push(n.id)
-      return acc
-    }, {})
-
-    // Subject 现有 → 直接排 Field / Topic / Keyword
-    if (byLevel.Subject?.length) {
-      addPreloadTask('Field', byLevel.Subject)
-      addPreloadTask('Topic', byLevel.Subject)
-      addPreloadTask('Keyword', byLevel.Subject)   // ✅
-    }
-    // Field 现有 → 直接排 Topic / Keyword
-    if (byLevel.Field?.length) {
-      addPreloadTask('Topic', byLevel.Field)
-      addPreloadTask('Keyword', byLevel.Field)     // ✅
-    }
-    // Topic 现有 → 排 Keyword
-    if (byLevel.Topic?.length) {
-      addPreloadTask('Keyword', byLevel.Topic)
-    }
-  }
-
   // Watch selectedNodes 的变化
   watch(() => selectedNodes.value, (newNodes) => {
     highlightSelectedNodes(newNodes)
@@ -692,15 +737,15 @@ export default function useKnowledgeGraph(endpoint) {
       highlightSelectedNodes(selectedNodes.value)
     }
     document.addEventListener('fullscreenchange', handleFullScreenChange)
-
-    // ✅ 不再依赖缩放/视图，直接后台链式加载
-    startFullBackgroundPreload()
   })
 
   onBeforeUnmount(() => {
     resizeObserver.disconnect()
     document.removeEventListener('fullscreenchange', handleFullScreenChange)
     abortAllInflight()
+    // 清理所有悬停定时器
+    hoverTimers.forEach(t => clearTimeout(t))
+    hoverTimers.clear()
   })
 
   const idOf = v => (typeof v === 'object' && v) ? v.id : v
