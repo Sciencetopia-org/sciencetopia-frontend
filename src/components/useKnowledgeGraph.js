@@ -7,6 +7,9 @@ import { useGlobalLoading } from './GlobalLoader.vue'
 import { useNodeDetailsCache } from '@/composables/useNodeDetailsCache'
 
 export default function useKnowledgeGraph(endpoint) {
+  // 用于单/双击判定
+  const lastClick = { id: null, t: 0 }
+  const DOUBLE_CLICK_MS = 280   // 双击判定窗口
   const { getNodeDetail } = useNodeDetailsCache()
   // Context menu state
   const contextMenuState = reactive({
@@ -57,8 +60,8 @@ export default function useKnowledgeGraph(endpoint) {
 
   // 在父节点上方画省略号（…）
   function showEllipsisForParent(parentNode) {
-    if (!parentNode || !parentNode.id) return
-    removeEllipsisForParent(parentNode.id)
+    // if (!parentNode || !parentNode.id) return
+    // removeEllipsisForParent(parentNode.id)
 
     const g = dotsLayer.append('g')
       .attr('class', 'kg-ellipsis')         // 用于动画的 CSS 类
@@ -156,9 +159,21 @@ export default function useKnowledgeGraph(endpoint) {
       d.fx = null
       d.fy = null
 
-      // 如果没移动，就手动触发点击逻辑
       if (!moved) {
-        handleNodeClick(event, d)
+        const now = Date.now()
+        if (lastClick.id === d.id && (now - lastClick.t) < DOUBLE_CLICK_MS) {
+          // —— 识别为双击 —— 
+          lastClick.id = null
+          // 双击只做展开，不触发单击逻辑
+          if (!isEditing.value) {
+            expandNodeChildren(d)        // 走你的懒加载
+          }
+        } else {
+          // —— 单击 —— 
+          lastClick.id = d.id
+          lastClick.t = now
+          handleNodeClick(event, d)
+        }
       }
     }
     return d3.drag()
@@ -298,8 +313,6 @@ export default function useKnowledgeGraph(endpoint) {
       })
       .on('dblclick', (event, d) => {
         event.stopPropagation()  // prevent zoom or other handlers from firing
-        clearTimeout(clickTimeout)  // 取消单击逻辑
-        clickTimeout = null
         if (!isEditing.value) {
           expandNodeChildren(d)   // Load children of this node’s next level
         }
@@ -457,43 +470,40 @@ export default function useKnowledgeGraph(endpoint) {
       return
     }
 
-    clickTimeout = setTimeout(() => {
-      clickTimeout = null
-      // —— 保留你的点击逻辑不变 —— 
-      if (store.state.isEditing) {
-        if (store.state.displayNodeCreationForm) {
-          if (confirm('确定离开创建节点页面？创建的节点将不会被保存！')) {
-            store.dispatch('toggleNodeCreationForm', false)
-            store.commit('setSelectedNodes', d)
-            // 点击后（你原来的选中逻辑之后）：
-            getNodeDetail(d.id, { revalidate: true }).catch(() => { })
-          }
-        } else if (store.state.displayLinkCreationForm) {
-          if (confirm('确定离开创建关系页面？创建的关系将不会被保存！')) {
-            store.dispatch('toggleLinkCreationForm', false)
-            store.commit('setSelectedNodes', d)
-            // 点击后（你原来的选中逻辑之后）：
-            getNodeDetail(d.id, { revalidate: true }).catch(() => { })
-          }
-        } else if (event.shiftKey) {
-          const isSelected = store.state.selectedNodes.some(n => n.id === d.id)
-          if (isSelected) store.commit('removeSelectedNode', d)
-          else store.commit('addSelectedNode', d)
-          // 点击后（你原来的选中逻辑之后）：
-          getNodeDetail(d.id, { revalidate: true }).catch(() => { })
-        } else {
+    // —— 保留你的点击逻辑不变 —— 
+    if (store.state.isEditing) {
+      if (store.state.displayNodeCreationForm) {
+        if (confirm('确定离开创建节点页面？创建的节点将不会被保存！')) {
+          store.dispatch('toggleNodeCreationForm', false)
           store.commit('setSelectedNodes', d)
           // 点击后（你原来的选中逻辑之后）：
           getNodeDetail(d.id, { revalidate: true }).catch(() => { })
         }
+      } else if (store.state.displayLinkCreationForm) {
+        if (confirm('确定离开创建关系页面？创建的关系将不会被保存！')) {
+          store.dispatch('toggleLinkCreationForm', false)
+          store.commit('setSelectedNodes', d)
+          // 点击后（你原来的选中逻辑之后）：
+          getNodeDetail(d.id, { revalidate: true }).catch(() => { })
+        }
+      } else if (event.shiftKey) {
+        const isSelected = store.state.selectedNodes.some(n => n.id === d.id)
+        if (isSelected) store.commit('removeSelectedNode', d)
+        else store.commit('addSelectedNode', d)
+        // 点击后（你原来的选中逻辑之后）：
+        getNodeDetail(d.id, { revalidate: true }).catch(() => { })
       } else {
         store.commit('setSelectedNodes', d)
         // 点击后（你原来的选中逻辑之后）：
         getNodeDetail(d.id, { revalidate: true }).catch(() => { })
       }
-      // // 点击也取消悬停（用户已明确操作）
-      // cancelHoverLazyLoad(d)
-    }, 250) // 250ms 内如果有 dblclick 会被清掉
+    } else {
+      store.commit('setSelectedNodes', d)
+      // 点击后（你原来的选中逻辑之后）：
+      getNodeDetail(d.id, { revalidate: true }).catch(() => { })
+    }
+    // // 点击也取消悬停（用户已明确操作）
+    // cancelHoverLazyLoad(d)
   }
 
   // —— 悬停→1s 后懒加载 ——
@@ -544,7 +554,7 @@ export default function useKnowledgeGraph(endpoint) {
     addPreloadTask(nextLevel, [nodeData.id])
 
     // 兜底清理（避免极端情况下残留）
-    setTimeout(() => removeEllipsisForParent(nodeData.id), 5000)
+    setTimeout(() => removeEllipsisForParent(nodeData.id), 60000)
   }
 
   // ====== 配置 ======
