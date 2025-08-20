@@ -98,11 +98,13 @@ const routes = [
     path: '/allstudygroups',
     name: 'studyGroupList',
     component: StudyGroupList,
+    meta: { background: 'darker' }
   },
   {
     path: '/allfeeds',
     name: 'allFeeds',
     component: () => import('@/components/Feed/FeedList.vue'),
+    meta: { background: 'darker' }
   },
   {
     path: '/feed/:feedId',
