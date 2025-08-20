@@ -37,7 +37,7 @@
               <template v-if="selectedNodes.length > 0">
                 <v-tooltip :text="$t('knowledgeGraph.adjacentnodes')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="graph.value.showAdjacentNodes()">
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showAdjacentNodes">
                       <i class="fas fa-circle-nodes" />
                     </v-btn>
                   </template>
@@ -45,7 +45,8 @@
 
                 <v-tooltip :text="$t('knowledgeGraph.frontnodes')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="graph.value.showPrerequisiteNodes()">
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showPrerequisiteNodes">
+
                       <i class="fas fa-share-nodes" />
                     </v-btn>
                   </template>
@@ -53,7 +54,7 @@
 
                 <v-tooltip :text="$t('knowledgeGraph.backnodes')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="graph.value.showSubsequentNodes()">
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showSubsequentNodes">
                       <i class="fas fa-share-nodes" />
                     </v-btn>
                   </template>
@@ -61,7 +62,7 @@
 
                 <v-tooltip v-if="!isEditing" :text="isFavorited ? $t('knowledgeGraph.removenode') : $t('knowledgeGraph.savenode')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="graph.value.toggleFavorites()">
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="toggleFavorites">
                       <i :class="isFavorited ? 'fas fa-heart-circle-minus' : 'fas fa-heart-circle-plus'" />
                     </v-btn>
                   </template>
@@ -70,7 +71,7 @@
 
               <v-tooltip :text="$t('knowledgeGraph.saved')" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="graph.value.showFavoritedNodes()">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showFavoritedNodes">
                     <i class="fas fa-star" />
                   </v-btn>
                 </template>
@@ -78,7 +79,7 @@
 
               <v-tooltip :text="$t('knowledgeGraph.reset')" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="graph.value.resetView()">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="resetGraphView">
                     <i class="fas fa-arrows-rotate" />
                   </v-btn>
                 </template>
@@ -86,7 +87,7 @@
 
               <v-tooltip :text="$t('edit')" location="top" v-if="!isEditing">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="graph.value.startEditing()">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="startGraphEditing">
                     <i class="fas fa-pen" />
                   </v-btn>
                 </template>
@@ -94,7 +95,7 @@
 
               <v-tooltip :text="$t('canceledit')" location="top" v-if="isEditing">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="graph.value.submitEditing()">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="submitGraphEditing">
                     <i class="fa-solid fa-right-from-bracket highlight-icon" />
                   </v-btn>
                 </template>
@@ -159,6 +160,25 @@ const allTags = ref([])
 // 中心图尺寸控制
 const graphWrap = ref(null)
 const graph = ref(null)
+
+// Safely call methods exposed from KnowledgeNetwork via the graph ref
+function callGraphMethod(name) {
+  const fn = graph.value?.[name]
+  if (typeof fn === 'function') {
+    fn()
+  } else {
+    console.warn(`KnowledgeNetwork method ${name} is not available`, graph.value)
+  }
+}
+
+const showAdjacentNodes = () => callGraphMethod('showAdjacentNodes')
+const showPrerequisiteNodes = () => callGraphMethod('showPrerequisiteNodes')
+const showSubsequentNodes = () => callGraphMethod('showSubsequentNodes')
+const toggleFavorites = () => callGraphMethod('toggleFavorites')
+const showFavoritedNodes = () => callGraphMethod('showFavoritedNodes')
+const resetGraphView = () => callGraphMethod('resetView')
+const startGraphEditing = () => callGraphMethod('startEditing')
+const submitGraphEditing = () => callGraphMethod('submitEditing')
 
 // Exposed state from KnowledgeNetwork for actions in the title bar
 const selectedNodes = computed(() => store.state.selectedNodes)
