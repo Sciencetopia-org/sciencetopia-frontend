@@ -33,7 +33,73 @@
         <v-card class="kgp-card kgp-center-card" elevation="2" rounded="xl">
           <v-card-title class="d-flex align-center justify-space-between">
             <span class="text-subtitle-1 font-weight-medium">知识网络</span>
-            <div class="d-flex ga-2">
+            <div class="d-flex align-center ga-2">
+              <template v-if="selectedNodes.length > 0">
+                <v-tooltip :text="$t('knowledgeGraph.adjacentnodes')" location="top">
+                  <template v-slot:activator="{ props }">
+                    <v-btn variant="text" icon class="mx-1" v-bind="props" @click="showAdjacentNodes">
+                      <i class="fas fa-circle-nodes" />
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+
+                <v-tooltip :text="$t('knowledgeGraph.frontnodes')" location="top">
+                  <template v-slot:activator="{ props }">
+                    <v-btn variant="text" icon class="mx-1" v-bind="props" @click="showPrerequisiteNodes">
+                      <i class="fas fa-share-nodes" />
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+
+                <v-tooltip :text="$t('knowledgeGraph.backnodes')" location="top">
+                  <template v-slot:activator="{ props }">
+                    <v-btn variant="text" icon class="mx-1" v-bind="props" @click="showSubsequentNodes">
+                      <i class="fas fa-share-nodes" />
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+
+                <v-tooltip v-if="!isEditing" :text="isFavorited ? $t('knowledgeGraph.removenode') : $t('knowledgeGraph.savenode')" location="top">
+                  <template v-slot:activator="{ props }">
+                    <v-btn variant="text" icon class="mx-1" v-bind="props" @click="toggleFavorites">
+                      <i :class="isFavorited ? 'fas fa-heart-circle-minus' : 'fas fa-heart-circle-plus'" />
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+              </template>
+
+              <v-tooltip :text="$t('knowledgeGraph.saved')" location="top">
+                <template v-slot:activator="{ props }">
+                  <v-btn variant="text" icon class="mx-1" v-bind="props" @click="showFavoritedNodes">
+                    <i class="fas fa-star" />
+                  </v-btn>
+                </template>
+              </v-tooltip>
+
+              <v-tooltip :text="$t('knowledgeGraph.reset')" location="top">
+                <template v-slot:activator="{ props }">
+                  <v-btn variant="text" icon class="mx-1" v-bind="props" @click="resetGraphView">
+                    <i class="fas fa-arrows-rotate" />
+                  </v-btn>
+                </template>
+              </v-tooltip>
+
+              <v-tooltip :text="$t('edit')" location="top" v-if="!isEditing">
+                <template v-slot:activator="{ props }">
+                  <v-btn variant="text" icon class="mx-1" v-bind="props" @click="startGraphEditing">
+                    <i class="fas fa-pen" />
+                  </v-btn>
+                </template>
+              </v-tooltip>
+
+              <v-tooltip :text="$t('canceledit')" location="top" v-if="isEditing">
+                <template v-slot:activator="{ props }">
+                  <v-btn variant="text" icon class="mx-1" v-bind="props" @click="submitGraphEditing">
+                    <i class="fa-solid fa-right-from-bracket highlight-icon" />
+                  </v-btn>
+                </template>
+              </v-tooltip>
+
               <v-btn size="small" variant="tonal" @click="refreshGraph">刷新</v-btn>
               <v-btn size="small" variant="text" icon="mdi-fullscreen" @click="enterFullscreen" />
             </div>
@@ -70,7 +136,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import KnowledgeNetwork from '@/components/KnowledgeNetwork.vue'
 import NodeInfo from '@/components/NodeInfo.vue'
 import NodeCreationForm from '@/components/NodeCreationForm.vue'
@@ -89,9 +155,34 @@ const zoomLevelItems = ['Keyword', 'Topic', 'Field', 'Subject']
 const selectedTags = ref([])
 const allTags = ref([])
 
+
 // 中心图尺寸控制
 const graphWrap = ref(null)
 const graph = ref(null)
+
+// Safely call methods exposed from KnowledgeNetwork via the graph ref
+function callGraphMethod(name) {
+  const fn = graph.value?.[name]
+  if (typeof fn === 'function') {
+    fn()
+  } else {
+    console.warn(`KnowledgeNetwork method ${name} is not available`, graph.value)
+  }
+}
+
+const showAdjacentNodes = () => callGraphMethod('showAdjacentNodes')
+const showPrerequisiteNodes = () => callGraphMethod('showPrerequisiteNodes')
+const showSubsequentNodes = () => callGraphMethod('showSubsequentNodes')
+const toggleFavorites = () => callGraphMethod('toggleFavorites')
+const showFavoritedNodes = () => callGraphMethod('showFavoritedNodes')
+const resetGraphView = () => callGraphMethod('resetView')
+const startGraphEditing = () => callGraphMethod('startEditing')
+const submitGraphEditing = () => callGraphMethod('submitEditing')
+
+// Exposed state from KnowledgeNetwork for actions in the title bar
+const selectedNodes = computed(() => store.state.selectedNodes)
+const isEditing = computed(() => store.state.isEditing)
+const isFavorited = computed(() => graph.value?.isFavorited?.value || false)
 const graphHeight = ref(480)
 const graphWidth = ref(800)
 const graphKey = ref(0)
@@ -301,5 +392,10 @@ onBeforeUnmount(() => {
     /* 小屏不 sticky，避免遮挡 */
     max-height: none;
   }
+}
+
+.highlight-icon {
+  color: red;
+  font-size: 22px;
 }
 </style>
