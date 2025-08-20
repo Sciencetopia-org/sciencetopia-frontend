@@ -374,7 +374,7 @@ onBeforeUnmount(() => {
 
 .kgp-center-card {
   background-color: #FBF8F2;
-  /* box-shadow: none !important; */
+  box-shadow: none !important;
   height: calc(100vh - var(--footer-vh, 6vh) - 72px);
   padding: 16px;
 }
