@@ -1,5 +1,5 @@
 <template>
-  <v-app id="app" :style="{ '--footer-vh': smAndDown ? '8vh' : '6vh' }">
+  <v-app id="app" :class="pageBackground" :style="{ '--footer-vh': smAndDown ? '8vh' : '6vh' }">
     <component :is="layout">
       <router-view />
     </component>
@@ -28,6 +28,11 @@ export default {
     smAndDown() {
       return this.$vuetify.display.smAndDown
     },
+    pageBackground() {
+      const background = this.$route.meta.background
+      if (background === 'darker') return 'background-darker'
+      return 'background-lighter'
+    }
   },
 }
 </script>
@@ -41,6 +46,14 @@ export default {
   /* background-color: #e8dabd; */
   /* background-image: url('https://www.transparenttextures.com/patterns/cream-dust.png'); */
   overflow: visible;
+}
+
+.background-lighter {
+  background-color: #FBF8F2; /* 你定义的浅色背景 */
+}
+
+.background-darker {
+  background-color: #E7DAC1; /* 深色背景 */
 }
 
 @font-face {

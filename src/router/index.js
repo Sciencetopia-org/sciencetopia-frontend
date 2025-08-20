@@ -32,6 +32,7 @@ const routes = [
     path: '/',
     name: 'HomePage',
     component: HomePageVue,
+    meta: { background: 'lighter' }
   },
   {
     path: '/search',

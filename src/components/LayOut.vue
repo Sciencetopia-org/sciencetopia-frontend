@@ -193,7 +193,7 @@ export default {
   min-width: 0;                 /* 防止溢出 */
   box-sizing: border-box;
   padding: var(--content-padding, 16px);
-  background: white;
+  /* background: white; */
 }
 
 /* 移动端：主内容全宽，不再预留侧栏 */

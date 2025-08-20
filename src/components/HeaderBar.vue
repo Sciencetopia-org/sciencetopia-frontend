@@ -235,6 +235,11 @@ export default {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.logo-btn {
+  padding: 0 !important;
+  top: -16px;
+}
+
 /* Logo岛设计 */
 .logo-island {
   position: fixed;
@@ -365,7 +370,7 @@ export default {
   }
 
   .responsive-logo {
-    width: 36px;
+    padding: 8px;
   }
 
   .icons-section {

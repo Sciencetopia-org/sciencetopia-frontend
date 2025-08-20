@@ -232,19 +232,19 @@ onBeforeUnmount(() => {
 
 .kgp-left-card {
   background-color: #F1E9D7;
-  box-shadow: none !important;
+  /* box-shadow: none !important; */
   padding: 16px;
 }
 
 .kgp-center-card {
   background-color: #FBF8F2;
-  box-shadow: none !important;
+  /* box-shadow: none !important; */
   padding: 16px;
 }
 
 .kgp-right-card {
   background-color: #F1E9D7;
-  box-shadow: none !important;
+  /* box-shadow: none !important; */
   padding: 16px;
 }
 
