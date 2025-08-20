@@ -255,7 +255,7 @@ function onTagSearch(val) {
   }
   tagLoading.value = true
   apiClient
-    .get('/KnowledgeGraph/GetTagsByName', { params: { name: val } })
+    .get('/KnowledgeGraph/SearchTagNames', { params: { query: val } })
     .then(res => {
       const body = res && 'data' in res ? res.data : res
       tagSuggestions.value = body?.data ? body.data : body
