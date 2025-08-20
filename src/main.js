@@ -46,7 +46,7 @@ const vuetify = createVuetify({
         colors: {
           primary: '#000',
           text: '#304E75',
-          background: '#E8DABD',
+          // background: '#E8DABD',
           secondary: '#EC0017',
           yellow: '#E2B43C',
           accent: '#00FFF7',

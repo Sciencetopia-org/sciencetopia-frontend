@@ -1,5 +1,5 @@
 <template>
-  <v-app id="app">
+  <v-app id="app" :style="{ '--footer-vh': smAndDown ? '8vh' : '6vh' }">
     <component :is="layout">
       <router-view />
     </component>
@@ -25,6 +25,9 @@ export default {
       if (layout === 'simplest') return 'SimplestLayOut' // Render directly without layout
       return 'LayOut' // Default layout for all other cases
     },
+    smAndDown() {
+      return this.$vuetify.display.smAndDown
+    },
   },
 }
 </script>
@@ -35,8 +38,8 @@ export default {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: #2c3e50;
-  background-color: #e8dabd;
-  background-image: url('https://www.transparenttextures.com/patterns/cream-dust.png');
+  /* background-color: #e8dabd; */
+  /* background-image: url('https://www.transparenttextures.com/patterns/cream-dust.png'); */
   overflow: visible;
 }
 

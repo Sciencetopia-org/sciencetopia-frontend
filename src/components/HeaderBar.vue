@@ -214,7 +214,7 @@ export default {
 
 <style scoped>
 .large-header {
-  background-color: #e8dabd;
+  background-color: #DFCBA4;
   z-index: 1000;
   position: fixed;
   left: 16px;
@@ -243,7 +243,7 @@ export default {
   width: 70px;
   height: 70px;
   border-radius: 50%;
-  background-color: #e8dabd;
+  background-color: #DFCBA4;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -2,7 +2,7 @@
   <div>
     <v-skeleton-loader v-if="loading" type="article, actions" class="mb-2" />
     <template v-if="!loading">
-      <v-card v-for="(node, index) in detailedSelectedNodes" :key="index">
+      <div v-for="(node, index) in detailedSelectedNodes" :key="index">
         <v-card-title>{{ node.name }}</v-card-title>
 
         <!-- 描述：允许换行；避免 node.description 为空时报错 -->
@@ -15,13 +15,13 @@
         <v-card-item v-for="(resource, i) in (node.resources || [])" :key="i" class="link-preview-container">
           <LinkPreview :url="resource.link || resource" />
         </v-card-item>
-      </v-card>
+      </div>
     </template>
-    <v-card v-if="detailedSelectedNodes.length === 0 && !loading" class="pb-6">
+    <div v-if="detailedSelectedNodes.length === 0 && !loading" class="pb-6">
       <v-card-text style="color: grey">
         {{ $t('knowledgeGraph.defaultmessage') }}
       </v-card-text>
-    </v-card>
+    </div>
   </div>
 </template>
 
