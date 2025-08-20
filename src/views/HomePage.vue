@@ -9,17 +9,28 @@
           <v-card-title class="text-body-1 py-3">标签索引</v-card-title>
           <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
           <v-card-text>
-            <v-text-field
+            <v-autocomplete
               v-model="tagSearch"
+              :items="tagSuggestions"
               density="comfortable"
               variant="outlined"
               hide-details
               clearable
               placeholder="搜索标签..."
               prepend-inner-icon="mdi-magnify"
+              :loading="tagLoading"
+              @update:search="onTagSearch"
+              @update:modelValue="addTag"
+              @click:prepend-inner="filterByTags"
             />
             <div class="d-flex flex-wrap gap-2 mt-2">
-              <v-chip size="small" v-for="t in sampleChips" :key="t">{{ t }}</v-chip>
+              <v-chip
+                size="small"
+                v-for="t in selectedTags"
+                :key="t"
+                closable
+                @click:close="removeTag(t)"
+              >{{ t }}</v-chip>
             </div>
           </v-card-text>
         </v-card>
@@ -28,15 +39,16 @@
           <v-card-title class="text-body-1 py-3">标签结构</v-card-title>
           <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
           <v-card-text class="pt-3">
-            <!-- 用你的树形/筛选组件替换这里 -->
-            <v-expansion-panels multiple variant="accordion" class="kgp-filter-group">
-              <v-expansion-panel>
-                <v-expansion-panel-title>学科分类体系</v-expansion-panel-title>
-                <v-expansion-panel-text>
-                  <v-list density="compact" nav>
-                    <v-list-item v-for="i in 8" :key="i" :title="`分类 ${i}`" />
-                  </v-list>
-                </v-expansion-panel-text>
+            <v-expansion-panels
+              v-model="activeTagSystem"
+              variant="accordion"
+              class="kgp-filter-group"
+            >
+              <v-expansion-panel
+                v-for="(sys, i) in tagSystems"
+                :key="sys"
+              >
+                <v-expansion-panel-title>{{ sys }}</v-expansion-panel-title>
               </v-expansion-panel>
             </v-expansion-panels>
           </v-card-text>
@@ -179,7 +191,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue'
 import KnowledgeNetwork from '@/components/KnowledgeNetwork.vue'
 import NodeInfo from '@/components/NodeInfo.vue'
 import NodeCreationForm from '@/components/NodeCreationForm.vue'
@@ -187,18 +199,20 @@ import LinkCreationForm from '@/components/LinkCreationForm.vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { eventBus } from '@/eventBus'
+import { apiClient } from '@/api'
 
 const store = useStore()
 const router = useRouter()
 
 // 左列控件
 const tagSearch = ref('')
-const zoomLevel = ref('Field')
-const zoomLevelItems = ['Keyword', 'Topic', 'Field', 'Subject']
+const tagSuggestions = ref([])
+const tagLoading = ref(false)
 const selectedTags = ref([])
-const allTags = ref([])
-
-const sampleChips = ref(['数学', '物理', '化学', '生物', '计算机科学', '人工智能', '数据科学', '机器学习'])
+const tagSystems = ref([])
+const activeTagSystem = ref()
+const selectedTagSystem = ref('')
+const zoomLevel = ref('Field')
 const leftDrawer = ref(false)
 const rightDrawer = ref(false)
 
@@ -232,6 +246,72 @@ const isFavorited = computed(() => graph.value?.isFavorited?.value || false)
 const graphHeight = ref(480)
 const graphWidth = ref(800)
 const graphKey = ref(0)
+
+function onTagSearch(val) {
+  tagSearch.value = val
+  if (!val) {
+    tagSuggestions.value = []
+    return
+  }
+  tagLoading.value = true
+  apiClient
+    .get('/KnowledgeGraph/GetTagsByName', { params: { name: val } })
+    .then(res => {
+      const body = res && 'data' in res ? res.data : res
+      tagSuggestions.value = body?.data ? body.data : body
+    })
+    .catch(e => console.error(e))
+    .finally(() => {
+      tagLoading.value = false
+    })
+}
+
+function addTag(val) {
+  if (val && !selectedTags.value.includes(val)) {
+    selectedTags.value.push(val)
+  }
+  tagSearch.value = ''
+}
+
+function removeTag(t) {
+  selectedTags.value = selectedTags.value.filter(tag => tag !== t)
+}
+
+async function filterByTags() {
+  try {
+    const res = await apiClient.post('/KnowledgeGraph/FilterByTags', {
+      tags: selectedTags.value,
+      tagSystem: selectedTagSystem.value,
+    })
+    const body = res && 'data' in res ? res.data : res
+    const payload = body?.data ? body.data : body
+    graph.value?.loadData(payload)
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+async function fetchTagSystems() {
+  try {
+    const res = await apiClient.get('/KnowledgeGraph/GetTagSystems')
+    const body = res && 'data' in res ? res.data : res
+    const payload = body?.data ? body.data : body
+    tagSystems.value = payload
+    if (payload && payload.length > 0) {
+      activeTagSystem.value = 0
+      selectedTagSystem.value = payload[0]
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+watch(activeTagSystem, (idx) => {
+  if (tagSystems.value[idx]) {
+    selectedTagSystem.value = tagSystems.value[idx]
+    filterByTags()
+  }
+})
 
 let rafId = 0
 function scheduleMeasure() {
@@ -288,22 +368,6 @@ function enterFullscreen() {
   // 如果你的图支持全屏 API，可在这里实现
 }
 
-function applyFilters() {
-  if (graph.value && typeof graph.value.applyFilters === 'function') {
-    graph.value.applyFilters({
-      search: tagSearch.value,
-      tags: selectedTags.value,
-      zoomLevel: zoomLevel.value
-    })
-  }
-}
-
-function resetFilters() {
-  tagSearch.value = ''
-  selectedTags.value = []
-  zoomLevel.value = 'Field'
-  applyFilters()
-}
 
 function afterEditOrCreate() {
   refreshGraph()
@@ -315,6 +379,9 @@ function showFeed() {
 
 onMounted(() => {
   eventBus.on('show-feed-section', showFeed)
+  fetchTagSystems().then(() => {
+    filterByTags()
+  })
   // 初次与延迟测量：避免 0×0
   scheduleMeasure()
   setTimeout(scheduleMeasure, 60)

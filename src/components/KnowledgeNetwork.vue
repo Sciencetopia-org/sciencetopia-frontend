@@ -68,6 +68,7 @@ export default {
       svgRef,
       selectedNodes,
       fetchData,
+      loadGraphData,
       showAdjacentNodes,
       showPrerequisiteNodes,
       showSubsequentNodes,
@@ -175,6 +176,7 @@ export default {
       selectedNodes,
       isFavorited,
       isEditing,
+      loadData: loadGraphData,
     })
 
     return {
