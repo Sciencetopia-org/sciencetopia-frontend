@@ -3,27 +3,42 @@
   <v-container class="kgp-container" fluid>
     <v-row class="kgp-row g-3">
 
-      <!-- 左列：标签索引 / 筛选 -->
-      <v-col class="kgp-col kgp-left" :cols="12" :md="3" :lg="3" :xl="3">
-        <v-card class="kgp-card kgp-left-card" elevation="2" rounded="xl">
-          <v-card-title class="text-subtitle-1 font-weight-medium">
-            标签索引 & 筛选
-          </v-card-title>
-          <v-card-text class="pt-0">
-            <!-- 你自己的标签树 / 过滤器组件，可替换为真实组件 -->
-            <!-- 示例占位： -->
-            <div class="kgp-filter-group">
-              <v-text-field v-model="tagSearch" density="compact" variant="outlined" placeholder="搜索标签" hide-details
-                clearable class="mb-3" />
-              <v-select v-model="zoomLevel" :items="zoomLevelItems" label="层级 Zoom" density="compact" variant="outlined"
-                hide-details class="mb-3" />
-              <v-autocomplete v-model="selectedTags" :items="allTags" label="按标签过滤(多选)" multiple chips closable-chips
-                density="compact" variant="outlined" hide-details />
-              <div class="d-flex ga-2 mt-3">
-                <v-btn size="small" @click="applyFilters" color="primary" variant="flat">应用</v-btn>
-                <v-btn size="small" @click="resetFilters" variant="tonal">重置</v-btn>
-              </div>
+      <!-- 左列：标签索引 + 结构筛选（卡片组） -->
+      <v-col class="kgp-col kgp-left d-flex flex-column gap-4" :cols="12" :md="3" :lg="3" :xl="3">
+        <v-card class="kgp-card kgp-left-card card-stack" rounded="xl" elevation="2">
+          <v-card-title class="text-body-1 py-3">标签索引</v-card-title>
+          <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
+          <v-card-text>
+            <v-text-field
+              v-model="tagSearch"
+              density="comfortable"
+              variant="outlined"
+              hide-details
+              clearable
+              placeholder="搜索标签..."
+              prepend-inner-icon="mdi-magnify"
+            />
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              <v-chip size="small" v-for="t in sampleChips" :key="t">{{ t }}</v-chip>
             </div>
+          </v-card-text>
+        </v-card>
+
+        <v-card rounded="xl" elevation="2" class="kgp-card kgp-left-card card-stack">
+          <v-card-title class="text-body-1 py-3">标签结构</v-card-title>
+          <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
+          <v-card-text class="pt-3">
+            <!-- 用你的树形/筛选组件替换这里 -->
+            <v-expansion-panels multiple variant="accordion" class="kgp-filter-group">
+              <v-expansion-panel>
+                <v-expansion-panel-title>学科分类体系</v-expansion-panel-title>
+                <v-expansion-panel-text>
+                  <v-list density="compact" nav>
+                    <v-list-item v-for="i in 8" :key="i" :title="`分类 ${i}`" />
+                  </v-list>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-expansion-panels>
           </v-card-text>
         </v-card>
       </v-col>
@@ -133,6 +148,33 @@
       </v-col>
 
     </v-row>
+
+    <!-- 移动端：左侧抽屉（卡片风格内容简化版） -->
+    <v-navigation-drawer v-model="leftDrawer" temporary location="start" width="320" class="d-md-none">
+      <v-card flat>
+        <v-card-title class="py-3">标签</v-card-title>
+        <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
+        <v-card-text>
+          <v-text-field v-model="tagSearch" density="comfortable" variant="outlined" hide-details clearable placeholder="搜索标签..." prepend-inner-icon="mdi-magnify"/>
+          <v-list density="compact" nav class="mt-2">
+            <v-list-item v-for="i in 12" :key="'m-'+i" :title="`标签 ${i}`" />
+          </v-list>
+        </v-card-text>
+      </v-card>
+    </v-navigation-drawer>
+
+    <!-- 移动端：右侧抽屉（复用右栏模块） -->
+    <v-navigation-drawer v-model="rightDrawer" temporary location="end" width="380" class="d-md-none">
+      <v-card flat>
+        <v-card-title class="py-3">{{ rightPanelTitle }}</v-card-title>
+        <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
+        <v-card-text class="pt-3">
+          <v-slide-y-transition mode="out-in">
+            <component :is="currentRightComponent" :key="currentRightKey + '-m'" />
+          </v-slide-y-transition>
+        </v-card-text>
+      </v-card>
+    </v-navigation-drawer>
   </v-container>
 </template>
 
@@ -156,6 +198,9 @@ const zoomLevelItems = ['Keyword', 'Topic', 'Field', 'Subject']
 const selectedTags = ref([])
 const allTags = ref([])
 
+const sampleChips = ref(['数学', '物理', '化学', '生物', '计算机科学', '人工智能', '数据科学', '机器学习'])
+const leftDrawer = ref(false)
+const rightDrawer = ref(false)
 
 // 中心图尺寸控制
 const graphWrap = ref(null)
@@ -316,7 +361,6 @@ onBeforeUnmount(() => {
 .kgp-card {
   position: sticky;
   top: 12px;
-  height: calc(100vh - var(--footer-vh, 6vh) - 72px);
   /* 固定高度 */
   display: flex;
   flex-direction: column;
@@ -331,6 +375,7 @@ onBeforeUnmount(() => {
 .kgp-center-card {
   background-color: #FBF8F2;
   /* box-shadow: none !important; */
+  height: calc(100vh - var(--footer-vh, 6vh) - 72px);
   padding: 16px;
 }
 
