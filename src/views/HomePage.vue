@@ -33,11 +33,11 @@
         <v-card class="kgp-card kgp-center-card" elevation="2" rounded="xl">
           <v-card-title class="d-flex align-center justify-space-between">
             <span class="text-subtitle-1 font-weight-medium">知识网络</span>
-            <div class="d-flex align-center ga-2">
+            <div class="d-flex align-center ga-0">
               <template v-if="selectedNodes.length > 0">
                 <v-tooltip :text="$t('knowledgeGraph.adjacentnodes')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-1" v-bind="props" @click="showAdjacentNodes">
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showAdjacentNodes">
                       <i class="fas fa-circle-nodes" />
                     </v-btn>
                   </template>
@@ -45,7 +45,8 @@
 
                 <v-tooltip :text="$t('knowledgeGraph.frontnodes')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-1" v-bind="props" @click="showPrerequisiteNodes">
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showPrerequisiteNodes">
+
                       <i class="fas fa-share-nodes" />
                     </v-btn>
                   </template>
@@ -53,7 +54,7 @@
 
                 <v-tooltip :text="$t('knowledgeGraph.backnodes')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-1" v-bind="props" @click="showSubsequentNodes">
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showSubsequentNodes">
                       <i class="fas fa-share-nodes" />
                     </v-btn>
                   </template>
@@ -61,7 +62,7 @@
 
                 <v-tooltip v-if="!isEditing" :text="isFavorited ? $t('knowledgeGraph.removenode') : $t('knowledgeGraph.savenode')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-1" v-bind="props" @click="toggleFavorites">
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="toggleFavorites">
                       <i :class="isFavorited ? 'fas fa-heart-circle-minus' : 'fas fa-heart-circle-plus'" />
                     </v-btn>
                   </template>
@@ -70,7 +71,7 @@
 
               <v-tooltip :text="$t('knowledgeGraph.saved')" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-1" v-bind="props" @click="showFavoritedNodes">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showFavoritedNodes">
                     <i class="fas fa-star" />
                   </v-btn>
                 </template>
@@ -78,7 +79,7 @@
 
               <v-tooltip :text="$t('knowledgeGraph.reset')" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-1" v-bind="props" @click="resetGraphView">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="resetGraphView">
                     <i class="fas fa-arrows-rotate" />
                   </v-btn>
                 </template>
@@ -86,7 +87,7 @@
 
               <v-tooltip :text="$t('edit')" location="top" v-if="!isEditing">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-1" v-bind="props" @click="startGraphEditing">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="startGraphEditing">
                     <i class="fas fa-pen" />
                   </v-btn>
                 </template>
@@ -94,7 +95,7 @@
 
               <v-tooltip :text="$t('canceledit')" location="top" v-if="isEditing">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-1" v-bind="props" @click="submitGraphEditing">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="submitGraphEditing">
                     <i class="fa-solid fa-right-from-bracket highlight-icon" />
                   </v-btn>
                 </template>
