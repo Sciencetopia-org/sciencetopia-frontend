@@ -2,113 +2,29 @@
   <GlobalLoader />
   <div ref="svgRef" id="cy" :class="{ 'fullscreen-mode': isFullScreen }"
     :style="{ width: width + 'px', height: height + 'px' }">
-    <!-- Actions Container -->
-    <div class="actions" :style="{ transform: `translateX(${offset}px)` }">
-      <!-- Node Actions Box -->
-      <div class="node-actions-box" v-if="selectedNodes.length > 0">
-        <v-tooltip :text="$t('knowledgeGraph.adjacentnodes')" location="top">
-          <template v-slot:activator="{ props }">
-            <button class="action-button" v-bind="props" @click="showAdjacentNodes">
-              <i class="fas fa-circle-nodes action-icon"></i>
-            </button>
-          </template>
-        </v-tooltip>
-
-        <v-tooltip :text="$t('knowledgeGraph.frontnodes')" location="top">
-          <template v-slot:activator="{ props }">
-            <button class="action-button" v-bind="props" @click="showPrerequisiteNodes">
-              <i class="fas fa-share-nodes action-icon"></i>
-            </button>
-          </template>
-        </v-tooltip>
-
-        <v-tooltip :text="$t('knowledgeGraph.backnodes')" location="top">
-          <template v-slot:activator="{ props }">
-            <button class="action-button" v-bind="props" @click="showSubsequentNodes">
-              <i class="fas fa-share-nodes action-icon"></i>
-            </button>
-          </template>
-        </v-tooltip>
-
-        <v-tooltip v-if="!isEditing" :text="isFavorited
-            ? $t('knowledgeGraph.removenode')
-            : $t('knowledgeGraph.savenode')
-          " location="top">
-          <template v-slot:activator="{ props }">
-            <button class="action-button" v-bind="props" @click="toggleFavorites">
-              <i :class="isFavorited
-                  ? 'fas fa-heart-circle-minus'
-                  : 'fas fa-heart-circle-plus'
-                "></i>
-            </button>
-          </template>
-        </v-tooltip>
-      </div>
-
-      <!-- Common Actions Box (Saved, Reset, Edit) -->
-      <div class="common-actions-box">
-        <v-tooltip :text="$t('knowledgeGraph.saved')" location="top">
-          <template v-slot:activator="{ props }">
-            <button class="action-button" v-bind="props" @click="showFavoritedNodes">
-              <i class="fas fa-star action-icon"></i>
-            </button>
-          </template>
-        </v-tooltip>
-
-        <v-tooltip :text="$t('knowledgeGraph.reset')" location="top">
-          <template v-slot:activator="{ props }">
-            <button class="action-button" v-bind="props" @click="resetView">
-              <i class="fas fa-arrows-rotate action-icon"></i>
-            </button>
-          </template>
-        </v-tooltip>
-
-        <v-tooltip :text="$t('edit')" location="top">
-          <template v-slot:activator="{ props }">
-            <button class="action-button" v-bind="props" @click="startEditing" v-if="!isEditing">
-              <i class="fas fa-pen action-icon"></i>
-            </button>
-          </template>
-        </v-tooltip>
-
-        <v-tooltip :text="$t('canceledit')" location="top" v-if="isEditing">
-          <template v-slot:activator="{ props }">
-            <button class="action-button" v-bind="props" @click="submitEditing">
-              <i class="fa-solid fa-right-from-bracket highlight-icon"></i>
-            </button>
-          </template>
-        </v-tooltip>
-      </div>
-
-      <!-- Default Message Box -->
-      <div class="default-message-box" v-if="defaultMessage">
-        {{ defaultMessage }}
-      </div>
-
-      <!-- Bottom Right Actions -->
-      <div class="bottom-right-actions">
-        <div class="map-actions">
-          <div @mouseover="(showInput(), (overContainer = true))"
-            @mouseleave="() => { overContainer = false; hideInput(); }" class="action-container">
-            <button @click="handleSearch" class="locator-btn">
-              <svg-icon type="mdi" :path="path"></svg-icon>
-            </button>
-            <input v-if="inputVisible" v-model="searchQuery" type="text" :placeholder="$t('knowledgeGraph.locateto')"
-              @input="handleInput" ref="searchInput" class="search-input" />
-          </div>
+    <!-- Bottom Right Actions -->
+    <div class="bottom-right-actions">
+      <div class="map-actions">
+        <div @mouseover="(showInput(), (overContainer = true))"
+          @mouseleave="() => { overContainer = false; hideInput(); }" class="action-container">
+          <button @click="handleSearch" class="locator-btn">
+            <svg-icon type="mdi" :path="path"></svg-icon>
+          </button>
+          <input v-if="inputVisible" v-model="searchQuery" type="text" :placeholder="$t('knowledgeGraph.locateto')"
+            @input="handleInput" ref="searchInput" class="search-input" />
         </div>
-
-        <v-tooltip :text="isFullScreen
-            ? $t('exitfullscreen')
-            : $t('knowledgeGraph.fullscreen')
-          " location="top">
-          <template v-slot:activator="{ props }">
-            <button class="fullscreen-button" v-bind="props" @click="toggleFullScreen">
-              <i :class="isFullScreen ? 'fas fa-compress' : 'fas fa-expand'"></i>
-            </button>
-          </template>
-        </v-tooltip>
       </div>
+
+      <v-tooltip :text="isFullScreen
+          ? $t('exitfullscreen')
+          : $t('knowledgeGraph.fullscreen')
+        " location="top">
+        <template v-slot:activator="{ props }">
+          <button class="fullscreen-button" v-bind="props" @click="toggleFullScreen">
+            <i :class="isFullScreen ? 'fas fa-compress' : 'fas fa-expand'"></i>
+          </button>
+        </template>
+      </v-tooltip>
     </div>
 
     <slot v-if="isFullScreen"></slot>
@@ -122,7 +38,7 @@
 import useKnowledgeGraph from './useKnowledgeGraph'
 import EditGuideDialog from './EditGuideDialog.vue'
 import ContextMenu from './ContextMenu.vue'
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { apiClient } from '@/api'
 import { useStore } from 'vuex'
 import SvgIcon from '@jamescoyle/vue-icon'
@@ -137,7 +53,7 @@ export default {
     ContextMenu,
   },
 
-  setup() {
+  setup(_, { expose }) {
     const store = useStore()
     const searchQuery = ref('')
     const inputVisible = ref(false)
@@ -147,23 +63,6 @@ export default {
 
     const dialogVisible = ref(false)
 
-    // Scroll-related data
-    const offset = ref(0) // Tracks the movement of the actions container
-
-    // Update offset based on scroll
-    const handleScroll = () => {
-      offset.value = window.scrollY * 0.5 // Adjust the multiplier for speed
-    }
-
-    // Add scroll event listener
-    onMounted(() => {
-      window.addEventListener('scroll', handleScroll)
-    })
-
-    // Remove scroll event listener
-    onBeforeUnmount(() => {
-      window.removeEventListener('scroll', handleScroll)
-    })
 
     const {
       svgRef,
@@ -263,15 +162,25 @@ export default {
       store.dispatch('toggleNodeCreationForm', false)
     }
 
-    return {
-      svgRef,
-      selectedNodes,
-      fetchData,
+    // Expose methods and state for external control from parent components
+    expose({
       showAdjacentNodes,
       showPrerequisiteNodes,
       showSubsequentNodes,
       resetView,
       toggleFavorites,
+      startEditing,
+      submitEditing,
+      showFavoritedNodes,
+      selectedNodes,
+      isFavorited,
+      isEditing,
+    })
+
+    return {
+      svgRef,
+      selectedNodes,
+      fetchData,
       handleSearch,
       searchQuery,
       inputVisible,
@@ -292,7 +201,6 @@ export default {
       isFavorited,
       toggleFullScreen,
       isFullScreen,
-      offset,
     }
   },
 
