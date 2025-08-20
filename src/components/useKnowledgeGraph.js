@@ -460,6 +460,22 @@ export default function useKnowledgeGraph(endpoint) {
     }
   }
 
+  const loadGraphData = (payload) => {
+    const newNodes = (payload?.nodes || []).map(n => ({
+      id: n.id,
+      name: n.name,
+      tagLevel: n.tagLevel || '',
+    }))
+
+    const newLinks = (payload?.links || [])
+      .map(normalizeEdge)
+      .filter(l => l.source && l.target)
+
+    nodes.value = newNodes
+    links.value = newLinks
+    updateD3Graph(nodes.value, links.value)
+  }
+
   let clickTimeout = null
 
   function handleNodeClick(event, d) {
@@ -1044,6 +1060,7 @@ export default function useKnowledgeGraph(endpoint) {
     svgRef,
     selectedNodes,
     fetchData,
+    loadGraphData,
     showAdjacentNodes,
     showPrerequisiteNodes,
     showSubsequentNodes,
