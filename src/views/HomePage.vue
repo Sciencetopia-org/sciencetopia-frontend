@@ -9,28 +9,24 @@
           <v-card-title class="text-body-1 py-3">标签索引</v-card-title>
           <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
           <v-card-text>
-            <v-autocomplete
-              v-model="tagSearch"
-              :items="tagSuggestions"
-              density="comfortable"
-              variant="outlined"
-              hide-details
-              clearable
-              placeholder="搜索标签..."
-              prepend-inner-icon="mdi-magnify"
-              :loading="tagLoading"
-              @update:search="onTagSearch"
-              @update:modelValue="addTag"
-              @click:prepend-inner="filterByTags"
-            />
+            <!-- 仅筛选时显示的细进度条 -->
+            <v-progress-linear v-show="filterLoading" indeterminate absolute color="primary" height="2"
+              class="card-top-loader" />
+            <v-autocomplete :key="acKey" v-model="tagSearch" v-model:search="tagSearchQuery" v-model:menu="tagMenuOpen"
+              :items="tagSuggestions" density="comfortable" variant="outlined" hide-details clearable
+              placeholder="搜索标签..." prepend-inner-icon="" :loading="tagLoading" @update:search="onTagSearch"
+              @update:menu="onTagMenuChange" @update:modelValue="addTag" @click:prepend-inner="filterByTags">
+              <!-- 用 slot 自定义放大镜：点击筛选且可显示 loading 动效 -->
+              <template #prepend-inner>
+                <v-btn icon size="small" variant="text" :loading="filterLoading" :disabled="filterLoading"
+                  @click.stop="filterByTags" aria-label="按所选标签筛选">
+                  <v-icon v-if="!filterLoading">mdi-magnify</v-icon>
+                </v-btn>
+              </template>
+            </v-autocomplete>
             <div class="d-flex flex-wrap gap-2 mt-2">
-              <v-chip
-                size="small"
-                v-for="t in selectedTags"
-                :key="t"
-                closable
-                @click:close="removeTag(t)"
-              >{{ t }}</v-chip>
+              <v-chip size="small" v-for="t in selectedTags" :key="t" closable @click:close="removeTag(t)">{{ t
+                }}</v-chip>
             </div>
           </v-card-text>
         </v-card>
@@ -39,15 +35,8 @@
           <v-card-title class="text-body-1 py-3">标签结构</v-card-title>
           <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
           <v-card-text class="pt-3">
-            <v-expansion-panels
-              v-model="activeTagSystem"
-              variant="accordion"
-              class="kgp-filter-group"
-            >
-              <v-expansion-panel
-                v-for="(sys, i) in tagSystems"
-                :key="sys"
-              >
+            <v-expansion-panels v-model="activeTagSystem" variant="accordion" class="kgp-filter-group">
+              <v-expansion-panel v-for="(sys, i) in tagSystems" :key="sys">
                 <v-expansion-panel-title>{{ sys }}</v-expansion-panel-title>
               </v-expansion-panel>
             </v-expansion-panels>
@@ -87,7 +76,8 @@
                   </template>
                 </v-tooltip>
 
-                <v-tooltip v-if="!isEditing" :text="isFavorited ? $t('knowledgeGraph.removenode') : $t('knowledgeGraph.savenode')" location="top">
+                <v-tooltip v-if="!isEditing"
+                  :text="isFavorited ? $t('knowledgeGraph.removenode') : $t('knowledgeGraph.savenode')" location="top">
                   <template v-slot:activator="{ props }">
                     <v-btn variant="text" icon class="mx-0" v-bind="props" @click="toggleFavorites">
                       <i :class="isFavorited ? 'fas fa-heart-circle-minus' : 'fas fa-heart-circle-plus'" />
@@ -167,9 +157,10 @@
         <v-card-title class="py-3">标签</v-card-title>
         <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
         <v-card-text>
-          <v-text-field v-model="tagSearch" density="comfortable" variant="outlined" hide-details clearable placeholder="搜索标签..." prepend-inner-icon="mdi-magnify"/>
+          <v-text-field v-model="tagSearch" density="comfortable" variant="outlined" hide-details clearable
+            placeholder="搜索标签..." prepend-inner-icon="mdi-magnify" />
           <v-list density="compact" nav class="mt-2">
-            <v-list-item v-for="i in 12" :key="'m-'+i" :title="`标签 ${i}`" />
+            <v-list-item v-for="i in 12" :key="'m-' + i" :title="`标签 ${i}`" />
           </v-list>
         </v-card-text>
       </v-card>
@@ -205,8 +196,11 @@ const store = useStore()
 const router = useRouter()
 
 // 左列控件
-const tagSearch = ref('')
+const acKey = ref(0)
+const tagSearch = ref(null)
+const tagSearchQuery = ref('')
 const tagSuggestions = ref([])
+const tagMenuOpen = ref(false)
 const tagLoading = ref(false)
 const selectedTags = ref([])
 const tagSystems = ref([])
@@ -247,8 +241,18 @@ const graphHeight = ref(480)
 const graphWidth = ref(800)
 const graphKey = ref(0)
 
+const filterLoading = ref(false)     // ← 新增：仅用于“筛选”加载态
+const MIN_SPIN = 300                 // 可选：最少展示 300ms，避免闪一下
+
+function onTagMenuChange(open) {
+  // 打开且没有输入时，不展示旧下拉
+  if (open && !tagSearchQuery.value) {
+    tagSuggestions.value = []
+  }
+}
+
 function onTagSearch(val) {
-  tagSearch.value = val
+  tagSearchQuery.value = val
   if (!val) {
     tagSuggestions.value = []
     return
@@ -270,7 +274,14 @@ function addTag(val) {
   if (val && !selectedTags.value.includes(val)) {
     selectedTags.value.push(val)
   }
-  tagSearch.value = ''
+  /// 关键：下一轮 tick 再清空，避免被组件内部同步写回覆盖
+  nextTick(() => {
+    tagSearch.value = null           // 清掉选择值
+    tagSearchQuery.value = ''        // 清掉输入文字
+    tagMenuOpen.value = false        //（可选）收起下拉
+    tagSuggestions.value = []  // 防止再次自动填充
+    acKey.value += 1                 // 重置 autocomplete 组件状态
+  })
 }
 
 function removeTag(t) {
@@ -278,16 +289,65 @@ function removeTag(t) {
 }
 
 async function filterByTags() {
+  // ① 没选标签就不要打请求（很多后端会 400）
+  if (!selectedTags.value || selectedTags.value.length === 0) {
+    // 可选：初次加载/清空时走你的默认加载逻辑
+    if (graph.value?.reload) {
+      graph.value.reload({ zoomLevel: zoomLevel.value, tags: [] })
+    }
+    return
+  }
+
+  filterLoading.value = true;
+  const start = Date.now();
+
+  // axios v1: 用 paramsSerializer.indexes=null 生成 tags=a&tags=b（无 []）
+  const base = {
+    tagSystem: selectedTagSystem.value || '',
+    tags: selectedTags.value
+  }
+
   try {
-    const res = await apiClient.post('/KnowledgeGraph/FilterByTags', {
-      tags: selectedTags.value,
-      tagSystem: selectedTagSystem.value,
+    const res = await apiClient.get('/KnowledgeGraph/FilterByTags', {
+      params: base,
+      paramsSerializer: { indexes: null }  // ✅ 关键：数组不带方括号
     })
-    const body = res && 'data' in res ? res.data : res
-    const payload = body?.data ? body.data : body
-    graph.value?.loadData(payload)
-  } catch (e) {
-    console.error(e)
+    const data = res?.data?.data ?? res?.data
+    graph.value?.loadData(data)
+  } catch (e1) {
+    // ② 回退1：后端可能期望 CSV：tags=a,b
+    if (e1?.response?.status === 400) {
+      try {
+        const res2 = await apiClient.get('/KnowledgeGraph/FilterByTags', {
+          params: {
+            tagSystem: selectedTagSystem.value || '',
+            tags: selectedTags.value.join(',')   // ✅ CSV 形式
+          }
+        })
+        const data2 = res2?.data?.data ?? res2?.data
+        graph.value?.loadData(data2)
+        return
+      } catch (e2) {
+        // ③ 回退2：有些接口参数名叫 tagNames
+        try {
+          const res3 = await apiClient.get('/KnowledgeGraph/FilterByTags', {
+            params: { tagSystem: selectedTagSystem.value || '', tagNames: selectedTags.value },
+            paramsSerializer: { indexes: null }
+          })
+          const data3 = res3?.data?.data ?? res3?.data
+          graph.value?.loadData(data3)
+          return
+        } catch (e3) {
+          console.error('FilterByTags failed (fallbacks exhausted):',
+            e3?.response?.status, e3?.response?.data || e3)
+        }
+      }
+    } else {
+      console.error('FilterByTags failed:', e1?.response?.status, e1?.response?.data || e1)
+    }
+  } finally {
+    const elapsed = Date.now() - start
+    setTimeout(() => { filterLoading.value = false }, Math.max(0, MIN_SPIN - elapsed))
   }
 }
 
@@ -405,7 +465,8 @@ onBeforeUnmount(() => {
 
 /* 行满高布局，列内各卡片使用 sticky 以在滚动时固定标题 */
 .kgp-row {
-  min-height: calc(100vh - 64px); /* 减去 footer 高度 */
+  min-height: calc(100vh - 64px);
+  /* 减去 footer 高度 */
   /* gap: 12px; */
 }
 
@@ -441,9 +502,8 @@ onBeforeUnmount(() => {
 
 .kgp-center-card {
   background-color: #FBF8F2;
-  box-shadow: none !important;
+  /* box-shadow: none !important; */
   height: calc(100vh - var(--footer-vh, 6vh) - 72px);
-  padding: 16px;
 }
 
 .kgp-right-card {
@@ -510,5 +570,12 @@ onBeforeUnmount(() => {
 .highlight-icon {
   color: red;
   font-size: 22px;
+}
+
+.card-top-loader {
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 2;
 }
 </style>
