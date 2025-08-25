@@ -13,12 +13,40 @@
         </button>
       </div>
       <div class="nav-actions">
-        <input
-          v-model="searchQuery"
-          class="search-bar"
-          type="text"
-          placeholder="搜索学习小组"
-        />
+        <div class="search-wrapper">
+          <input
+            v-model="searchQuery"
+            class="search-bar"
+            type="text"
+            placeholder="搜索学习小组"
+            @input="onSearchInput"
+          />
+          <ul v-if="showSuggestions" class="search-suggestions">
+            <li
+              v-for="s in suggestions"
+              :key="s.id"
+              @click="selectSuggestion(s.name)"
+            >
+              {{ s.name }}
+            </li>
+          </ul>
+        </div>
+        <button class="search-btn" @click="performSearch">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
         <button class="create-group-btn" @click="toCreateGroupPage">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -135,11 +163,18 @@ export default {
       ],
       activeNav: 'recommend',
       searchQuery: '',
+      searchTerm: '',
+      showSuggestions: false,
     }
   },
   computed: {
     filteredGroups() {
-      if (!this.searchQuery) return this.groups
+      if (!this.searchTerm) return this.groups
+      const query = this.searchTerm.toLowerCase()
+      return this.groups.filter((g) => g.name.toLowerCase().includes(query))
+    },
+    suggestions() {
+      if (!this.searchQuery) return []
       const query = this.searchQuery.toLowerCase()
       return this.groups.filter((g) => g.name.toLowerCase().includes(query))
     },
@@ -149,6 +184,17 @@ export default {
 
     setActiveNav(value) {
       this.activeNav = value
+    },
+    onSearchInput() {
+      this.showSuggestions = !!this.searchQuery
+    },
+    performSearch() {
+      this.searchTerm = this.searchQuery
+      this.showSuggestions = false
+    },
+    selectSuggestion(name) {
+      this.searchQuery = name
+      this.performSearch()
     },
 
     initMasonry() {
@@ -212,7 +258,7 @@ export default {
     },
   },
   watch: {
-    searchQuery() {
+    searchTerm() {
       this.$nextTick(() => {
         if (this.masonryInstance) {
           this.masonryInstance.layout()
@@ -258,11 +304,49 @@ export default {
   gap: 16px;
 }
 
+.search-wrapper {
+  position: relative;
+}
+
 .search-bar {
   padding: 6px 12px;
   border: 1px solid #ccc;
   border-radius: 16px;
   font-size: 14px;
+}
+
+.search-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-top: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.search-suggestions li {
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.search-suggestions li:hover {
+  background-color: #f0f0f0;
+}
+
+.search-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
 }
 
 .nav-item {
