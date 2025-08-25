@@ -3,7 +3,7 @@
     <div class="feed-list">
       <v-row>
         <v-col cols="12" sm="6" md="4" v-for="feed in feeds" :key="feed.id">
-          <v-card class="feed-card" @click="toFeedDetail(feed.id)">
+          <v-card class="st-card feed-card" @click="toFeedDetail(feed.id)">
             <v-img
               v-if="feed.cover"
               :src="feed.cover"

@@ -56,6 +56,7 @@ const routes = [
     path: '/:userId',
     name: 'personalcenter',
     component: PersonalCenter,
+    meta: { background: 'darker' },
     props: true,
   },
   {
