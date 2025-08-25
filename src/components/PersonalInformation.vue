@@ -69,7 +69,7 @@
 
     <!-- Edit Mode -->
     <v-form v-else ref="form" v-model="valid">
-      <v-card style="width: 600px; margin: 0 auto">
+      <v-card class="st-card">
         <v-card-text>
           <v-container>
             <v-row>
