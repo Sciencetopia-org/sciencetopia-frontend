@@ -1,8 +1,8 @@
 <template>
-  <div class="personal-center-container">
+  <v-container class="personal-center-container" fluid>
     <v-row>
       <!-- Personal Information -->
-      <v-col cols="auto" class="profile-container">
+      <v-col cols="12" md="3" class="profile-container">
         <PersonalInformation :userId="userId">
           <v-btn
             variant="outlined"
@@ -19,7 +19,7 @@
       </v-col>
 
       <!-- Study Plans Section -->
-      <v-col cols="auto" class="study-plan-container">
+      <v-col cols="12" md="5" class="study-plan-container">
         <StudyPlanList
           :isCurrentUser="isCurrentUser"
           :studyPlanDataList="studyPlanDataList"
@@ -27,7 +27,7 @@
       </v-col>
 
       <!-- Study Groups Section -->
-      <v-col cols="auto" class="study-group-container">
+      <v-col cols="12" md="4" class="study-group-container">
         <v-container>
           <v-card-title class="study-group-title">
             {{ isCurrentUser ? $t('usercenter.my') : $t('usercenter.their')
@@ -89,7 +89,7 @@
         </v-container>
       </v-col>
     </v-row>
-  </div>
+  </v-container>
 </template>
 
 <script>
@@ -198,28 +198,19 @@ export default {
 
 <style scoped>
 .personal-center-container {
-  padding-left: 60px;
-  padding-right: 60px;
-  padding-top: 60px;
-  align-items: center;
-  justify-content: center;
+  padding: 16px;
 }
 
-.study-plan-container {
-  width: 47%;
-  height: 76vh;
+@media (min-width: 960px) {
+  .personal-center-container {
+    padding-left: 60px;
+    padding-right: 60px;
+    padding-top: 60px;
+  }
 }
 
 .profile-container {
-  width: 22%;
-  height: 62vh;
   display: flex;
-  /* align-items: center;
-  justify-content: center; */
-}
-
-.study-group-container {
-  width: 30%;
 }
 
 .study-group-title {
