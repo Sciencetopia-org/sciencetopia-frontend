@@ -12,22 +12,31 @@
           {{ item.label }}
         </button>
       </div>
-      <button class="create-group-btn" @click="toCreateGroupPage">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          x="0px"
-          y="0px"
-          width="24"
-          height="24"
-          viewBox="0 0 32 32"
-        >
-          <path
-            d="M 12 2 C 6.4889971 2 2 6.4889971 2 12 C 2 17.511003 6.4889971 22 12 22 C 17.511003 22 22 17.511003 22 12 C 22 6.4889971 17.511003 2 12 2 z M 12 4 C 16.430123 4 20 7.5698774 20 12 C 20 16.430123 16.430123 20 12 20 C 7.5698774 20 4 16.430123 4 12 C 4 7.5698774 7.5698774 4 12 4 z M 11 7 L 11 11 L 7 11 L 7 13 L 11 13 L 11 17 L 13 17 L 13 13 L 17 13 L 17 11 L 13 11 L 13 7 L 11 7 z"
-          ></path></svg
-        >创建学习小组
-      </button>
+      <div class="nav-actions">
+        <input
+          v-model="searchQuery"
+          class="search-bar"
+          type="text"
+          placeholder="搜索学习小组"
+        />
+        <button class="create-group-btn" @click="toCreateGroupPage">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            x="0px"
+            y="0px"
+            width="24"
+            height="24"
+            viewBox="0 0 32 32"
+          >
+            <path
+              d="M 12 2 C 6.4889971 2 2 6.4889971 2 12 C 2 17.511003 6.4889971 22 12 22 C 17.511003 22 22 17.511003 22 12 C 22 6.4889971 17.511003 2 12 2 z M 12 4 C 16.430123 4 20 7.5698774 20 12 C 20 16.430123 16.430123 20 12 20 C 7.5698774 20 4 16.430123 4 12 C 4 7.5698774 7.5698774 4 12 4 z M 11 7 L 11 11 L 7 11 L 7 13 L 11 13 L 11 17 L 13 17 L 13 13 L 17 13 L 17 11 L 13 11 L 13 7 L 11 7 z"
+            ></path>
+          </svg>
+          创建学习小组
+        </button>
+      </div>
     </div>
-    <div v-if="groups.length === 0" class="empty-state">
+    <div v-if="filteredGroups.length === 0" class="empty-state">
       <p>
         暂时没有学习小组，去
         <button @click="toCreateGroupPage">创建</button>
@@ -35,7 +44,7 @@
       </p>
     </div>
     <div ref="masonryContainer" class="masonry-container">
-      <div v-for="group in groups" :key="group.id" class="masonry-item">
+      <div v-for="group in filteredGroups" :key="group.id" class="masonry-item">
         <v-card class="st-card">
           <v-img
             class="group-image"
@@ -125,7 +134,15 @@ export default {
         { label: '更多', value: 'more' },
       ],
       activeNav: 'recommend',
+      searchQuery: '',
     }
+  },
+  computed: {
+    filteredGroups() {
+      if (!this.searchQuery) return this.groups
+      const query = this.searchQuery.toLowerCase()
+      return this.groups.filter((g) => g.name.toLowerCase().includes(query))
+    },
   },
   methods: {
     ...mapActions(['goToProfile']),
@@ -194,6 +211,15 @@ export default {
       this.goToProfile({ userId, router: this.$router })
     },
   },
+  watch: {
+    searchQuery() {
+      this.$nextTick(() => {
+        if (this.masonryInstance) {
+          this.masonryInstance.layout()
+        }
+      })
+    },
+  },
   mounted() {
     this.fetchGroups()
     this.$nextTick(() => {
@@ -224,6 +250,19 @@ export default {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.search-bar {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 16px;
+  font-size: 14px;
 }
 
 .nav-item {
