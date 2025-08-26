@@ -7,30 +7,58 @@
           <div class="plan-list-header d-flex align-center px-4 py-2">
             <span class="text-h6">我的学习计划</span>
             <v-spacer />
-            <v-btn icon="mdi-plus" variant="text" @click="openCreateDialog" />
-            <v-btn icon="mdi-robot-outline" variant="text" @click="aiDialog = true" />
+            <v-btn icon="mdi-plus" variant="text" @click="openCreateDialog" :disabled="backgroundGenerating" />
+            <v-btn icon="mdi-robot-outline" variant="text" @click="openAiDialog" :disabled="backgroundGenerating" />
           </div>
           <v-divider />
-          <template v-if="studyPlans.length">
+          <template v-if="loading">
+            <v-skeleton-loader type="list-item" v-for="n in 3" :key="n" />
+          </template>
+          <template v-else-if="studyPlans.length">
             <v-list density="compact">
-              <v-list-item v-for="plan in studyPlans" :key="plan.studyPlan.id" @click="selectPlan(plan.studyPlan)"
+              <v-list-item
+                v-for="plan in studyPlans"
+                :key="plan.studyPlan.id"
+                @click="selectPlan(plan.studyPlan)"
                 :class="{
                   'selected-plan':
                     currentPlan && currentPlan.id === plan.studyPlan.id,
-                }">
+                }"
+              >
                 <v-list-item-title>{{ plan.studyPlan.title }}</v-list-item-title>
-                <v-progress-linear :model-value="plan.studyPlan.progressPercentage" height="6" color="primary" />
-                <v-progress-linear v-if="plan.studyPlan.advancedTopicProgressPercentage > 0"
-                  :model-value="plan.studyPlan.advancedTopicProgressPercentage" height="6" color="accent" />
+                <v-progress-linear
+                  :model-value="plan.studyPlan.progressPercentage"
+                  height="6"
+                  color="primary"
+                />
+                <v-progress-linear
+                  v-if="plan.studyPlan.advancedTopicProgressPercentage > 0"
+                  :model-value="
+                    plan.studyPlan.advancedTopicProgressPercentage
+                  "
+                  height="6"
+                  color="accent"
+                />
               </v-list-item>
             </v-list>
           </template>
           <div v-else class="empty-plan-list text-center px-4">
             <p class="mb-4">你还没有创建学习计划</p>
-            <v-btn block class="mb-2" color="primary" @click="openCreateDialog">
+            <v-btn
+              block
+              class="mb-2"
+              color="primary"
+              @click="openCreateDialog"
+              :disabled="backgroundGenerating"
+            >
               新建学习计划
             </v-btn>
-            <v-btn block color="secondary" @click="aiDialog = true">
+            <v-btn
+              block
+              color="secondary"
+              @click="openAiDialog"
+              :disabled="backgroundGenerating"
+            >
               AI 生成计划
             </v-btn>
           </div>
@@ -42,70 +70,111 @@
 
       <!-- Middle: lessons list -->
       <v-col :cols="collapsed ? 6 : 5" class="center-panel">
-        <div v-if="currentPlan">
-          <v-expansion-panels multiple v-model="openSections">
-            <v-expansion-panel title="预备知识" v-if="currentPlan.prerequisite && currentPlan.prerequisite.length">
-              <v-expansion-panel-text>
-                <v-list density="comfortable">
-                  <v-list-item v-for="(lesson, idx) in currentPlan.prerequisite" :key="'pre-' + idx"
-                    @click="selectLesson(lesson)" :class="{
-                      'selected-lesson':
-                        currentLesson && currentLesson.name === lesson.name,
-                    }">
-                    <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                    <v-progress-linear :model-value="lesson.progressPercentage" height="6" color="primary" />
-                  </v-list-item>
-                </v-list>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-            <v-expansion-panel title="主要课程" v-if="
-              currentPlan.mainCurriculum && currentPlan.mainCurriculum.length
-            ">
-              <v-expansion-panel-text>
-                <v-list density="comfortable">
-                  <v-list-item v-for="(lesson, idx) in currentPlan.mainCurriculum" :key="'main-' + idx"
-                    @click="selectLesson(lesson)" :class="{
-                      'selected-lesson':
-                        currentLesson && currentLesson.name === lesson.name,
-                    }">
-                    <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                    <v-progress-linear :model-value="lesson.progressPercentage" height="6" color="primary" />
-                  </v-list-item>
-                </v-list>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-            <v-expansion-panel title="进阶内容" v-if="
-              currentPlan.advancedTopics && currentPlan.advancedTopics.length
-            ">
-              <v-expansion-panel-text>
-                <v-list density="comfortable">
-                  <v-list-item v-for="(lesson, idx) in currentPlan.advancedTopics" :key="'adv-' + idx"
-                    @click="selectLesson(lesson)" :class="{
-                      'selected-lesson':
-                        currentLesson && currentLesson.name === lesson.name,
-                    }">
-                    <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                    <v-progress-linear :model-value="lesson.progressPercentage" height="6" color="accent" />
-                  </v-list-item>
-                </v-list>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
+        <div v-if="loading">
+          <v-skeleton-loader type="list-item" v-for="n in 5" :key="n" />
         </div>
-        <div v-else class="placeholder">
-          {{ studyPlans.length ? '请选择一个学习计划' : '尚未创建学习计划' }}
-        </div>
+        <template v-else>
+          <div v-if="currentPlan">
+            <v-expansion-panels multiple v-model="openSections">
+              <v-expansion-panel
+                title="预备知识"
+                v-if="currentPlan.prerequisite && currentPlan.prerequisite.length"
+              >
+                <v-expansion-panel-text>
+                  <v-list density="comfortable">
+                    <v-list-item
+                      v-for="(lesson, idx) in currentPlan.prerequisite"
+                      :key="'pre-' + idx"
+                      @click="selectLesson(lesson)"
+                      :class="{
+                        'selected-lesson':
+                          currentLesson && currentLesson.name === lesson.name,
+                      }"
+                    >
+                      <v-list-item-title>{{ lesson.name }}</v-list-item-title>
+                      <v-progress-linear
+                        :model-value="lesson.progressPercentage"
+                        height="6"
+                        color="primary"
+                      />
+                    </v-list-item>
+                  </v-list>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+              <v-expansion-panel
+                title="主要课程"
+                v-if="currentPlan.mainCurriculum && currentPlan.mainCurriculum.length"
+              >
+                <v-expansion-panel-text>
+                  <v-list density="comfortable">
+                    <v-list-item
+                      v-for="(lesson, idx) in currentPlan.mainCurriculum"
+                      :key="'main-' + idx"
+                      @click="selectLesson(lesson)"
+                      :class="{
+                        'selected-lesson':
+                          currentLesson && currentLesson.name === lesson.name,
+                      }"
+                    >
+                      <v-list-item-title>{{ lesson.name }}</v-list-item-title>
+                      <v-progress-linear
+                        :model-value="lesson.progressPercentage"
+                        height="6"
+                        color="primary"
+                      />
+                    </v-list-item>
+                  </v-list>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+              <v-expansion-panel
+                title="进阶内容"
+                v-if="currentPlan.advancedTopics && currentPlan.advancedTopics.length"
+              >
+                <v-expansion-panel-text>
+                  <v-list density="comfortable">
+                    <v-list-item
+                      v-for="(lesson, idx) in currentPlan.advancedTopics"
+                      :key="'adv-' + idx"
+                      @click="selectLesson(lesson)"
+                      :class="{
+                        'selected-lesson':
+                          currentLesson && currentLesson.name === lesson.name,
+                      }"
+                    >
+                      <v-list-item-title>{{ lesson.name }}</v-list-item-title>
+                      <v-progress-linear
+                        :model-value="lesson.progressPercentage"
+                        height="6"
+                        color="accent"
+                      />
+                    </v-list-item>
+                  </v-list>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-expansion-panels>
+          </div>
+          <div v-else class="placeholder">
+            {{ studyPlans.length ? '请选择一个学习计划' : '尚未创建学习计划' }}
+          </div>
+        </template>
       </v-col>
 
       <!-- Right: lesson content -->
       <v-col :cols="collapsed ? 5 : 4" class="right-panel">
-        <div v-if="currentLesson">
+        <div v-if="loading">
+          <v-skeleton-loader type="text" class="mb-2" />
+          <v-skeleton-loader type="list-item" v-for="n in 3" :key="n" />
+        </div>
+        <div v-else-if="currentLesson">
           <h3 class="mb-2">{{ currentLesson.name }}</h3>
           <p>{{ currentLesson.description }}</p>
           <v-list v-if="currentLesson.resources && currentLesson.resources.length">
             <v-list-item v-for="(res, idx) in currentLesson.resources" :key="idx">
               <template #prepend>
-                <v-checkbox v-model="res.learned" @click.stop="markResourceAsLearned(res, currentLesson)" />
+                <v-checkbox
+                  v-model="res.learned"
+                  @click.stop="markResourceAsLearned(res, currentLesson)"
+                />
               </template>
               <v-list-item-title>
                 <a :href="res.link" target="_blank">{{ res.link }}</a>
@@ -123,7 +192,7 @@
         <v-card-title class="text-h6">AI 学习计划生成器</v-card-title>
         <v-card-text>
           <!-- 子组件在任一输入变化时 $emit('dirty') -->
-          <LearningPlanner @dirty="aiDirty = true" />
+          <LearningPlanner @dirty="aiDirty = true" @background="handleBackground" />
         </v-card-text>
         <v-card-actions class="justify-end">
           <v-btn variant="text" @click="attemptClose('ai')">关闭</v-btn>
@@ -154,6 +223,7 @@
 import { apiClient } from '@/api'
 import LearningPlanner from '@/components/LearningPlanner.vue'
 import EditStudyPlanForm from '@/components/EditStudyPlanForm.vue'
+import { eventBus } from '@/eventBus'
 
 export default {
   name: 'StudyPlanWorkspace',
@@ -171,7 +241,13 @@ export default {
       editPlan: null,
       aiDirty: false,
       editDirty: false,
+      loading: false,
     }
+  },
+  computed: {
+    backgroundGenerating() {
+      return this.$store.state.backgroundGenerating
+    },
   },
   async created() {
     await this.fetchPlans()
@@ -187,12 +263,39 @@ export default {
   },
   methods: {
     async fetchPlans() {
+      this.loading = true
       try {
         const res = await apiClient.get('/StudyPlan/FetchStudyPlans')
-        this.studyPlans = res.data
+        this.studyPlans = res.data.map((p) => {
+          const sections = ['prerequisite', 'mainCurriculum', 'advancedTopics']
+          sections.forEach((sec) => {
+            if (p.studyPlan[sec]) {
+              p.studyPlan[sec] = this.mergeLessons(p.studyPlan[sec])
+            }
+          })
+          return p
+        })
       } catch (e) {
         console.error('Error fetching study plans:', e)
+      } finally {
+        this.loading = false
       }
+    },
+    mergeLessons(lessons) {
+      const map = new Map()
+      lessons.forEach((lesson) => {
+        const existing = map.get(lesson.name)
+        if (existing) {
+          const resources = lesson.resources || []
+          existing.resources = existing.resources.concat(resources)
+        } else {
+          map.set(lesson.name, {
+            ...lesson,
+            resources: lesson.resources ? [...lesson.resources] : [],
+          })
+        }
+      })
+      return Array.from(map.values())
     },
     selectPlan(plan) {
       this.currentPlan = plan
@@ -202,6 +305,10 @@ export default {
       this.currentLesson = lesson
     },
     openCreateDialog() {
+      if (this.backgroundGenerating) {
+        alert('AI 正在生成学习计划，请稍后再试')
+        return
+      }
       this.editPlan = {
         title: '',
         introduction: { description: '' },
@@ -211,6 +318,13 @@ export default {
       }
       this.editDirty = false
       this.editDialog = true
+    },
+    openAiDialog() {
+      if (this.backgroundGenerating) {
+        alert('AI 正在生成学习计划，请稍后再试')
+        return
+      }
+      this.aiDialog = true
     },
     async saveStudyPlan(plan) {
       try {
@@ -272,7 +386,13 @@ export default {
         this.editDialog = false
         this.editDirty = false
       }
-    }
+    },
+    handleBackground(promise) {
+      this.aiDialog = false
+      this.aiDirty = false
+      eventBus.emit('background-plan', promise)
+      promise.then(() => this.fetchPlans())
+    },
   },
 }
 </script>
