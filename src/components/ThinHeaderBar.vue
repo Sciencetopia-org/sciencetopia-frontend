@@ -164,7 +164,7 @@ export default {
         this.alertMessage = this.$t('pleaseLoginToViewStudyPlan')
         return
       }
-      this.$emit('showStudyPlanDialog', true)
+      this.$router.push({ name: 'StudyPlanWorkspace' })
     },
 
     handleLanguageChange(val) {

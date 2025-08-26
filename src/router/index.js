@@ -18,6 +18,7 @@ import AboutUs from '@/components/AboutUs.vue'
 import ContactUs from '@/components/ContactUs.vue'
 import TestHeight from '@/components/TestHeight.vue'
 import StudyPlanDetail from '@/components/StudyPlanDetail.vue'
+import StudyPlanWorkspace from '@/components/StudyPlanWorkspace.vue'
 // import SearchBarVue from '@/components/search/SearchBar.vue'
 // import SearchResultItemVue from '@/components/search/SearchResultItem.vue'
 import SearchResultsVue from '@/components/search/SearchResults.vue'
@@ -51,6 +52,12 @@ const routes = [
     name: 'register',
     component: ReGister,
     meta: { layout: 'simplest' },
+  },
+  {
+    path: '/study-plans',
+    name: 'StudyPlanWorkspace',
+    component: StudyPlanWorkspace,
+    meta: { background: 'darker' },
   },
   {
     path: '/:userId',
