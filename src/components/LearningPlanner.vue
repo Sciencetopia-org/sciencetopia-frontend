@@ -7,7 +7,7 @@
       :placeholder="$t('studyplan.placeholder')"
       @update:model-value="$emit('dirty')"
     />
-    <button :disabled="!learningObjective" @click="generateStudyPlan">
+    <button :disabled="!learningObjective || $store.state.backgroundGenerating" @click="generateStudyPlan">
       {{ $t('studyplan.startcustomizing') }}
     </button>
 
@@ -46,6 +46,10 @@ export default {
   methods: {
     async generateStudyPlan() {
       if (!this.learningObjective) return
+      if (this.$store.state.backgroundGenerating) {
+        alert('AI 正在生成学习计划，请稍后再试')
+        return
+      }
       this.loading = true
       this.background = false
 

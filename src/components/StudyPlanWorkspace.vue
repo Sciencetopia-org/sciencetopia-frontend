@@ -7,8 +7,8 @@
           <div class="plan-list-header d-flex align-center px-4 py-2">
             <span class="text-h6">我的学习计划</span>
             <v-spacer />
-            <v-btn icon="mdi-plus" variant="text" @click="openCreateDialog" />
-            <v-btn icon="mdi-robot-outline" variant="text" @click="aiDialog = true" />
+            <v-btn icon="mdi-plus" variant="text" @click="openCreateDialog" :disabled="backgroundGenerating" />
+            <v-btn icon="mdi-robot-outline" variant="text" @click="openAiDialog" :disabled="backgroundGenerating" />
           </div>
           <v-divider />
           <template v-if="studyPlans.length">
@@ -27,10 +27,10 @@
           </template>
           <div v-else class="empty-plan-list text-center px-4">
             <p class="mb-4">你还没有创建学习计划</p>
-            <v-btn block class="mb-2" color="primary" @click="openCreateDialog">
+            <v-btn block class="mb-2" color="primary" @click="openCreateDialog" :disabled="backgroundGenerating">
               新建学习计划
             </v-btn>
-            <v-btn block color="secondary" @click="aiDialog = true">
+            <v-btn block color="secondary" @click="openAiDialog" :disabled="backgroundGenerating">
               AI 生成计划
             </v-btn>
           </div>
@@ -161,6 +161,7 @@
 import { apiClient } from '@/api'
 import LearningPlanner from '@/components/LearningPlanner.vue'
 import EditStudyPlanForm from '@/components/EditStudyPlanForm.vue'
+import { eventBus } from '@/eventBus'
 
 export default {
   name: 'StudyPlanWorkspace',
@@ -182,6 +183,11 @@ export default {
       backgroundMessage: '',
       backgroundLoading: false,
     }
+  },
+  computed: {
+    backgroundGenerating() {
+      return this.$store.state.backgroundGenerating
+    },
   },
   async created() {
     await this.fetchPlans()
@@ -212,6 +218,10 @@ export default {
       this.currentLesson = lesson
     },
     openCreateDialog() {
+      if (this.backgroundGenerating) {
+        alert('AI 正在生成学习计划，请稍后再试')
+        return
+      }
       this.editPlan = {
         title: '',
         introduction: { description: '' },
@@ -221,6 +231,13 @@ export default {
       }
       this.editDirty = false
       this.editDialog = true
+    },
+    openAiDialog() {
+      if (this.backgroundGenerating) {
+        alert('AI 正在生成学习计划，请稍后再试')
+        return
+      }
+      this.aiDialog = true
     },
     async saveStudyPlan(plan) {
       try {
@@ -286,25 +303,9 @@ export default {
     handleBackground(promise) {
       this.aiDialog = false
       this.aiDirty = false
-      this.backgroundMessage = 'AI 正在后台生成学习计划...'
-      this.backgroundSnackbar = true
-      this.backgroundLoading = true
-      promise
-        .then(() => {
-          this.backgroundMessage = 'AI 学习计划已生成'
-          this.backgroundLoading = false
-          this.fetchPlans()
-        })
-        .catch(() => {
-          this.backgroundMessage = 'AI 学习计划生成失败'
-          this.backgroundLoading = false
-        })
-        .finally(() => {
-          setTimeout(() => {
-            this.backgroundSnackbar = false
-          }, 3000)
-        })
-    }
+      eventBus.emit('background-plan', promise)
+      promise.then(() => this.fetchPlans())
+    },
   },
 }
 </script>

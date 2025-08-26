@@ -26,6 +26,7 @@ export default createStore({
     conversationMessageCount: {},
     notificationCount: 0,
     learningStatus: {},
+    backgroundGenerating: false,
   },
   mutations: {
     SET_AUTHENTICATED(state, value) {
@@ -119,6 +120,9 @@ export default createStore({
     },
     SET_LEARNING_STATUS(state, { lessonName, resourceLink, learned }) {
       state.learningStatus[`${lessonName}-${resourceLink}`] = learned
+    },
+    SET_BACKGROUND_GENERATING(state, value) {
+      state.backgroundGenerating = value
     },
   },
   actions: {
