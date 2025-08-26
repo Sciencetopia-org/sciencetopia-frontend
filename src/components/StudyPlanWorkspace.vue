@@ -147,6 +147,13 @@
       </v-card>
     </v-dialog>
 
+    <v-snackbar v-model="backgroundSnackbar" :timeout="backgroundLoading ? -1 : 3000">
+      <div class="d-flex align-center">
+        <v-progress-circular v-if="backgroundLoading" indeterminate color="white" class="mr-2" />
+        <span>{{ backgroundMessage }}</span>
+      </div>
+    </v-snackbar>
+
   </v-container>
 </template>
 
@@ -172,6 +179,9 @@ export default {
       editPlan: null,
       aiDirty: false,
       editDirty: false,
+      backgroundSnackbar: false,
+      backgroundMessage: '',
+      backgroundLoading: false,
     }
   },
   computed: {
