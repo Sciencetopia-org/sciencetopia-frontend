@@ -35,6 +35,7 @@
           <LearningPlanner
             ref="learningPlanner"
             @update:showStudyPlan="handleShowStudyPlanUpdate"
+            @background="handleBackground"
           />
         </v-card-text>
         <v-card-actions>
@@ -53,6 +54,13 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-snackbar v-model="backgroundSnackbar" :timeout="backgroundLoading ? -1 : 3000">
+      <div class="d-flex align-center">
+        <v-progress-circular v-if="backgroundLoading" indeterminate color="white" class="mr-2" />
+        <span>{{ backgroundMessage }}</span>
+      </div>
+    </v-snackbar>
 
     <!-- 底部 -->
     <div class="footer-container">
@@ -98,6 +106,9 @@ export default {
       isSmallScreen: typeof window !== 'undefined' ? window.innerWidth <= 600 : false,
       mobileMenuOpen: false,
       searchBarVisible: false,
+      backgroundSnackbar: false,
+      backgroundMessage: '',
+      backgroundLoading: false,
     }
   },
   mounted() {
@@ -138,6 +149,27 @@ export default {
     handleDialogClick() { this.dialog = true },
     showSearchBar() { this.searchBarVisible = true },
     hideSearchBar() { this.searchBarVisible = false },
+    handleBackground(promise) {
+      this.dialog = false
+      this.showStudyPlan = false
+      this.backgroundMessage = 'AI 正在后台生成学习计划...'
+      this.backgroundSnackbar = true
+      this.backgroundLoading = true
+      promise
+        .then(() => {
+          this.backgroundMessage = 'AI 学习计划已生成'
+          this.backgroundLoading = false
+        })
+        .catch(() => {
+          this.backgroundMessage = 'AI 学习计划生成失败'
+          this.backgroundLoading = false
+        })
+        .finally(() => {
+          setTimeout(() => {
+            this.backgroundSnackbar = false
+          }, 3000)
+        })
+    },
   },
 }
 </script>
