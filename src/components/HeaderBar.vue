@@ -165,7 +165,7 @@ export default {
       if (!this.isAuthenticated) {
         alert('请先登录再查看学习计划')
       } else {
-        this.$emit('showStudyPlanDialog', true)
+        this.$router.push({ name: 'StudyPlanWorkspace' })
       }
     },
     toggleLanguage() {

@@ -182,8 +182,8 @@ export default {
   methods: {
     goToPlanDetail(planId) {
       this.$router.push({
-        name: 'StudyPlanDetail',
-        params: { studyPlanId: planId, userId: this.userId },
+        name: 'StudyPlanWorkspace',
+        query: { planId },
       })
     },
   },
