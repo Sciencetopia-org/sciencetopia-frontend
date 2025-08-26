@@ -35,6 +35,7 @@
           <LearningPlanner
             ref="learningPlanner"
             @update:showStudyPlan="handleShowStudyPlanUpdate"
+            @background="handleBackground"
           />
         </v-card-text>
         <v-card-actions>
@@ -53,6 +54,13 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-snackbar v-model="backgroundSnackbar" :timeout="-1" @click="onBackgroundSnackbarClick">
+      <div class="d-flex align-center">
+        <v-progress-circular v-if="backgroundLoading" indeterminate color="white" class="mr-2" />
+        <span>{{ backgroundMessage }}</span>
+      </div>
+    </v-snackbar>
 
     <!-- 底部 -->
     <div class="footer-container">
@@ -98,6 +106,10 @@ export default {
       isSmallScreen: typeof window !== 'undefined' ? window.innerWidth <= 600 : false,
       mobileMenuOpen: false,
       searchBarVisible: false,
+      backgroundSnackbar: false,
+      backgroundMessage: '',
+      backgroundLoading: false,
+      backgroundSuccess: false,
     }
   },
   mounted() {
@@ -106,6 +118,7 @@ export default {
 
     eventBus.on('show-search-bar', this.showSearchBar)
     eventBus.on('hide-search-bar', this.hideSearchBar)
+    eventBus.on('background-plan', this.handleBackground)
 
     document.body.classList.add('sidebar-layout')
   },
@@ -113,6 +126,7 @@ export default {
     window.removeEventListener('resize', this.handleResize)
     eventBus.off('show-search-bar', this.showSearchBar)
     eventBus.off('hide-search-bar', this.hideSearchBar)
+    eventBus.off('background-plan', this.handleBackground)
     document.body.classList.remove('sidebar-layout')
   },
   methods: {
@@ -135,9 +149,44 @@ export default {
     triggerSavePlan() { this.$refs.learningPlanner?.savePlan?.() },
     closeDialog() { this.showStudyPlan = false; this.dialog = false },
     handleShowStudyPlanUpdate(v) { this.showStudyPlan = v },
-    handleDialogClick() { this.dialog = true },
+    handleDialogClick() {
+      if (this.$store.state.backgroundGenerating) {
+        alert('AI 正在生成学习计划，请稍后再试')
+        return
+      }
+      this.dialog = true
+    },
     showSearchBar() { this.searchBarVisible = true },
     hideSearchBar() { this.searchBarVisible = false },
+    handleBackground(promise) {
+      this.dialog = false
+      this.showStudyPlan = false
+      this.backgroundMessage = 'AI 正在后台生成学习计划...'
+      this.backgroundSnackbar = true
+      this.backgroundLoading = true
+      this.backgroundSuccess = false
+      this.$store.commit('SET_BACKGROUND_GENERATING', true)
+      promise
+        .then(() => {
+          this.backgroundMessage = 'AI 学习计划已生成，点击查看'
+          this.backgroundSuccess = true
+        })
+        .catch(() => {
+          this.backgroundMessage = 'AI 学习计划生成失败，点击关闭'
+          this.backgroundSuccess = false
+        })
+        .finally(() => {
+          this.backgroundLoading = false
+          this.$store.commit('SET_BACKGROUND_GENERATING', false)
+        })
+    },
+    onBackgroundSnackbarClick() {
+      if (this.backgroundLoading) return
+      this.backgroundSnackbar = false
+      if (this.backgroundSuccess) {
+        this.$router.push({ name: 'StudyPlanWorkspace' })
+      }
+    },
   },
 }
 </script>
