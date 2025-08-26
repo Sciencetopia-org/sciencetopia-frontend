@@ -55,17 +55,25 @@
       </v-card>
     </v-dialog>
 
-    <v-snackbar v-model="backgroundSnackbar" :timeout="-1" @click="onBackgroundSnackbarClick">
+    <v-snackbar
+      v-model="backgroundSnackbar"
+      :timeout="-1"
+      @click="onBackgroundSnackbarClick"
+    >
       <div class="d-flex align-center">
-        <v-progress-circular v-if="backgroundLoading" indeterminate color="white" class="mr-2" />
+        <v-progress-circular
+          v-if="backgroundLoading"
+          indeterminate
+          color="white"
+          class="mr-2"
+        />
         <span>{{ backgroundMessage }}</span>
       </div>
     </v-snackbar>
 
     <!-- 底部 -->
     <div class="footer-container">
-      <transition
-        name="footer-transition">
+      <transition name="footer-transition">
         <v-footer app v-if="!showFinalFooter" class="dynamic-footer">
           <FooterBar />
         </v-footer>
@@ -86,6 +94,7 @@ import FooterBar from './FooterBar.vue'
 // import DefaultFooterBar from './DefaultFooterBar.vue'
 import ScrollToTopButton from './ScrollToTopButton.vue'
 import { eventBus } from '@/eventBus'
+import { apiClient } from '@/api'
 
 export default {
   name: 'LayOut',
@@ -103,13 +112,15 @@ export default {
       dialog: false,
       showStudyPlan: false,
       showFinalFooter: false,
-      isSmallScreen: typeof window !== 'undefined' ? window.innerWidth <= 600 : false,
+      isSmallScreen:
+        typeof window !== 'undefined' ? window.innerWidth <= 600 : false,
       mobileMenuOpen: false,
       searchBarVisible: false,
       backgroundSnackbar: false,
       backgroundMessage: '',
       backgroundLoading: false,
       backgroundSuccess: false,
+      generatedPlanId: null,
     }
   },
   mounted() {
@@ -135,7 +146,8 @@ export default {
 
       const header = document.querySelector('.large-header')
       if (header) {
-        if (this.isSmallScreen && this.mobileMenuOpen) header.classList.add('menu-open')
+        if (this.isSmallScreen && this.mobileMenuOpen)
+          header.classList.add('menu-open')
         else header.classList.remove('menu-open')
       }
     },
@@ -146,9 +158,16 @@ export default {
       if (header) header.classList.toggle('menu-open')
       if (logo) logo.classList.toggle('menu-open')
     },
-    triggerSavePlan() { this.$refs.learningPlanner?.savePlan?.() },
-    closeDialog() { this.showStudyPlan = false; this.dialog = false },
-    handleShowStudyPlanUpdate(v) { this.showStudyPlan = v },
+    triggerSavePlan() {
+      this.$refs.learningPlanner?.savePlan?.()
+    },
+    closeDialog() {
+      this.showStudyPlan = false
+      this.dialog = false
+    },
+    handleShowStudyPlanUpdate(v) {
+      this.showStudyPlan = v
+    },
     handleDialogClick() {
       if (this.$store.state.backgroundGenerating) {
         alert('AI 正在生成学习计划，请稍后再试')
@@ -156,8 +175,12 @@ export default {
       }
       this.dialog = true
     },
-    showSearchBar() { this.searchBarVisible = true },
-    hideSearchBar() { this.searchBarVisible = false },
+    showSearchBar() {
+      this.searchBarVisible = true
+    },
+    hideSearchBar() {
+      this.searchBarVisible = false
+    },
     handleBackground(promise) {
       this.dialog = false
       this.showStudyPlan = false
@@ -165,11 +188,26 @@ export default {
       this.backgroundSnackbar = true
       this.backgroundLoading = true
       this.backgroundSuccess = false
+      this.generatedPlanId = null
       this.$store.commit('SET_BACKGROUND_GENERATING', true)
       promise
-        .then(() => {
-          this.backgroundMessage = 'AI 学习计划已生成，点击查看'
-          this.backgroundSuccess = true
+        .then(async (res) => {
+          try {
+            const studyPlan = res.data?.StudyPlan
+            if (studyPlan) {
+              const saveRes = await apiClient.post('/StudyPlan/SaveStudyPlan', {
+                studyPlan,
+              })
+              this.generatedPlanId =
+                saveRes.data?.id || saveRes.data?.studyPlan?.id || null
+            }
+            this.backgroundMessage = 'AI 学习计划已生成，点击查看'
+            this.backgroundSuccess = true
+          } catch (e) {
+            console.error('Error saving background study plan:', e)
+            this.backgroundMessage = 'AI 学习计划生成失败，点击关闭'
+            this.backgroundSuccess = false
+          }
         })
         .catch(() => {
           this.backgroundMessage = 'AI 学习计划生成失败，点击关闭'
@@ -184,7 +222,14 @@ export default {
       if (this.backgroundLoading) return
       this.backgroundSnackbar = false
       if (this.backgroundSuccess) {
-        this.$router.push({ name: 'StudyPlanWorkspace' })
+        const route = {
+          name: 'StudyPlanWorkspace',
+          params: { userId: this.$store.state.currentUserID },
+        }
+        if (this.generatedPlanId) {
+          route.query = { planId: this.generatedPlanId }
+        }
+        this.$router.push(route)
       }
     },
   },
@@ -205,12 +250,11 @@ export default {
   额外留一个安全间距 gap = 16px。
 */
 .layout-wrapper {
-  --sidebar-left: 16px;     /* = .large-header 的 left */
-  --sidebar-width: 70px;    /* = .large-header 的 width */
-  --sidebar-gap: 16px;      /* 主内容与侧栏额外间距 */
+  --sidebar-left: 16px; /* = .large-header 的 left */
+  --sidebar-width: 70px; /* = .large-header 的 width */
+  --sidebar-gap: 16px; /* 主内容与侧栏额外间距 */
   --sidebar-reserved: calc(
-    var(--sidebar-left, 16px) + 
-    var(--sidebar-width, 70px)
+    var(--sidebar-left, 16px) + var(--sidebar-width, 70px)
   );
 }
 
@@ -239,7 +283,7 @@ export default {
 /* 主内容占据剩余空间 */
 .main-content {
   flex: 1 1 auto;
-  min-width: 0;                 /* 防止溢出 */
+  min-width: 0; /* 防止溢出 */
   box-sizing: border-box;
   padding: var(--content-padding, 16px);
   /* background: white; */
@@ -247,9 +291,16 @@ export default {
 
 /* 移动端：主内容全宽，不再预留侧栏 */
 @media (max-width: 600px) {
-  .body-wrapper { flex-direction: column; }
-  .sidebar-slot { display: none; }
-  .main-content { --content-padding: 8px; width: 100%; }
+  .body-wrapper {
+    flex-direction: column;
+  }
+  .sidebar-slot {
+    display: none;
+  }
+  .main-content {
+    --content-padding: 8px;
+    width: 100%;
+  }
 }
 
 /* 移动端汉堡按钮（保留你的样式） */
@@ -265,20 +316,26 @@ export default {
   display: none;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   cursor: pointer;
 }
 @media (max-width: 600px) {
-  .menu-toggle { display: flex; }
+  .menu-toggle {
+    display: flex;
+  }
 }
 
 /* 底部动画与配色（保持原样） */
-.footer-transition-enter-active { animation: footer-bounce-in .4s ease-out; }
-.footer-transition-leave-active { animation: footer-bounce-out .4s ease-out; }
+.footer-transition-enter-active {
+  animation: footer-bounce-in 0.4s ease-out;
+}
+.footer-transition-leave-active {
+  animation: footer-bounce-out 0.4s ease-out;
+}
 
 .dynamic-footer {
   height: var(--footer-vh, 6vh);
-  width: calc(100% - 32px)!important;
+  width: calc(100% - 32px) !important;
   background-color: rgba(232, 218, 189);
   margin-left: 16px;
   margin-right: 16px;
@@ -289,11 +346,23 @@ export default {
 }
 
 @keyframes footer-bounce-in {
-  0% { transform: translateY(120%); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
+  0% {
+    transform: translateY(120%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 @keyframes footer-bounce-out {
-  0% { transform: translateY(0); opacity: 1; }
-  100% { transform: translateY(120%); opacity: 0; }
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120%);
+    opacity: 0;
+  }
 }
 </style>
