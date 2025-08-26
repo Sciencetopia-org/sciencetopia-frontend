@@ -123,7 +123,7 @@
         <v-card-title class="text-h6">AI 学习计划生成器</v-card-title>
         <v-card-text>
           <!-- 子组件在任一输入变化时 $emit('dirty') -->
-          <LearningPlanner @dirty="aiDirty = true" />
+          <LearningPlanner @dirty="aiDirty = true" @background="handleBackground" />
         </v-card-text>
         <v-card-actions class="justify-end">
           <v-btn variant="text" @click="attemptClose('ai')">关闭</v-btn>
@@ -146,6 +146,13 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-snackbar v-model="backgroundSnackbar" :timeout="backgroundLoading ? -1 : 3000">
+      <div class="d-flex align-center">
+        <v-progress-circular v-if="backgroundLoading" indeterminate color="white" class="mr-2" />
+        <span>{{ backgroundMessage }}</span>
+      </div>
+    </v-snackbar>
 
   </v-container>
 </template>
@@ -171,6 +178,9 @@ export default {
       editPlan: null,
       aiDirty: false,
       editDirty: false,
+      backgroundSnackbar: false,
+      backgroundMessage: '',
+      backgroundLoading: false,
     }
   },
   async created() {
@@ -272,6 +282,28 @@ export default {
         this.editDialog = false
         this.editDirty = false
       }
+    },
+    handleBackground(promise) {
+      this.aiDialog = false
+      this.aiDirty = false
+      this.backgroundMessage = 'AI 正在后台生成学习计划...'
+      this.backgroundSnackbar = true
+      this.backgroundLoading = true
+      promise
+        .then(() => {
+          this.backgroundMessage = 'AI 学习计划已生成'
+          this.backgroundLoading = false
+          this.fetchPlans()
+        })
+        .catch(() => {
+          this.backgroundMessage = 'AI 学习计划生成失败'
+          this.backgroundLoading = false
+        })
+        .finally(() => {
+          setTimeout(() => {
+            this.backgroundSnackbar = false
+          }, 3000)
+        })
     }
   },
 }

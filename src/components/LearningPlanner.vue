@@ -12,7 +12,10 @@
     </button>
 
     <!-- Loader Spinner -->
-    <div v-if="loading" class="loader">{{ $t('studyplan.AIplaceholder') }}</div>
+    <div v-if="loading" class="loader">
+      {{ $t('studyplan.AIplaceholder') }}
+      <button class="ml-2" @click="runInBackground">后台运行</button>
+    </div>
 
     <study-plan
       v-if="showStudyPlan"
@@ -35,36 +38,49 @@ export default {
       learningObjective: '',
       showStudyPlan: false,
       studyPlanData: null,
-      loading: false, // Add this to track loading state
+      loading: false, // track loading state
+      currentRequest: null,
+      background: false,
     }
   },
   methods: {
     async generateStudyPlan() {
-      if (this.learningObjective) {
-        this.loading = true // Start loading
+      if (!this.learningObjective) return
+      this.loading = true
+      this.background = false
 
-        console.log('Generating study plan for:', this.learningObjective)
+      console.log('Generating study plan for:', this.learningObjective)
 
-        try {
-          const response = await pyApiClient.post('/studyplan', {
-            Name: this.learningObjective,
-          })
+      const request = pyApiClient.post('/studyplan', {
+        Name: this.learningObjective,
+      })
+      this.currentRequest = request
 
-          console.log('Study plan generated:', response)
+      try {
+        const response = await request
+        console.log('Study plan generated:', response)
 
-          if (response.status === 200) {
-            this.studyPlanData = response.data.StudyPlan // Set study plan data from the backend response
-            this.showStudyPlan = true // Display the study plan component
-            this.$emit('update:showStudyPlan', true) // Emit an event to the parent component
-            console.log('Study plan generated:', this.studyPlanData)
-          } else {
-            console.error('Failed to fetch the study plan:', response)
-          }
-        } catch (error) {
-          console.error('Error in fetching study plan:', error)
-        } finally {
-          this.loading = false // End loading
+        if (this.background) return // handled by parent when in background
+
+        if (response.status === 200) {
+          this.studyPlanData = response.data.StudyPlan
+          this.showStudyPlan = true
+          this.$emit('update:showStudyPlan', true)
+          console.log('Study plan generated:', this.studyPlanData)
+        } else {
+          console.error('Failed to fetch the study plan:', response)
         }
+      } catch (error) {
+        console.error('Error in fetching study plan:', error)
+      } finally {
+        this.loading = false
+        this.currentRequest = null
+      }
+    },
+    runInBackground() {
+      if (this.loading && this.currentRequest) {
+        this.background = true
+        this.$emit('background', this.currentRequest)
       }
     },
     async savePlan() {
