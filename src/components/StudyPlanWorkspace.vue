@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="study-plan-workspace">
-    <v-row no-gutters>
+    <v-row>
       <!-- Left column: list of study plans -->
       <v-col cols="3" class="left-panel">
         <v-list nav dense>
@@ -103,16 +103,13 @@ export default {
 
 <style scoped>
 .study-plan-workspace {
-  background-color: #f4eee1;
   height: calc(100vh - 64px);
 }
 .left-panel {
-  border-right: 1px solid #ccc;
   overflow-y: auto;
   max-height: 100%;
 }
 .center-panel {
-  border-right: 1px solid #ccc;
   overflow-y: auto;
   max-height: 100%;
   display: flex;
