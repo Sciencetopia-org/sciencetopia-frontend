@@ -30,8 +30,8 @@ export default {
     },
     pageBackground() {
       const background = this.$route.meta.background
-      if (background === 'darker') return 'background-darker'
-      return 'background-lighter'
+      if (background === 'lighter') return 'background-lighter'
+      return 'background-darker'
     }
   },
 }

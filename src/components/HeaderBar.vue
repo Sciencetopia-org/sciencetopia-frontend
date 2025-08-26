@@ -229,8 +229,7 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
   border-radius: 24px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
@@ -281,23 +280,8 @@ export default {
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  overflow-y: auto;
   margin: 10px 0;
   padding: 10px 0;
-}
-
-.icons-section::-webkit-scrollbar {
-  width: 3px;
-}
-
-.icons-section::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.icons-section {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
 /* 语言切换栏 */
