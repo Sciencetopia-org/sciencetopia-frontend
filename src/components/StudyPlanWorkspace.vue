@@ -205,10 +205,34 @@ export default {
     async fetchPlans() {
       try {
         const res = await apiClient.get('/StudyPlan/FetchStudyPlans')
-        this.studyPlans = res.data
+        this.studyPlans = res.data.map((p) => {
+          const sections = ['prerequisite', 'mainCurriculum', 'advancedTopics']
+          sections.forEach((sec) => {
+            if (p.studyPlan[sec]) {
+              p.studyPlan[sec] = this.mergeLessons(p.studyPlan[sec])
+            }
+          })
+          return p
+        })
       } catch (e) {
         console.error('Error fetching study plans:', e)
       }
+    },
+    mergeLessons(lessons) {
+      const map = new Map()
+      lessons.forEach((lesson) => {
+        const existing = map.get(lesson.name)
+        if (existing) {
+          const resources = lesson.resources || []
+          existing.resources = existing.resources.concat(resources)
+        } else {
+          map.set(lesson.name, {
+            ...lesson,
+            resources: lesson.resources ? [...lesson.resources] : [],
+          })
+        }
+      })
+      return Array.from(map.values())
     },
     selectPlan(plan) {
       this.currentPlan = plan
