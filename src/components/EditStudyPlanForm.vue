@@ -7,6 +7,7 @@
       variant="outlined"
       density="compact"
       :rules="[rules.required]"
+      @update:model-value="$emit('dirty')"
     ></v-text-field>
 
     <!-- Introduction Input -->
@@ -19,6 +20,7 @@
       max-rows="5"
       variant="outlined"
       density="compact"
+      @update:model-value="$emit('dirty')"
     ></v-textarea>
 
     <!-- Prerequisites Section -->
@@ -50,6 +52,7 @@
             variant="outlined"
             density="compact"
             :rules="[rules.required]"
+            @update:model-value="$emit('dirty')"
           ></v-text-field>
           <v-btn
             size="small"
@@ -68,6 +71,7 @@
           max-rows="5"
           variant="outlined"
           density="compact"
+          @update:model-value="$emit('dirty')"
         ></v-textarea>
 
         <!-- Resources Management -->
@@ -95,6 +99,7 @@
                 :label="$t('studyplan.resourcename')"
                 variant="outlined"
                 density="compact"
+                @update:model-value="$emit('dirty')"
               ></v-text-field>
               <v-btn
                 size="small"
@@ -110,6 +115,7 @@
               :label="$t('studyplan.resourcelink')"
               variant="outlined"
               density="compact"
+              @update:model-value="$emit('dirty')"
             ></v-text-field>
           </div>
         </div>
@@ -152,6 +158,7 @@
             variant="outlined"
             density="compact"
             :rules="[rules.required]"
+            @update:model-value="$emit('dirty')"
           ></v-text-field>
           <v-btn
             size="small"
@@ -170,6 +177,7 @@
           max-rows="5"
           variant="outlined"
           density="compact"
+          @update:model-value="$emit('dirty')"
         ></v-textarea>
 
         <!-- Resources Management -->
@@ -197,6 +205,7 @@
                 :label="$t('studyplan.resourcename')"
                 variant="outlined"
                 density="compact"
+                @update:model-value="$emit('dirty')"
               ></v-text-field>
               <v-btn
                 size="small"
@@ -212,6 +221,7 @@
               :label="$t('studyplan.resourcelink')"
               variant="outlined"
               density="compact"
+              @update:model-value="$emit('dirty')"
             ></v-text-field>
           </div>
         </div>
@@ -254,6 +264,7 @@
             variant="outlined"
             density="compact"
             :rules="[rules.required]"
+            @update:model-value="$emit('dirty')"
           ></v-text-field>
           <v-btn
             size="small"
@@ -272,6 +283,7 @@
           max-rows="5"
           variant="outlined"
           density="compact"
+          @update:model-value="$emit('dirty')"
         ></v-textarea>
 
         <!-- Resources Management -->
@@ -301,6 +313,7 @@
                 :label="$t('studyplan.resourcename')"
                 variant="outlined"
                 density="compact"
+                @update:model-value="$emit('dirty')"
               ></v-text-field>
               <v-btn
                 size="small"
@@ -316,6 +329,7 @@
               :label="$t('studyplan.resourcelink')"
               variant="outlined"
               density="compact"
+              @update:model-value="$emit('dirty')"
             ></v-text-field>
           </div>
         </div>

@@ -165,7 +165,8 @@ export default {
       if (!this.isAuthenticated) {
         alert('请先登录再查看学习计划')
       } else {
-        this.$router.push({ name: 'StudyPlanWorkspace' })
+        const userId = this.$store.state.currentUserID
+        this.$router.push({ name: 'StudyPlanWorkspace', params: { userId } })
       }
     },
     toggleLanguage() {

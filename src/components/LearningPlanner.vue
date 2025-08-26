@@ -5,6 +5,7 @@
       type="text"
       v-model="learningObjective"
       :placeholder="$t('studyplan.placeholder')"
+      @update:model-value="$emit('dirty')"
     />
     <button :disabled="!learningObjective" @click="generateStudyPlan">
       {{ $t('studyplan.startcustomizing') }}
