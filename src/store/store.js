@@ -25,6 +25,7 @@ export default createStore({
     messageCount: 0,
     conversationMessageCount: {},
     notificationCount: 0,
+    learningStatus: {},
   },
   mutations: {
     SET_AUTHENTICATED(state, value) {
@@ -115,6 +116,9 @@ export default createStore({
     },
     resetConversationMessageCount(state, conversationId) {
       state.conversationMessageCount[conversationId] = 0
+    },
+    SET_LEARNING_STATUS(state, { lessonName, resourceLink, learned }) {
+      state.learningStatus[`${lessonName}-${resourceLink}`] = learned
     },
   },
   actions: {
