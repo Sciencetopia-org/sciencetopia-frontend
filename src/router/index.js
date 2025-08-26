@@ -54,11 +54,10 @@ const routes = [
     meta: { layout: 'simplest' },
   },
   {
-    path: '/:userId/study-plans',
+    path: '/study-plans',
     name: 'StudyPlanWorkspace',
     component: StudyPlanWorkspace,
-    meta: { background: 'lighter' },
-    props: true,
+    meta: { background: 'darker' },
   },
   {
     path: '/:userId',

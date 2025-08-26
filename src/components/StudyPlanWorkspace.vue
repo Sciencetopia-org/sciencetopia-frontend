@@ -8,32 +8,52 @@
         permanent
         class="left-panel"
       >
-        <v-list density="compact">
-          <v-list-item
-            v-for="plan in studyPlans"
-            :key="plan.studyPlan.id"
-            @click="selectPlan(plan.studyPlan)"
-            :class="{
-              'selected-plan': currentPlan && currentPlan.id === plan.studyPlan.id,
-            }"
-          >
-            <v-list-item-title>{{ plan.studyPlan.title }}</v-list-item-title>
-            <v-progress-linear
-              :model-value="plan.studyPlan.progressPercentage"
-              height="6"
-              color="primary"
-            />
-            <v-progress-linear
-              v-if="plan.studyPlan.advancedTopicProgressPercentage > 0"
-              :model-value="plan.studyPlan.advancedTopicProgressPercentage"
-              height="6"
-              color="accent"
-            />
-          </v-list-item>
-        </v-list>
-        <v-divider class="my-2" />
-        <v-btn block class="mb-2" @click="openCreateDialog">新建学习计划</v-btn>
-        <v-btn block @click="aiDialog = true">AI 生成计划</v-btn>
+        <div class="plan-list-header d-flex align-center px-4 py-2">
+          <span class="text-h6">我的学习计划</span>
+          <v-spacer />
+          <v-btn icon="mdi-plus" variant="text" @click="openCreateDialog" />
+          <v-btn
+            icon="mdi-robot-outline"
+            variant="text"
+            @click="aiDialog = true"
+          />
+        </div>
+        <v-divider />
+        <template v-if="studyPlans.length">
+          <v-list density="compact">
+            <v-list-item
+              v-for="plan in studyPlans"
+              :key="plan.studyPlan.id"
+              @click="selectPlan(plan.studyPlan)"
+              :class="{
+                'selected-plan':
+                  currentPlan && currentPlan.id === plan.studyPlan.id,
+              }"
+            >
+              <v-list-item-title>{{ plan.studyPlan.title }}</v-list-item-title>
+              <v-progress-linear
+                :model-value="plan.studyPlan.progressPercentage"
+                height="6"
+                color="primary"
+              />
+              <v-progress-linear
+                v-if="plan.studyPlan.advancedTopicProgressPercentage > 0"
+                :model-value="plan.studyPlan.advancedTopicProgressPercentage"
+                height="6"
+                color="accent"
+              />
+            </v-list-item>
+          </v-list>
+        </template>
+        <div v-else class="empty-plan-list text-center px-4">
+          <p class="mb-4">你还没有创建学习计划</p>
+          <v-btn block class="mb-2" color="primary" @click="openCreateDialog">
+            新建学习计划
+          </v-btn>
+          <v-btn block color="secondary" @click="aiDialog = true">
+            AI 生成计划
+          </v-btn>
+        </div>
         <template #append>
           <v-btn icon="mdi-menu-open" @click="collapsed = !collapsed" />
         </template>
@@ -43,14 +63,20 @@
       <v-col :cols="collapsed ? 7 : 5" class="center-panel">
         <div v-if="currentPlan">
           <v-expansion-panels multiple v-model="openSections">
-            <v-expansion-panel title="预备知识" v-if="currentPlan.prerequisite && currentPlan.prerequisite.length">
+            <v-expansion-panel
+              title="预备知识"
+              v-if="currentPlan.prerequisite && currentPlan.prerequisite.length"
+            >
               <v-expansion-panel-text>
                 <v-list density="comfortable">
                   <v-list-item
                     v-for="(lesson, idx) in currentPlan.prerequisite"
                     :key="'pre-' + idx"
                     @click="selectLesson(lesson)"
-                    :class="{ 'selected-lesson': currentLesson && currentLesson.name === lesson.name }"
+                    :class="{
+                      'selected-lesson':
+                        currentLesson && currentLesson.name === lesson.name,
+                    }"
                   >
                     <v-list-item-title>{{ lesson.name }}</v-list-item-title>
                     <v-progress-linear
@@ -62,14 +88,22 @@
                 </v-list>
               </v-expansion-panel-text>
             </v-expansion-panel>
-            <v-expansion-panel title="主要课程" v-if="currentPlan.mainCurriculum && currentPlan.mainCurriculum.length">
+            <v-expansion-panel
+              title="主要课程"
+              v-if="
+                currentPlan.mainCurriculum && currentPlan.mainCurriculum.length
+              "
+            >
               <v-expansion-panel-text>
                 <v-list density="comfortable">
                   <v-list-item
                     v-for="(lesson, idx) in currentPlan.mainCurriculum"
                     :key="'main-' + idx"
                     @click="selectLesson(lesson)"
-                    :class="{ 'selected-lesson': currentLesson && currentLesson.name === lesson.name }"
+                    :class="{
+                      'selected-lesson':
+                        currentLesson && currentLesson.name === lesson.name,
+                    }"
                   >
                     <v-list-item-title>{{ lesson.name }}</v-list-item-title>
                     <v-progress-linear
@@ -81,14 +115,22 @@
                 </v-list>
               </v-expansion-panel-text>
             </v-expansion-panel>
-            <v-expansion-panel title="进阶内容" v-if="currentPlan.advancedTopics && currentPlan.advancedTopics.length">
+            <v-expansion-panel
+              title="进阶内容"
+              v-if="
+                currentPlan.advancedTopics && currentPlan.advancedTopics.length
+              "
+            >
               <v-expansion-panel-text>
                 <v-list density="comfortable">
                   <v-list-item
                     v-for="(lesson, idx) in currentPlan.advancedTopics"
                     :key="'adv-' + idx"
                     @click="selectLesson(lesson)"
-                    :class="{ 'selected-lesson': currentLesson && currentLesson.name === lesson.name }"
+                    :class="{
+                      'selected-lesson':
+                        currentLesson && currentLesson.name === lesson.name,
+                    }"
                   >
                     <v-list-item-title>{{ lesson.name }}</v-list-item-title>
                     <v-progress-linear
@@ -102,7 +144,9 @@
             </v-expansion-panel>
           </v-expansion-panels>
         </div>
-        <div v-else class="placeholder">请选择一个学习计划</div>
+        <div v-else class="placeholder">
+          {{ studyPlans.length ? '请选择一个学习计划' : '尚未创建学习计划' }}
+        </div>
       </v-col>
 
       <!-- Right: lesson content -->
@@ -110,7 +154,9 @@
         <div v-if="currentLesson">
           <h3 class="mb-2">{{ currentLesson.name }}</h3>
           <p>{{ currentLesson.description }}</p>
-          <v-list v-if="currentLesson.resources && currentLesson.resources.length">
+          <v-list
+            v-if="currentLesson.resources && currentLesson.resources.length"
+          >
             <v-list-item
               v-for="(res, idx) in currentLesson.resources"
               :key="idx"
@@ -132,7 +178,11 @@
     </v-row>
 
     <!-- AI planner dialog -->
-    <v-dialog v-model="aiDialog" max-width="800" @update:model-value="onAiDialogChange">
+    <v-dialog
+      v-model="aiDialog"
+      max-width="800"
+      @update:model-value="onAiDialogChange"
+    >
       <LearningPlanner />
     </v-dialog>
 
@@ -205,7 +255,9 @@ export default {
     async saveStudyPlan(plan) {
       try {
         if (plan.id) {
-          await apiClient.post('/StudyPlan/UpdateStudyPlan', { studyPlan: plan })
+          await apiClient.post('/StudyPlan/UpdateStudyPlan', {
+            studyPlan: plan,
+          })
         } else {
           await apiClient.post('/StudyPlan/SaveStudyPlan', { studyPlan: plan })
         }
@@ -219,10 +271,13 @@ export default {
       const wasLearned = resource.learned
       resource.learned = !wasLearned
       try {
-        await apiClient.post('/StudyPlan/LearningLessons/ToggleFinishedLearning', {
-          name: lesson.name,
-          resourceLink: resource.link,
-        })
+        await apiClient.post(
+          '/StudyPlan/LearningLessons/ToggleFinishedLearning',
+          {
+            name: lesson.name,
+            resourceLink: resource.link,
+          }
+        )
         this.$store.commit('SET_LEARNING_STATUS', {
           lessonName: lesson.name,
           resourceLink: resource.link,
@@ -249,6 +304,13 @@ export default {
 }
 .left-panel {
   border-right: 1px solid #ccc;
+  background-color: #e6ddce;
+}
+.plan-list-header {
+  background-color: #e6ddce;
+}
+.empty-plan-list {
+  margin-top: 40px;
 }
 .center-panel {
   border-right: 1px solid #ccc;
