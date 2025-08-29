@@ -20,25 +20,46 @@
                 v-for="plan in studyPlans"
                 :key="plan.studyPlan.id"
                 @click="selectPlan(plan.studyPlan)"
+                class="plan-card"
                 :class="{
                   'selected-plan':
                     currentPlan && currentPlan.id === plan.studyPlan.id,
                 }"
               >
-                <v-list-item-title>{{ plan.studyPlan.title }}</v-list-item-title>
-                <v-progress-linear
-                  :model-value="plan.studyPlan.progressPercentage"
-                  height="6"
-                  color="primary"
-                />
-                <v-progress-linear
+                <div class="title">{{ plan.studyPlan.title }}</div>
+                <v-tooltip
+                  :text="`学习进度：${plan.studyPlan.progressPercentage} %`"
+                  location="up"
+                >
+                  <template v-slot:activator="{ props }">
+                    <v-progress-linear
+                      v-bind="props"
+                      :model-value="plan.studyPlan.progressPercentage"
+                      color="text"
+                      height="15"
+                      striped
+                    />
+                  </template>
+                </v-tooltip>
+                <v-tooltip
                   v-if="plan.studyPlan.advancedTopicProgressPercentage > 0"
-                  :model-value="
-                    plan.studyPlan.advancedTopicProgressPercentage
+                  :text="
+                    `额外学习了${plan.studyPlan.advancedTopicProgressPercentage} %的进阶内容`
                   "
-                  height="6"
-                  color="accent"
-                />
+                  location="up"
+                >
+                  <template v-slot:activator="{ props }">
+                    <v-progress-linear
+                      v-bind="props"
+                      :model-value="
+                        plan.studyPlan.advancedTopicProgressPercentage
+                      "
+                      color="accent"
+                      height="15"
+                      striped
+                    />
+                  </template>
+                </v-tooltip>
               </v-list-item>
             </v-list>
           </template>
@@ -418,6 +439,27 @@ export default {
 
 .plan-list-header {
   background-color: #e6ddce;
+}
+
+.plan-card {
+  position: relative;
+  overflow: hidden;
+  background-color: white;
+  border: 1px solid #304e75;
+  padding: 10px;
+  box-shadow: 0 2px 4px #e8dabd;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  margin-bottom: 20px;
+}
+
+.plan-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+.plan-card .title {
+  margin: 5px 0;
 }
 
 .empty-plan-list {
