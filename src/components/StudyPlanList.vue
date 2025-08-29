@@ -48,8 +48,11 @@
               striped
             ></v-progress-linear>
             <v-row align="center">
-              <v-col cols="4">
-                <v-card-title>{{ studyPlan.studyPlan.title }}</v-card-title>
+              <v-col cols="4" class="d-flex align-center">
+                <v-card-title class="pr-2">{{ studyPlan.studyPlan.title }}</v-card-title>
+                <v-chip v-if="(studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole)" size="x-small" label>
+                  {{ studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole }}
+                </v-chip>
               </v-col>
               <v-col cols="7">
                 <v-card-subtitle
@@ -116,8 +119,11 @@
               striped
             ></v-progress-linear>
             <v-row align="center">
-              <v-col cols="4">
-                <v-card-title>{{ studyPlan.studyPlan.title }}</v-card-title>
+              <v-col cols="4" class="d-flex align-center">
+                <v-card-title class="pr-2">{{ studyPlan.studyPlan.title }}</v-card-title>
+                <v-chip v-if="(studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole)" size="x-small" label>
+                  {{ studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole }}
+                </v-chip>
               </v-col>
               <v-col cols="7">
                 <v-card-subtitle

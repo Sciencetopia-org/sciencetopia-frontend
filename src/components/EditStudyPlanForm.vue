@@ -1,5 +1,11 @@
 <template>
   <v-form @submit.prevent="saveStudyPlan">
+    <!-- Top-right Save Button (optional) -->
+    <div class="form-actions-top" v-if="showTopSave">
+      <v-btn size="small" variant="text" color="blue" @click="saveStudyPlan">
+        {{ $t('studyplan.save') }}
+      </v-btn>
+    </div>
     <!-- Title Input -->
     <v-text-field
       v-model="localStudyPlan.title"
@@ -341,12 +347,7 @@
       {{ $t('studyplan.advancedtopicslimitmsg') }}
     </v-helper-text>
 
-    <!-- Save Button -->
-    <v-actions>
-      <v-btn size="small" variant="text" color="blue" @click="saveStudyPlan">{{
-        $t('studyplan.save')
-      }}</v-btn>
-    </v-actions>
+    <!-- Bottom save button removed; moved to top-right -->
   </v-form>
 </template>
 
@@ -356,6 +357,10 @@ export default {
     studyPlan: {
       type: Object,
       required: true,
+    },
+    showTopSave: {
+      type: Boolean,
+      default: true,
     },
   },
   data() {
@@ -409,6 +414,16 @@ export default {
 </script>
 
 <style scoped>
+.form-actions-top {
+  display: flex;
+  justify-content: flex-end;
+  position: sticky;
+  top: 0;
+  background: white;
+  padding-top: 4px;
+  padding-bottom: 8px;
+  z-index: 1;
+}
 .scrollable-section {
   max-height: 400px;
   /* Adjust the max height as needed */

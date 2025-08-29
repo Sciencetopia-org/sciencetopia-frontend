@@ -7,16 +7,16 @@
         <ReusableIconButton icon="mdi-magnify" :label="$t('header.search')" :iconSize="iconSize"
           @click="openSearchInput" />
 
-        <!-- 趋势 / Trend -->
-        <ReusableIconButton icon="mdi-rss" :label="$t('header.trend')" :iconSize="iconSize" @click="scrollToSection" />
+        <!-- 学习计划 / StudyPlan -->
+        <ReusableIconButton icon="mdi-book-open-variant" :label="$t('header.studyplan')" :iconSize="iconSize"
+          @click="handleStudyPlan" />
 
         <!-- 学习小组 / StudyGroup -->
         <ReusableIconButton icon="mdi-account-group" :label="$t('header.studygroup')" :iconSize="iconSize"
           @click="RouteToStudyGroup" />
 
-        <!-- 学习计划 / StudyPlan -->
-        <ReusableIconButton icon="mdi-book-open-variant" :label="$t('header.studyplan')" :iconSize="iconSize"
-          @click="handleStudyPlan" />
+        <!-- 趋势 / Trend -->
+        <ReusableIconButton icon="mdi-rss" :label="$t('header.trend')" :iconSize="iconSize" @click="scrollToSection" />
 
         <!-- 明/暗模式切换 -->
         <ReusableIconButton :icon="themeIcon" :label="themeLabel" :iconSize="iconSize" @click="toggleTheme" />

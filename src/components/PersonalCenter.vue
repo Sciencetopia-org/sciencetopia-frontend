@@ -20,7 +20,14 @@
 
       <!-- Study Plans Section -->
       <v-col cols="12" md="5" class="study-plan-container">
+        <template v-if="loadingPlans">
+          <v-skeleton-loader type="heading" class="mb-4" />
+          <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+          <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+          <v-skeleton-loader type="list-item-two-line" />
+        </template>
         <StudyPlanList
+          v-else
           :isCurrentUser="isCurrentUser"
           :studyPlanDataList="studyPlanDataList"
         />
@@ -33,7 +40,12 @@
             {{ isCurrentUser ? $t('usercenter.my') : $t('usercenter.their')
             }}{{ $t('wordbreaker') }}{{ $t('usercenter.studygroup') }}
           </v-card-title>
-          <div v-if="studyGroupList.length === 0">
+          <template v-if="loadingGroups">
+            <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+            <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+            <v-skeleton-loader type="list-item-two-line" />
+          </template>
+          <div v-else-if="studyGroupList.length === 0">
             <v-container>
               <v-card class="d-flex align-center justify-center">
                 <v-card-title>
@@ -114,6 +126,8 @@ export default {
       studyGroupList: [],
       activeTab: 0,
       currentUserId: this.$store.state.currentUserID,
+      loadingPlans: false,
+      loadingGroups: false,
     }
   },
   created() {
@@ -126,24 +140,24 @@ export default {
   },
   methods: {
     async fetchDataForUser() {
+      this.loadingPlans = true
+      this.loadingGroups = true
       try {
-        const studyPlanResponse = await apiClient.get(
-          `/StudyPlan/FetchStudyPlans`,
-          {
+        const [studyPlanResponse, studyGroupResponse] = await Promise.all([
+          apiClient.get(`/StudyPlan/FetchStudyPlans`, {
             params: { targetUserId: this.userId },
-          }
-        )
+          }),
+          apiClient.get(`/StudyGroup/GetStudyGroup`, {
+            params: { targetUserId: this.userId },
+          }),
+        ])
         this.studyPlanDataList = studyPlanResponse.data
-
-        const studyGroupResponse = await apiClient.get(
-          `/StudyGroup/GetStudyGroup`,
-          {
-            params: { targetUserId: this.userId },
-          }
-        )
         this.studyGroupList = studyGroupResponse.data
       } catch (error) {
         console.error('Error fetching data:', error)
+      } finally {
+        this.loadingPlans = false
+        this.loadingGroups = false
       }
     },
     async deleteStudyPlan(planTitle) {
