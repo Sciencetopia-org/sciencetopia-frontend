@@ -1,0 +1,8 @@
+{
+  "CanEditPlan": true,
+  "CanPublishVersion": true,
+  "CanManageCohort": true,
+  "CanInviteToCohort": true,
+  "CanUpgradeCohortVersion": true,
+  "CanViewPlan": true
+}

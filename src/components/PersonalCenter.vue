@@ -128,6 +128,11 @@ export default {
       currentUserId: this.$store.state.currentUserID,
       loadingPlans: false,
       loadingGroups: false,
+      // paging/filter for lightweight StudyPlans endpoint
+      page: 1,
+      pageSize: 20,
+      q: null,
+      sort: null,
     }
   },
   created() {
@@ -142,23 +147,55 @@ export default {
     async fetchDataForUser() {
       this.loadingPlans = true
       this.loadingGroups = true
-      try {
-        const [studyPlanResponse, studyGroupResponse] = await Promise.all([
-          apiClient.get(`/StudyPlan/FetchStudyPlans`, {
-            params: { targetUserId: this.userId },
-          }),
-          apiClient.get(`/StudyGroup/GetStudyGroup`, {
-            params: { targetUserId: this.userId },
-          }),
-        ])
-        this.studyPlanDataList = studyPlanResponse.data
-        this.studyGroupList = studyGroupResponse.data
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      } finally {
-        this.loadingPlans = false
-        this.loadingGroups = false
-      }
+      // Fetch study plans and study groups in parallel, but resolve and render independently
+      const plansPromise = apiClient
+        .get(`/StudyPlans`, {
+          params: {
+            page: this.page,
+            pageSize: this.pageSize,
+            q: this.q,
+            sort: this.sort,
+            ...(this.userId ? { targetUserId: this.userId } : {}),
+          },
+        })
+        .then((studyPlanResponse) => {
+          const items = Array.isArray(studyPlanResponse.data)
+            ? studyPlanResponse.data
+            : studyPlanResponse.data?.items || []
+          this.studyPlanDataList = items.map((item) => ({
+            effectiveRole: item.role || null,
+            studyPlan: {
+              id: item.id,
+              title: item.title,
+              introduction: item.description
+                ? { description: item.description }
+                : null,
+            },
+          }))
+        })
+        .catch((error) => {
+          console.error('Error fetching study plans:', error)
+        })
+        .finally(() => {
+          this.loadingPlans = false
+        })
+
+      const groupsPromise = apiClient
+        .get(`/StudyGroup/GetStudyGroup`, {
+          params: { targetUserId: this.userId },
+        })
+        .then((studyGroupResponse) => {
+          this.studyGroupList = studyGroupResponse.data
+        })
+        .catch((error) => {
+          console.error('Error fetching study groups:', error)
+        })
+        .finally(() => {
+          this.loadingGroups = false
+        })
+
+      // Optionally wait for both to settle to avoid unhandled rejections
+      await Promise.allSettled([plansPromise, groupsPromise])
     },
     async deleteStudyPlan(planTitle) {
       if (confirm(this.$t('studyplan.confirmdelete'))) {

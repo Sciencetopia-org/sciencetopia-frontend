@@ -143,7 +143,23 @@
     "empty": "(None)",
     "prerequisitelimitmsg": "Maximum number of prerequisite lessons reached.",
     "maincurriculumlimitmsg": "Maximum number of main curriculum lessons reached.",
-    "advancedtopicslimitmsg": "Maximum number of advanced topic lessons reached."
+    "advancedtopicslimitmsg": "Maximum number of advanced topic lessons reached.",
+    "myplans": "My Study Plans",
+    "create": "Create Plan",
+    "aiGenerate": "AI Generate Plan",
+    "share": "Share",
+    "tabs": { "mine": "Mine", "shared": "Shared with me", "public": "Public" },
+    "myProgress": "My progress {percent}%"
+  },
+  "common": { "search": "Search", "sort": "Sort" },
+  "cohort": {
+    "statsTitle": "Cohort · Progress & Leaderboard",
+    "select": "Select Cohort",
+    "activity": "Cohort Activity",
+    "noactivity": "No activity yet",
+    "join": "Join",
+    "leave": "Leave",
+    "allowShareMetrics": "Share my metrics on leaderboard"
   },
   "accountsetting": {
     "strengthofpassword": "Current Password Strength:",

@@ -5,13 +5,23 @@
       <v-col :cols="collapsed ? 1 : 3" class="pa-0">
         <v-card rounded="xl" elevation="2" class="left-panel">
           <div class="plan-list-header d-flex align-center px-4 py-2">
-            <span class="text-h6">我的学习计划</span>
+            <span class="text-h6">{{ $t('studyplan.myplans') }}</span>
             <v-spacer />
-            <v-btn icon="mdi-plus" variant="text" @click="openCreateDialog" :disabled="backgroundGenerating" />
-            <v-btn icon="mdi-robot-outline" variant="text" @click="openAiDialog" :disabled="backgroundGenerating" />
+            <v-btn :aria-label="$t('studyplan.create')" icon="mdi-plus" variant="text" @click="openCreateDialog" :disabled="backgroundGenerating" />
+            <v-btn :aria-label="$t('studyplan.aiGenerate')" icon="mdi-robot-outline" variant="text" @click="openAiDialog" :disabled="backgroundGenerating" />
           </div>
           <v-divider />
-          <template v-if="loading">
+          <v-tabs v-model="listScope" density="compact" class="px-2">
+            <v-tab value="mine">{{ $t('studyplan.tabs.mine') }}</v-tab>
+            <v-tab value="shared">{{ $t('studyplan.tabs.shared') }}</v-tab>
+            <v-tab value="public">{{ $t('studyplan.tabs.public') }}</v-tab>
+          </v-tabs>
+          <div class="d-flex align-center px-3 pb-2 gap-2">
+            <v-text-field v-model="q" :label="$t('common.search')" density="compact" hide-details clearable @keyup.enter="fetchPlans" @click:clear="fetchPlans" />
+            <v-select v-model="sort" :items="sortItems" :label="$t('common.sort')" density="compact" hide-details style="max-width: 200px" @update:model-value="fetchPlans" />
+          </div>
+          <v-divider />
+          <template v-if="listLoading">
             <v-skeleton-loader type="list-item" v-for="n in 3" :key="n" />
           </template>
           <template v-else-if="studyPlans.length">
@@ -35,44 +45,11 @@
                     icon="mdi-pencil"
                     variant="text"
                     density="comfortable"
-                    @click.stop="startEdit(plan.studyPlan)"
+                    @click.stop="editPlanById(plan.studyPlan.id)"
                     :aria-label="`编辑 ${plan.studyPlan.title}`"
                   />
                 </template>
                 <div class="title">{{ plan.studyPlan.title }}</div>
-                <v-tooltip
-                  :text="`学习进度：${plan.studyPlan.progressPercentage} %`"
-                  location="up"
-                >
-                  <template v-slot:activator="{ props }">
-                    <v-progress-linear
-                      v-bind="props"
-                      :model-value="plan.studyPlan.progressPercentage"
-                      color="text"
-                      height="15"
-                      striped
-                    />
-                  </template>
-                </v-tooltip>
-                <v-tooltip
-                  v-if="plan.studyPlan.advancedTopicProgressPercentage > 0"
-                  :text="
-                    `额外学习了${plan.studyPlan.advancedTopicProgressPercentage} %的进阶内容`
-                  "
-                  location="up"
-                >
-                  <template v-slot:activator="{ props }">
-                    <v-progress-linear
-                      v-bind="props"
-                      :model-value="
-                        plan.studyPlan.advancedTopicProgressPercentage
-                      "
-                      color="accent"
-                      height="15"
-                      striped
-                    />
-                  </template>
-                </v-tooltip>
               </v-list-item>
             </v-list>
           </template>
@@ -102,153 +79,49 @@
         </v-card>
       </v-col>
 
-      <!-- Middle: lessons list -->
-      <v-col :cols="collapsed ? 6 : 5" class="center-panel">
-        <div v-if="loading">
-          <v-skeleton-loader type="list-item" v-for="n in 5" :key="n" />
-        </div>
-        <template v-else>
-          <div v-if="currentPlan">
-            <!-- Editing view in center panel -->
-            <div v-if="isEditing">
-              <div class="plan-header d-flex align-center justify-space-between">
-                <div>
-                  <h2 class="plan-title">编辑：{{ currentPlan.title }}</h2>
-                </div>
-                <div>
-                  <v-btn class="mr-2" variant="text" @click="cancelEditInCenter">取消</v-btn>
-                  <v-btn size="small" variant="text" color="blue" @click="saveFromHeader">保存学习计划</v-btn>
-                </div>
-              </div>
-              <EditStudyPlanForm ref="editForm" :studyPlan="editPlan" :showTopSave="false" @save="saveStudyPlan" @dirty="editDirty = true" />
-            </div>
-            <!-- Read-only view -->
-            <div v-else>
-              <!-- Plan header: title and description with edit button -->
-              <div class="plan-header d-flex align-start justify-space-between">
-                <div>
-                  <h2 class="plan-title">{{ currentPlan.title }}</h2>
-                  <p class="plan-desc">
-                    {{ (currentPlan.introduction && currentPlan.introduction.description) || '' }}
-                  </p>
-                </div>
-                <div class="d-flex align-center">
-                  <v-chip v-if="getRole(currentPlan.id)" size="x-small" label class="mr-2">{{ getRole(currentPlan.id) }}</v-chip>
-                  <v-btn v-if="isOwner(currentPlan.id)" class="mr-1" variant="text" @click="openShareDialog">分享</v-btn>
-                  <v-btn v-if="canEdit(currentPlan.id)" icon="mdi-pencil" variant="text" @click="startEdit(currentPlan)" :aria-label="`编辑 ${currentPlan.title}`" />
-                </div>
-              </div>
-              <v-expansion-panels multiple v-model="openSections">
-                <v-expansion-panel
-                  title="预备知识"
-                  v-if="currentPlan.prerequisite && currentPlan.prerequisite.length"
-                >
-                  <v-expansion-panel-text>
-                    <v-list density="comfortable">
-                      <v-list-item
-                        v-for="(lesson, idx) in currentPlan.prerequisite"
-                        :key="'pre-' + idx"
-                        @click="selectLesson(lesson)"
-                        :class="{
-                          'selected-lesson':
-                            currentLesson && currentLesson.name === lesson.name,
-                        }"
-                      >
-                        <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                        <v-progress-linear
-                          :model-value="lesson.progressPercentage"
-                          height="6"
-                          color="primary"
-                        />
-                      </v-list-item>
-                    </v-list>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-                <v-expansion-panel
-                  title="主要课程"
-                  v-if="currentPlan.mainCurriculum && currentPlan.mainCurriculum.length"
-                >
-                  <v-expansion-panel-text>
-                    <v-list density="comfortable">
-                      <v-list-item
-                        v-for="(lesson, idx) in currentPlan.mainCurriculum"
-                        :key="'main-' + idx"
-                        @click="selectLesson(lesson)"
-                        :class="{
-                          'selected-lesson':
-                            currentLesson && currentLesson.name === lesson.name,
-                        }"
-                      >
-                        <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                        <v-progress-linear
-                          :model-value="lesson.progressPercentage"
-                          height="6"
-                          color="primary"
-                        />
-                      </v-list-item>
-                    </v-list>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-                <v-expansion-panel
-                  title="进阶内容"
-                  v-if="currentPlan.advancedTopics && currentPlan.advancedTopics.length"
-                >
-                  <v-expansion-panel-text>
-                    <v-list density="comfortable">
-                      <v-list-item
-                        v-for="(lesson, idx) in currentPlan.advancedTopics"
-                        :key="'adv-' + idx"
-                        @click="selectLesson(lesson)"
-                        :class="{
-                          'selected-lesson':
-                            currentLesson && currentLesson.name === lesson.name,
-                        }"
-                      >
-                        <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                        <v-progress-linear
-                          :model-value="lesson.progressPercentage"
-                          height="6"
-                          color="accent"
-                        />
-                      </v-list-item>
-                    </v-list>
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-              </v-expansion-panels>
-            </div>
-          </div>
-          <div v-else class="placeholder">
-            {{ studyPlans.length ? '请选择一个学习计划' : '尚未创建学习计划' }}
-          </div>
-        </template>
-      </v-col>
+      <!-- Middle + Right (default): Plan and Lesson panels -->
+      <template v-if="!showProgressPage">
+        <v-col :cols="collapsed ? 6 : 5" class="center-panel">
+          <PlanContextBar
+            v-if="currentPlan?.id"
+            :scope="scope"
+            :groups="affiliations"
+            @change="onScopeChange"
+            @open-group="(gid) => $router.push({ name: 'GroupPlanWorkspace', params: { groupId: gid, planId: currentPlan.id } })"
+          />
+          <PlanDetailPanel
+            v-if="currentPlan?.id"
+            :planId="currentPlan.id"
+            :scope="scope"
+            :allowEditControls="true"
+            @select-lesson="selectLessonById"
+            @open-share="openShareDialog"
+            @open-progress="showProgressPage = true"
+            @updated-plan="(p) => (currentPlan = p)"
+          />
+          <div v-else class="placeholder">{{ studyPlans.length ? '请选择一个学习计划' : '尚未创建学习计划' }}</div>
+        </v-col>
 
-      <!-- Right: lesson content -->
-      <v-col :cols="collapsed ? 5 : 4" class="right-panel">
-        <div v-if="loading">
-          <v-skeleton-loader type="text" class="mb-2" />
-          <v-skeleton-loader type="list-item" v-for="n in 3" :key="n" />
-        </div>
-        <div v-else-if="currentLesson">
-          <h3 class="mb-2">{{ currentLesson.name }}</h3>
-          <p>{{ currentLesson.description }}</p>
-          <v-list v-if="currentLesson.resources && currentLesson.resources.length">
-            <v-list-item v-for="(res, idx) in currentLesson.resources" :key="idx">
-              <template #prepend>
-                <v-checkbox
-                  v-model="res.learned"
-                  :disabled="!canCommentOrProgress(currentPlan?.id)"
-                  @click.stop="markResourceAsLearned(res, currentLesson)"
-                />
-              </template>
-              <v-list-item-title>
-                <a :href="res.link" target="_blank">{{ res.link }}</a>
-              </v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </div>
-        <div v-else class="placeholder">请选择一个课程</div>
-      </v-col>
+        <!-- Right: Lesson detail panel -->
+        <v-col :cols="collapsed ? 5 : 4" class="right-panel">
+          <LessonDetailPanel
+            :planId="currentPlan?.id"
+            :lesson="currentLesson"
+            :lessonId="currentLessonId"
+            :scope="scope"
+            :canInteract="canCommentOrProgress(currentPlan?.id)"
+            :disabled="!canCommentOrProgress(currentPlan?.id)"
+            @resource-updated="onResourceUpdated"
+          />
+        </v-col>
+      </template>
+
+      <!-- ProgressPage occupying middle + right columns -->
+      <template v-else>
+        <v-col :cols="collapsed ? 11 : 9" class="center-panel">
+          <ProgressPage :planId="currentPlan?.id" @close="showProgressPage = false" />
+        </v-col>
+      </template>
     </v-row>
 
     <!-- AI planner dialog -->
@@ -281,6 +154,9 @@
       </v-card>
     </v-dialog>
 
+    <!-- Share dialog -->
+    <ShareStudyPlanDialog v-model="shareDialog" v-if="currentPlan?.id" :planId="currentPlan.id" />
+
     <v-snackbar v-model="backgroundSnackbar" :timeout="backgroundLoading ? -1 : 3000">
       <div class="d-flex align-center">
         <v-progress-circular v-if="backgroundLoading" indeterminate color="white" class="mr-2" />
@@ -294,31 +170,52 @@
 <script>
 import { apiClient } from '@/api'
 import LearningPlanner from '@/components/LearningPlanner.vue'
-import EditStudyPlanForm from '@/components/EditStudyPlanForm.vue'
+import PlanDetailPanel from '@/components/PlanDetailPanel.vue'
+import LessonDetailPanel from '@/components/LessonDetailPanel.vue'
+import ProgressPage from '@/components/ProgressPage.vue'
+import ShareStudyPlanDialog from '@/components/ShareStudyPlanDialog.vue'
 import { eventBus } from '@/eventBus'
 import { connection } from '@/services/signalr-service'
-import permSvc, { fetchEffectiveRole as fetchRole, getRole as getCachedRole, invalidateRole, roleAllowsEdit, roleAllowsComment } from '@/services/studyplan-permissions'
+import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit, roleAllowsComment } from '@/services/studyplan-permissions'
 
 export default {
   name: 'StudyPlanWorkspace',
-  components: { LearningPlanner, EditStudyPlanForm },
+  components: { LearningPlanner, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage },
   data() {
     return {
       studyPlans: [],
       currentPlan: null,
       currentLesson: null,
+      currentLessonId: null,
       drawer: true,
       collapsed: false,
       openSections: [0, 1, 2],
       aiDialog: false,
       editDialog: false,
+      shareDialog: false,
       editPlan: null,
       isEditing: false,
       aiDirty: false,
       editDirty: false,
-      loading: false,
+      // loading flags
+      listLoading: false,
+      detailLoading: false,
+      // paging and filters for list endpoint
+      page: 1,
+      pageSize: 20,
+      q: null,
+      sort: null,
+      listScope: 'mine',
+      sortItems: [
+        { title: '最近学习', value: 'recent' },
+        { title: '创建时间', value: 'created' },
+        { title: '热度', value: 'hot' },
+      ],
+      // my progress now handled in PlanDetailPanel
       roleMap: {},
       unsubscribers: [],
+      affiliations: [],
+      showProgressPage: false,
     }
   },
   computed: {
@@ -334,9 +231,13 @@ export default {
         (p) => String(p.studyPlan.id) === String(planId)
       )
       if (selected) {
-        this.selectPlan(selected.studyPlan)
+        await this.selectPlan(selected.studyPlan)
         await this.refreshEffectiveRole(selected.studyPlan.id)
       }
+    }
+    // load affiliations for context bar when we have a plan
+    if (this.currentPlan?.id) {
+      this.fetchAffiliations(this.currentPlan.id)
     }
     // handle edit query param against permissions
     if (this.$route.query.edit === 'true' && this.currentPlan) {
@@ -373,31 +274,58 @@ export default {
   },
   methods: {
     async fetchPlans() {
-      this.loading = true
+      this.listLoading = true
       try {
-        const res = await apiClient.get('/StudyPlan/FetchStudyPlans')
-        this.studyPlans = res.data.map((p) => {
-          const sections = ['prerequisite', 'mainCurriculum', 'advancedTopics']
-          sections.forEach((sec) => {
-            if (p.studyPlan[sec]) {
-              p.studyPlan[sec] = this.mergeLessons(p.studyPlan[sec])
-            }
-          })
-          return p
+        const res = await apiClient.get('/StudyPlans', {
+          params: {
+            page: this.page,
+            pageSize: this.pageSize,
+            q: this.q,
+            sort: this.sort,
+            scope: this.listScope,
+          },
         })
-        // Proactively fetch roles when payload doesn't include them
-        const ids = this.studyPlans.map(sp => sp.studyPlan?.id).filter(Boolean)
-        await Promise.allSettled(ids.map(async (id) => {
-          // Always refresh cache to be safe and update reactive map
-          invalidateRole(id)
-          const role = await permSvc.fetchEffectiveRole(id, { force: true })
-          if (role) this.roleMap[id] = role
+        // Expecting res.data to be an array of lightweight items with id, title, description, role
+        const items = Array.isArray(res.data) ? res.data : res.data?.items || []
+        this.studyPlans = items.map((item) => ({
+          studyPlan: {
+            id: item.id,
+            title: item.title,
+            // keep shape consistent; introduction used in center panel
+            introduction: item.description ? { description: item.description } : null,
+          },
         }))
-        console.log('Fetched study plans and roles:', this.studyPlans, this.roleMap)
+        // Prime role map from list if role provided; otherwise, leave to permission service on demand
+        items.forEach((item) => {
+          if (item?.id && item?.role) this.roleMap[item.id] = item.role
+        })
       } catch (e) {
         console.error('Error fetching study plans:', e)
       } finally {
-        this.loading = false
+        this.listLoading = false
+      }
+    },
+    async fetchPlanDetailsById(planId) {
+      // PlanDetailPanel handles fetching by planId; here we set minimal state
+      this.detailLoading = false
+      this.currentPlan = { id: planId }
+      this.currentLesson = null
+      this.currentLessonId = null
+      this.fetchAffiliations(planId)
+    },
+    async fetchAffiliations(planId) {
+      try {
+        const res = await apiClient.get(`/studyPlans/${planId}/cohorts`)
+        const cohorts = Array.isArray(res?.data) ? res.data : []
+        const seen = new Map()
+        cohorts.forEach(c => {
+          if (!c.studyGroupId) return
+          const key = String(c.studyGroupId)
+          if (!seen.has(key)) seen.set(key, { groupId: c.studyGroupId, groupName: c.groupName || c.title || key, shareMode: c.shareMode || 'Editable' })
+        })
+        this.affiliations = Array.from(seen.values())
+      } catch (e) {
+        this.affiliations = []
       }
     },
     async refreshEffectiveRole(planId) {
@@ -416,32 +344,35 @@ export default {
     canCommentOrProgress(planId) {
       return roleAllowsComment(this.getRole(planId))
     },
-    mergeLessons(lessons) {
-      const map = new Map()
-      lessons.forEach((lesson) => {
-        const existing = map.get(lesson.name)
-        if (existing) {
-          const resources = lesson.resources || []
-          existing.resources = existing.resources.concat(resources)
-        } else {
-          map.set(lesson.name, {
-            ...lesson,
-            resources: lesson.resources ? [...lesson.resources] : [],
-          })
-        }
-      })
-      return Array.from(map.values())
-    },
-    selectPlan(plan) {
-      this.currentPlan = plan
+    async selectPlan(plan) {
+      // Avoid reloading if selecting the same plan again (when not editing)
+      if (
+        this.currentPlan &&
+        String(this.currentPlan.id) === String(plan.id) &&
+        !this.isEditing
+      ) {
+        return
+      }
       this.currentLesson = null
       this.isEditing = false
+      // Fetch details on demand (lazy load)
+      await this.fetchPlanDetailsById(plan.id)
       if (!this.getRole(plan.id)) {
         this.refreshEffectiveRole(plan.id)
       }
     },
     selectLesson(lesson) {
       this.currentLesson = lesson
+      this.currentLessonId = lesson?.id || lesson?.name
+      // Batch check completion status when resource IDs are present
+      this.fetchLessonCompletedStatus(lesson)
+    },
+    selectLessonById(id) {
+      this.currentLessonId = id
+      this.currentLesson = null // let LessonDetailPanel resolve from plan
+    },
+    onScopeChange(newScope) {
+      this.scope = newScope
     },
     openCreateDialog() {
       if (this.backgroundGenerating) {
@@ -518,8 +449,20 @@ export default {
         console.error('Error saving study plan:', e)
       }
     },
+    async editPlanById(planId) {
+      // Ensure user has edit rights and load full details before editing
+      if (!this.canEdit(planId)) {
+        alert('无权限编辑该学习计划')
+        return
+      }
+      await this.fetchPlanDetailsById(planId)
+      if (this.currentPlan) {
+        this.startEdit(this.currentPlan)
+      }
+    },
     openShareDialog() {
-      alert('分享入口（仅拥有者可见）：功能即将上线')
+      if (!this.currentPlan?.id) return
+      this.shareDialog = true
     },
     async markResourceAsLearned(resource, lesson) {
       const wasLearned = resource.learned
@@ -542,10 +485,38 @@ export default {
         resource.learned = wasLearned
       }
     },
+    onResourceUpdated({ completed, resource }) {
+      // keep local model in sync
+      resource.learned = completed
+      // refresh my overall progress
+      if (this.currentPlan?.id) {
+        this.fetchMyProgress(this.currentPlan.id)
+      }
+    },
     onAiDialogChange(val) {
       if (!val) {
         this.fetchPlans()
         this.aiDirty = false
+      }
+    },
+    async fetchLessonCompletedStatus(lesson) {
+      try {
+        if (!lesson?.resources || lesson.resources.length === 0) return
+        const ids = lesson.resources
+          .map((r) => r.id || r.resourceId)
+          .filter(Boolean)
+        if (!ids.length) return
+        const res = await apiClient.post('/resources/completedStatus', {
+          resourceIds: ids,
+        })
+        const statusList = Array.isArray(res.data) ? res.data : []
+        const map = new Map(statusList.map((s) => [String(s.resourceId), !!s.completed]))
+        lesson.resources.forEach((r) => {
+          const key = String(r.id || r.resourceId)
+          if (map.has(key)) r.learned = map.get(key)
+        })
+      } catch (e) {
+        console.error('Failed to fetch completedStatus for lesson', e)
       }
     },
     // 统一的关闭入口：只有点右下角按钮才会触发

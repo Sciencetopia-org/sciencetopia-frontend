@@ -1,0 +1,26 @@
+[
+  {
+    "id": "c1",
+    "studyPlanId": "p1",
+    "title": "前端公开 Cohort",
+    "studyGroupId": null,
+    "enrollMode": "public",
+    "pinnedVersionId": "v1",
+    "membersCount": 23,
+    "createdAt": "2024-06-01T10:00:00Z",
+    "createdBy": "u-1"
+  },
+  {
+    "id": "c2",
+    "studyPlanId": "p1",
+    "title": "FE 团队内训",
+    "studyGroupId": "g-fe",
+    "groupName": "Frontend Team",
+    "enrollMode": "group",
+    "shareMode": "Editable",
+    "pinnedVersionId": "v1",
+    "membersCount": 12,
+    "createdAt": "2024-06-05T10:00:00Z",
+    "createdBy": "u-2"
+  }
+]

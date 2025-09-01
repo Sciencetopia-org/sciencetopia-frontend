@@ -1,0 +1,32 @@
+{
+  "studyPlan": {
+    "id": "p1",
+    "title": "前端工程基础",
+    "introduction": { "description": "HTML/CSS/JS 基础，附带工程化与工具链" },
+    "prerequisite": [
+      { "id": "l1", "name": "HTML 基础", "description": "标签、语义化与表单", "resources": [
+        { "id": "r1", "title": "MDN HTML 入门", "link": "https://developer.mozilla.org/zh-CN/docs/Web/HTML" },
+        { "id": "r2", "title": "HTML 表单指南", "link": "https://developer.mozilla.org/zh-CN/docs/Learn/Forms" }
+      ] },
+      { "id": "l2", "name": "CSS 基础", "description": "选择器、盒模型与布局", "resources": [
+        { "id": "r3", "title": "CSS 选择器参考", "link": "https://developer.mozilla.org/zh-CN/docs/Web/CSS/CSS_selectors" },
+        { "id": "r4", "title": "Flexbox 指南", "link": "https://css-tricks.com/snippets/css/a-guide-to-flexbox/" }
+      ] }
+    ],
+    "mainCurriculum": [
+      { "id": "l3", "name": "JavaScript 基础", "description": "语法、作用域、异步", "resources": [
+        { "id": "r5", "title": "JavaScript 指南", "link": "https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide" },
+        { "id": "r6", "title": "你不知道的JS（上）", "link": "https://github.com/getify/You-Dont-Know-JS" }
+      ] },
+      { "id": "l4", "name": "工程化入门", "description": "包管理、构建工具、Lint/Format", "resources": [
+        { "id": "r7", "title": "npm 使用指南", "link": "https://docs.npmjs.com/" },
+        { "id": "r8", "title": "ESLint 入门", "link": "https://eslint.org/docs/latest/use/getting-started" }
+      ] }
+    ],
+    "advancedTopics": [
+      { "id": "l5", "name": "TypeScript 基础", "description": "类型系统与常用技巧", "resources": [
+        { "id": "r9", "title": "TypeScript 手册", "link": "https://www.typescriptlang.org/docs/" }
+      ] }
+    ]
+  }
+}

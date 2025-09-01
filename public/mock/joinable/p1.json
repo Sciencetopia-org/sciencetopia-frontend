@@ -1,0 +1,10 @@
+{
+  "groupScoped": [
+    { "id": "c2", "title": "FE 团队内训", "studyGroupId": "g-fe" }
+  ],
+  "public": [
+    { "id": "c1", "title": "前端公开 Cohort" }
+  ],
+  "hasMore": false,
+  "startSoloAllowed": true
+}

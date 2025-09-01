@@ -4,7 +4,7 @@ import { createStore } from 'vuex'
 import { apiClient } from '@/api' // Adjust the path to your api.js file
 import { startConnection, stopConnection } from '@/services/signalr-service'
 
-export default createStore({
+const store = createStore({
   state: {
     isAuthenticated: false,
     avatarUrl: '头像URL',
@@ -27,6 +27,58 @@ export default createStore({
     notificationCount: 0,
     learningStatus: {},
     backgroundGenerating: false,
+
+    // =========================
+    // Global normalized entities
+    // =========================
+    /**
+     * @typedef {Object} PlanLite
+     * @property {string|number} id
+     * @property {string} title
+     * @property {string} [description]
+     * @property {string|number} [currentVersionId]
+     * @property {string} [visibility] // public | group | private
+     */
+    /** @type {Record<string|number, PlanLite>} */
+    plansById: {},
+
+    /**
+     * @typedef {Object} Cohort
+     * @property {string|number} id
+     * @property {string|number} studyPlanId
+     * @property {string} [title]
+     * @property {string|number|null} [studyGroupId]
+     * @property {string} [enrollMode] // public | group | solo
+     * @property {string|number} [pinnedVersionId]
+     * @property {number} [membersCount]
+     * @property {string} [createdAt]
+     * @property {string|number} [createdBy]
+     */
+    /** @type {Record<string|number, Cohort>} */
+    cohortsById: {},
+
+    /**
+     * @typedef {Object} Enrollment
+     * @property {string|number|null} activeCohortId
+     * @property {string} [role]
+     * @property {string} [joinedAt]
+     * @property {Array<string|number>} [archivedCohortIds]
+     */
+    /** @type {Record<string|number, Enrollment>} */
+    enrollmentByPlan: {},
+
+    /**
+     * @typedef {Object} Group
+     * @property {string|number} id
+     * @property {string} name
+     * @property {string} [myRole]
+     * @property {number} [membersCount]
+     */
+    /** @type {Record<string|number, Group>} */
+    groupsById: {},
+
+    /** @type {Record<string|number, any>} */
+    cohortAggregatesById: {},
   },
   mutations: {
     SET_AUTHENTICATED(state, value) {
@@ -123,6 +175,42 @@ export default createStore({
     },
     SET_BACKGROUND_GENERATING(state, value) {
       state.backgroundGenerating = value
+    },
+
+    // =========== Entities mutations ===========
+    UPSERT_PLAN(state, plan) {
+      if (!plan || plan.id == null) return
+      state.plansById[plan.id] = { ...state.plansById[plan.id], ...plan }
+    },
+    UPSERT_PLANS(state, plans) {
+      if (!Array.isArray(plans)) return
+      for (const p of plans) {
+        if (!p || p.id == null) continue
+        state.plansById[p.id] = { ...state.plansById[p.id], ...p }
+      }
+    },
+    UPSERT_COHORT(state, cohort) {
+      if (!cohort || cohort.id == null) return
+      state.cohortsById[cohort.id] = { ...state.cohortsById[cohort.id], ...cohort }
+    },
+    UPSERT_COHORTS(state, cohorts) {
+      if (!Array.isArray(cohorts)) return
+      for (const c of cohorts) {
+        if (!c || c.id == null) continue
+        state.cohortsById[c.id] = { ...state.cohortsById[c.id], ...c }
+      }
+    },
+    SET_ENROLLMENT_FOR_PLAN(state, { planId, enrollment }) {
+      if (planId == null) return
+      state.enrollmentByPlan[planId] = { ...state.enrollmentByPlan[planId], ...enrollment }
+    },
+    UPSERT_GROUP(state, group) {
+      if (!group || group.id == null) return
+      state.groupsById[group.id] = { ...state.groupsById[group.id], ...group }
+    },
+    SET_COHORT_AGGREGATE(state, { cohortId, aggregate }) {
+      if (cohortId == null) return
+      state.cohortAggregatesById[cohortId] = aggregate
     },
   },
   actions: {
@@ -288,10 +376,105 @@ export default createStore({
     markNotificationsAsRead({ commit }) {
       commit('resetNotificationCount')
     },
+
+    // =========================
+    // Route: /plans/:planId loader chain (F0-2)
+    // =========================
+    async loadPlanRouteContext({ commit }, planId) {
+      if (!planId) return
+      try {
+        // GET /plans/:planId
+        const planRes = await apiClient.get(`/plans/${planId}`)
+        const plan = planRes?.data || null
+        if (plan) commit('UPSERT_PLAN', plan)
+
+        // GET /plans/:planId/enrollment/me
+        let enrollment = null
+        try {
+          const enrRes = await apiClient.get(`/plans/${planId}/enrollment/me`)
+          enrollment = enrRes?.data || null
+          if (enrollment) commit('SET_ENROLLMENT_FOR_PLAN', { planId, enrollment })
+        } catch (e) {
+          // No enrollment is acceptable; keep null
+          // console.warn('enrollment not found for plan', planId)
+        }
+
+        // If there is an active cohort, load its details + aggregate
+        const activeCohortId = enrollment?.activeCohortId
+        if (activeCohortId != null) {
+          try {
+            const cohortRes = await apiClient.get(`/cohorts/${activeCohortId}`)
+            const cohort = cohortRes?.data || null
+            if (cohort) commit('UPSERT_COHORT', cohort)
+          } catch (e) {
+            // ignore cohort errors for initial paint
+          }
+          try {
+            const aggRes = await apiClient.get(`/cohorts/${activeCohortId}/aggregate`)
+            const aggregate = aggRes?.data || null
+            if (aggregate) commit('SET_COHORT_AGGREGATE', { cohortId: activeCohortId, aggregate })
+          } catch (e) {
+            // ignore aggregate errors for initial paint
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load plan route context', e)
+      }
+    },
   },
 
   getters: {
     // Getter to access the isEditing state
     isEditing: (state) => state.isEditing,
+    planById: (state) => (id) => state.plansById[id] || null,
+    enrollmentOfPlan: (state) => (planId) => state.enrollmentByPlan[planId] || null,
+    cohortById: (state) => (id) => state.cohortsById[id] || null,
+    cohortAggregateById: (state) => (id) => state.cohortAggregatesById[id] || null,
   },
 })
+
+// Initialize mock state for dev visibility in devtools (F0-1)
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const mockPlan = {
+      id: 'p-demo-1',
+      title: 'Demo Plan: Web Basics',
+      description: 'HTML/CSS/JS foundations',
+      currentVersionId: 'v1',
+      visibility: 'public',
+    }
+    const mockCohort = {
+      id: 'c-demo-1',
+      studyPlanId: mockPlan.id,
+      title: 'Public Cohort A',
+      studyGroupId: null,
+      enrollMode: 'public',
+      pinnedVersionId: 'v1',
+      membersCount: 12,
+      createdAt: new Date().toISOString(),
+      createdBy: 'u-1',
+    }
+    const mockGroup = {
+      id: 'g-demo-1',
+      name: 'Frontend Ninjas',
+      myRole: 'member',
+      membersCount: 8,
+    }
+    store.commit('UPSERT_PLAN', mockPlan)
+    store.commit('UPSERT_COHORT', mockCohort)
+    store.commit('UPSERT_GROUP', mockGroup)
+    store.commit('SET_ENROLLMENT_FOR_PLAN', {
+      planId: mockPlan.id,
+      enrollment: {
+        activeCohortId: mockCohort.id,
+        role: 'member',
+        joinedAt: new Date().toISOString(),
+        archivedCohortIds: [],
+      },
+    })
+  } catch (e) {
+    // ignore if store not ready
+  }
+}
+
+export default store

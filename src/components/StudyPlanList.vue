@@ -1,168 +1,46 @@
 <template>
   <v-card class="study-plan-card">
     <v-row>
-      <v-col cols="auto">
+      <v-col cols="12">
         <v-card-title class="study-plan-title">
           {{ isCurrentUser ? $t('usercenter.my') : $t('usercenter.their')
           }}{{ $t('wordbreaker') }}{{ $t('usercenter.studyplan') }}
         </v-card-title>
       </v-col>
-      <v-col cols="auto">
-        <v-tabs v-model="activeTab" class="study-plan-tabs">
-          <v-tab>
-            <p class="study-plan-tab">{{ $t('studyplan.inprogress') }}</p>
-          </v-tab>
-          <v-tab>
-            <p class="study-plan-tab">{{ $t('studyplan.completed') }}</p>
-          </v-tab>
-        </v-tabs>
-      </v-col>
     </v-row>
 
-    <!-- Active Study Plans -->
-    <v-tab-item v-if="activeTab === 0">
-      <v-row>
-        <v-col
-          v-for="studyPlan in activeStudyPlans"
-          :key="studyPlan.id"
-          cols="12"
-        >
-          <v-card
-            class="study-plan-summary"
-            @click="goToPlanDetail(studyPlan.studyPlan.id)"
-          >
-            <v-progress-linear
-              v-bind="props"
-              :model-value="studyPlan.studyPlan.progressPercentage"
-              color="text"
-              height="10"
-              striped
-            ></v-progress-linear>
-            <!-- <v-spacer style="height: 5px;"></v-spacer> -->
-            <v-progress-linear
-              v-if="studyPlan.studyPlan.advancedTopicProgressPercentage > 0"
-              v-bind="props"
-              :model-value="studyPlan.studyPlan.advancedTopicProgressPercentage"
-              color="accent"
-              height="10"
-              striped
-            ></v-progress-linear>
-            <v-row align="center">
-              <v-col cols="4" class="d-flex align-center">
-                <v-card-title class="pr-2">{{ studyPlan.studyPlan.title }}</v-card-title>
-                <v-chip v-if="(studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole)" size="x-small" label>
-                  {{ studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole }}
-                </v-chip>
-              </v-col>
-              <v-col cols="7">
-                <v-card-subtitle
-                  >已学习{{
-                    studyPlan.studyPlan.progressPercentage
-                  }}
-                  %，额外学习了{{
-                    studyPlan.studyPlan.advancedTopicProgressPercentage
-                  }}
-                  %的进阶内容</v-card-subtitle
-                >
-              </v-col>
-              <v-col cols="1">
-                <v-btn
-                  variant="plain"
-                  icon
-                  @click="goToPlanDetail(studyPlan.studyPlan.id)"
-                >
-                  <div class="go-to-icon"></div>
-                </v-btn>
-              </v-col>
-            </v-row>
-          </v-card>
-        </v-col>
-      </v-row>
-      <div v-if="activeStudyPlans.length === 0">
-        <v-container>
-          <v-card class="d-flex align-center justify-center">
-            <v-card-title>
-              {{
-                isCurrentUser
-                  ? $t('studyplan.noprogress_my')
-                  : $t('studyplan.noprogress_their')
-              }}
-            </v-card-title>
-          </v-card>
-        </v-container>
-      </div>
-    </v-tab-item>
-
-    <!-- Completed Study Plans -->
-    <v-tab-item v-if="activeTab === 1">
-      <v-row>
-        <v-col
-          v-for="studyPlan in completedStudyPlans"
-          :key="studyPlan.id"
-          cols="12"
-        >
-          <v-card class="study-plan-summary">
-            <v-progress-linear
-              v-bind="props"
-              :model-value="studyPlan.studyPlan.progressPercentage"
-              color="text"
-              height="10"
-              striped
-            ></v-progress-linear>
-            <!-- <v-spacer style="height: 5px;"></v-spacer> -->
-            <v-progress-linear
-              v-if="studyPlan.studyPlan.advancedTopicProgressPercentage > 0"
-              v-bind="props"
-              :model-value="studyPlan.studyPlan.advancedTopicProgressPercentage"
-              color="accent"
-              height="10"
-              striped
-            ></v-progress-linear>
-            <v-row align="center">
-              <v-col cols="4" class="d-flex align-center">
-                <v-card-title class="pr-2">{{ studyPlan.studyPlan.title }}</v-card-title>
-                <v-chip v-if="(studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole)" size="x-small" label>
-                  {{ studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole }}
-                </v-chip>
-              </v-col>
-              <v-col cols="7">
-                <v-card-subtitle
-                  >已学习{{
-                    studyPlan.studyPlan.progressPercentage
-                  }}
-                  %，额外学习了{{
-                    studyPlan.studyPlan.advancedTopicProgressPercentage
-                  }}
-                  %的进阶内容</v-card-subtitle
-                >
-              </v-col>
-              <v-col cols="1">
-                <v-btn
-                  variant="plain"
-                  icon
-                  @click="goToPlanDetail(studyPlan.studyPlan.id)"
-                >
-                  <div class="go-to-icon"></div>
-                </v-btn>
-              </v-col>
-            </v-row>
-          </v-card>
-        </v-col>
-      </v-row>
-      <div v-if="completedStudyPlans.length === 0">
-        <v-container>
-          <v-card class="d-flex align-center justify-center">
-            <v-card-title>
-              {{
-                isCurrentUser
-                  ? $t('studyplan.nocompleted_my')
-                  : $t('studyplan.nocompleted_their')
-              }}
-            </v-card-title>
-          </v-card>
-        </v-container>
-      </div>
-    </v-tab-item>
+    <v-row>
+      <v-col
+        v-for="studyPlan in studyPlanDataList"
+        :key="studyPlan.studyPlan.id"
+        cols="12"
+      >
+        <v-card class="study-plan-summary" @click="goToPlanDetail(studyPlan.studyPlan.id)">
+          <v-row align="center">
+            <v-col cols="9" class="d-flex align-center">
+              <v-card-title class="pr-2">{{ studyPlan.studyPlan.title }}</v-card-title>
+              <v-chip v-if="(studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole)" size="x-small" label>
+                {{ studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole }}
+              </v-chip>
+            </v-col>
+            <v-col cols="3" class="d-flex justify-end">
+              <v-btn variant="plain" icon @click.stop="goToPlanDetail(studyPlan.studyPlan.id)">
+                <div class="go-to-icon"></div>
+              </v-btn>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+    </v-row>
+    <div v-if="studyPlanDataList.length === 0">
+      <v-container>
+        <v-card class="d-flex align-center justify-center">
+          <v-card-title>
+            {{ isCurrentUser ? $t('studyplan.noprogress_my') : $t('studyplan.noprogress_their') }}
+          </v-card-title>
+        </v-card>
+      </v-container>
+    </div>
   </v-card>
 </template>
 
@@ -170,21 +48,14 @@
 export default {
   data() {
     return {
-      activeTab: 0,
+      // simplified list view; progress/completion not shown in lightweight mode
     }
   },
   props: {
     isCurrentUser: Boolean,
     studyPlanDataList: Array,
   },
-  computed: {
-    activeStudyPlans() {
-      return this.studyPlanDataList.filter((item) => !item.studyPlan.completed)
-    },
-    completedStudyPlans() {
-      return this.studyPlanDataList.filter((item) => item.studyPlan.completed)
-    },
-  },
+  computed: {},
   methods: {
     goToPlanDetail(planId) {
       this.$router.push({

@@ -77,6 +77,44 @@ const initializeSignalRConnection = (
       console.log('Updated notification count:', notificationCount)
     })
 
+    // --- Study Plan / Cohort realtime events ---
+    connection.on('group_membership_changed', (payload) => {
+      try {
+        const { groupId, myRole, membersCount } = payload || {}
+        if (groupId != null) {
+          store.commit('UPSERT_GROUP', { id: groupId, myRole, membersCount })
+        }
+      } catch (_) {}
+    })
+
+    connection.on('cohort_enroll_mode_changed', (payload) => {
+      try {
+        const { cohortId, enrollMode } = payload || {}
+        if (cohortId != null) store.commit('UPSERT_COHORT', { id: cohortId, enrollMode })
+      } catch (_) {}
+    })
+
+    connection.on('cohort_auto_enrolled', (payload) => {
+      try {
+        const { planId, cohortId } = payload || {}
+        if (planId != null) store.commit('SET_ENROLLMENT_FOR_PLAN', { planId, enrollment: { activeCohortId: cohortId } })
+      } catch (_) {}
+    })
+
+    connection.on('plan_version_published', (payload) => {
+      try {
+        const { planId, currentVersionId } = payload || {}
+        if (planId != null) store.commit('UPSERT_PLAN', { id: planId, currentVersionId })
+      } catch (_) {}
+    })
+
+    connection.on('cohort_version_upgraded', (payload) => {
+      try {
+        const { cohortId, pinnedVersionId } = payload || {}
+        if (cohortId != null) store.commit('UPSERT_COHORT', { id: cohortId, pinnedVersionId })
+      } catch (_) {}
+    })
+
     connection
       .start()
       .then(() => console.log('Connected to SignalR Hub'))

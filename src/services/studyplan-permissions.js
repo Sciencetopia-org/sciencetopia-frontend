@@ -26,9 +26,24 @@ export async function fetchEffectiveRole(planId, { force = false } = {}) {
     if (cached) return cached
   }
   // Prefer legacy path used in this repo; fall back to RESTful
+  const derive = (data) => {
+    if (!data || typeof data !== 'object') return null
+    // Prefer explicit fields
+    const r = data.effectiveRole || data.role
+    if (typeof r === 'string' && r) return r
+    // Fallback: derive from capability booleans in mock or backend responses
+    const canEdit = !!(data.CanEditPlan ?? data.canEditPlan)
+    const canManage = !!(data.CanManageCohort ?? data.canManageCohort)
+    const canUpgrade = !!(data.CanUpgradeCohortVersion ?? data.canUpgradeCohortVersion)
+    const canView = !!(data.CanViewPlan ?? data.canViewPlan)
+    if (canEdit && (canManage || canUpgrade)) return 'Owner'
+    if (canEdit) return 'Editor'
+    if (canView) return 'Viewer'
+    return null
+  }
   try {
     const resLegacy = await apiClient.get('/StudyPlan/GetEffectiveRole', { params: { studyPlanId: planId } })
-    const roleLegacy = resLegacy?.data?.effectiveRole || resLegacy?.data?.role || null
+    const roleLegacy = derive(resLegacy?.data)
     if (roleLegacy) {
       setCache(planId, roleLegacy)
       return roleLegacy
@@ -36,14 +51,14 @@ export async function fetchEffectiveRole(planId, { force = false } = {}) {
   } catch (_) {}
   try {
     const res = await apiClient.get(`/StudyPlans/${planId}/Permissions/Effective`)
-    const role = res?.data?.effectiveRole || res?.data?.role || null
+    const role = derive(res?.data)
     if (role) setCache(planId, role)
     return role
   } catch (_) {
     // final fallback: newer lowercase api path if present
     try {
       const res2 = await apiClient.get(`/api/studyplans/${planId}/permissions/effective`)
-      const role2 = res2?.data?.effectiveRole || res2?.data?.role || null
+      const role2 = derive(res2?.data)
       if (role2) setCache(planId, role2)
       return role2
     } catch (_) {

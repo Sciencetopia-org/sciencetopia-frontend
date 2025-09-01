@@ -33,3 +33,23 @@ Sciencetopia是一个搜罗全网开源学习资源，以为群众提供系统�
 1. **克隆仓库**：`git clone https://github.com/Sciencetopia-org/sciencetopia-frontend.git`
 2. **安装依赖**：在项目目录中运行`npm install`。
 3. **运行应用**：执行`npm run serve`以启动开发服务器。
+
+### 开发环境使用 Mock 数据
+
+项目支持在开发环境下为部分 GET 接口使用 `public/mock` 下的 JSON 作为数据源（仅拦截有对应文件的接口，其余仍走真实后端）。
+
+启用方式（二选一）：
+
+- 在项目根目录创建 `.env.development` 文件，内容：
+
+```
+VUE_APP_USE_MOCKS=true
+```
+
+- 或在启动命令前导出环境变量：
+
+```bash
+VUE_APP_USE_MOCKS=true npm run serve
+```
+
+当前已映射的接口与文件请参见 `public/mock/README.md`。

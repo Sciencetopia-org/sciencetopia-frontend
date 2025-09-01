@@ -1,0 +1,5 @@
+[
+  { "userId": "u1", "displayName": "Alice", "progress": 88 },
+  { "userId": "u2", "displayName": "Bob", "progress": 76 },
+  { "userId": "u3", "displayName": "Carol", "progress": 65 }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "p1",
+    "title": "前端工程基础",
+    "description": "HTML/CSS/JavaScript 基础与工程化入门",
+    "role": "Owner"
+  },
+  {
+    "id": "p2",
+    "title": "数据结构与算法",
+    "description": "常见数据结构与算法刷题路线",
+    "role": "Editor"
+  },
+  {
+    "id": "p3",
+    "title": "机器学习入门",
+    "description": "从线性回归到树模型与实践",
+    "role": "Viewer"
+  }
+]

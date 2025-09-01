@@ -1,0 +1,8 @@
+{
+  "avgProgress": 42,
+  "memberCount": 23,
+  "milestones": [
+    { "id": "m1", "title": "完成 JS 基础", "reached": 15 },
+    { "id": "m2", "title": "完成 工程化入门", "reached": 8 }
+  ]
+}

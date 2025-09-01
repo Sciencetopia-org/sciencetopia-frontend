@@ -18,25 +18,25 @@
         <!-- 趋势 / Trend -->
         <ReusableIconButton icon="mdi-rss" :label="$t('header.trend')" :iconSize="iconSize" @click="scrollToSection" />
 
-        <!-- 明/暗模式切换 -->
-        <ReusableIconButton :icon="themeIcon" :label="themeLabel" :iconSize="iconSize" @click="toggleTheme" />
-
         <!-- 登录 / Login (handled by LogInPartial) -->
         <LogInPartial :is-small-screen="isSmallScreen" :icon-size="iconSize" />
 
         <!-- 消息 / Messages -->
         <MessageAlert :is-small-screen="isSmallScreen" :icon-size="iconSize" />
+
+        <!-- 明/暗模式切换 -->
+        <ReusableIconButton :icon="themeIcon" :label="themeLabel" :iconSize="iconSize" @click="toggleTheme" />
+
+        <!-- 语言切换栏 -->
+        <v-btn class="language-toggle" variant="text" @click="toggleLanguage" :aria-label="$t('header.languageSwitch')">
+          <v-icon size="24">mdi-translate</v-icon>
+        </v-btn>
       </div>
 
-      <!-- 语言切换栏 -->
-      <div class="language-section">
+      <!-- <div class="language-section">
         <div class="language-button-container">
-          <v-btn class="language-toggle" variant="text" @click="toggleLanguage"
-            :aria-label="$t('header.languageSwitch')">
-            <v-icon size="24">mdi-translate</v-icon>
-          </v-btn>
         </div>
-      </div>
+      </div> -->
     </v-container>
 
     <!-- 搜索对话框 -->

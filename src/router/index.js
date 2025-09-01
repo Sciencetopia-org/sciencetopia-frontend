@@ -19,11 +19,48 @@ import ContactUs from '@/components/ContactUs.vue'
 import TestHeight from '@/components/TestHeight.vue'
 import StudyPlanDetail from '@/components/StudyPlanDetail.vue'
 import StudyPlanWorkspace from '@/components/StudyPlanWorkspace.vue'
+import CohortPage from '@/components/CohortPage.vue'
+import { fetchEffectivePermissions } from '@/services/effective-permissions'
+import GroupPlanWorkspace from '@/pages/GroupPlanWorkspace.vue'
 // import SearchBarVue from '@/components/search/SearchBar.vue'
 // import SearchResultItemVue from '@/components/search/SearchResultItem.vue'
 import SearchResultsVue from '@/components/search/SearchResults.vue'
 
 const routes = [
+  {
+    path: '/plans/:planId',
+    name: 'PlanPage',
+    component: () => import('@/views/PlanPage.vue'),
+    props: true,
+    beforeEnter: async (to, _from, next) => {
+      try {
+        const planId = to.params.planId
+        await store.dispatch('loadPlanRouteContext', planId)
+        // Permissions guard: CanViewPlan
+        try {
+          const perms = await fetchEffectivePermissions({ planId })
+          if (perms && perms.CanViewPlan === false) {
+            next({ name: 'Forbidden' })
+            return
+          }
+        } catch (_) {}
+        next()
+      } catch (e) {
+        next()
+      }
+    },
+  },
+  {
+    path: '/groups/:groupId/plan/:planId',
+    name: 'GroupPlanWorkspace',
+    component: GroupPlanWorkspace,
+    props: true,
+    meta: { background: 'lighter' },
+  },
+  {
+    path: '/plan/:planId',
+    redirect: (to) => ({ name: 'PlanPage', params: { planId: to.params.planId } }),
+  },
   {
     path: '/testHeight',
     name: 'testHeight',
@@ -58,6 +95,12 @@ const routes = [
     name: 'StudyPlanWorkspace',
     component: StudyPlanWorkspace,
     meta: { background: 'lighter' },
+  },
+  {
+    path: '/cohorts/:cohortId',
+    name: 'CohortPage',
+    component: CohortPage,
+    props: true,
   },
   {
     path: '/:userId',
@@ -95,6 +138,12 @@ const routes = [
   {
     path: '/:catchAll(.*)',
     redirect: '/messages/directMessages',
+  },
+  {
+    path: '/403',
+    name: 'Forbidden',
+    component: () => import('@/views/Forbidden.vue'),
+    meta: { layout: 'simplest' },
   },
   {
     path: '/:userId/account',

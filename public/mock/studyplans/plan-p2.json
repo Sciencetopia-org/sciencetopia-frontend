@@ -1,0 +1,19 @@
+{
+  "studyPlan": {
+    "id": "p2",
+    "title": "数据结构与算法",
+    "introduction": { "description": "刷题导向的结构与算法练习路线" },
+    "prerequisite": [
+      { "id": "a1", "name": "复杂度分析", "description": "时间/空间复杂度", "resources": [
+        { "id": "ar1", "title": "复杂度入门", "link": "https://cp-algorithms.com/" }
+      ] }
+    ],
+    "mainCurriculum": [
+      { "id": "a2", "name": "数组与链表", "resources": [ { "id": "ar2", "title": "LeetCode 热题", "link": "https://leetcode.cn" } ] },
+      { "id": "a3", "name": "栈与队列", "resources": [ { "id": "ar3", "title": "示例题单", "link": "https://leetcode.cn" } ] }
+    ],
+    "advancedTopics": [
+      { "id": "a4", "name": "图与最短路", "resources": [ { "id": "ar4", "title": "Dijkstra 讲解", "link": "https://cp-algorithms.com/graph/dijkstra.html" } ] }
+    ]
+  }
+}
