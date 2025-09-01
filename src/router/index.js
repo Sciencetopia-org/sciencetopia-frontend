@@ -210,16 +210,19 @@ const routes = [
     path: '/support',
     name: 'support',
     component: SponsorShip,
+    meta: { background: 'lighter' }
   },
   {
     path: '/about',
     name: '/about',
     component: AboutUs,
+    meta: { background: 'lighter' }
   },
   {
     path: '/contact',
     name: '/contact',
     component: ContactUs,
+    meta: { background: 'lighter' }
   },
 ]
 

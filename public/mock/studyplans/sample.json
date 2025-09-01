@@ -1,0 +1,11 @@
+{
+  "studyPlan": {
+    "title": "Biophysics network and coarse-grainablity",
+    "prerequisite": [
+      { "name": "Advanced Network Theory", "description": "Delving into the intricacies of network structures in biological systems, exploring small-world and scale-free networks." }
+    ],
+    "mainCurriculum": [
+      { "name": "In-depth Network Analysis", "description": "Advanced techniques and applications in network analysis specific to biophysical systems." }
+    ]
+  }
+}

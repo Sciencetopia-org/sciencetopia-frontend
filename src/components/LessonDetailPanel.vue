@@ -1,34 +1,38 @@
 <template>
-  <div class="lesson-detail-panel">
-    <div v-if="!lesson">
+  <v-card class="panel-card panel-card--beige pa-4 lesson-detail-panel" rounded="xl" elevation="2">
+    <div v-if="!current">
       <div class="placeholder">请选择一个课程</div>
     </div>
     <div v-else>
-      <h3 class="mb-2">{{ lesson.name }}</h3>
-      <p>{{ lesson.description }}</p>
-      <v-list v-if="lesson.resources && lesson.resources.length">
-        <ResourceItem
-          v-for="(res, idx) in lesson.resources"
-          :key="idx"
-          :resource="res"
-          :planId="planId"
-          :lessonId="lesson?.id"
-          :lessonName="lesson?.name"
-          :disabled="disabled"
-          @update="(p) => $emit('resource-updated', p)"
-        />
-      </v-list>
+      <h3 class="mb-2">{{ current.name }}</h3>
+      <p class="text-body-2 mb-3">{{ current.description }}</p>
+      <div v-if="current.resources && current.resources.length">
+        <v-card-item v-for="(resource, idx) in current.resources" :key="idx" class="link-preview-container">
+          <LinkPreview :url="resource.link || resource.url" />
+          <div class="d-flex align-center mt-1">
+            <v-checkbox
+              v-model="resource.learned"
+              :disabled="!isInteractable"
+              hide-details
+              density="compact"
+              @click.stop="toggleResource(resource)"
+              :label="resource.learned ? '已完成' : '未完成'"
+            />
+          </div>
+        </v-card-item>
+      </div>
+      <div v-else class="text-medium-emphasis text-caption">暂无资源</div>
     </div>
-  </div>
+  </v-card>
 </template>
 
 <script>
 import { apiClient } from '@/api'
-import ResourceItem from '@/components/ResourceItem.vue'
+import LinkPreview from '@/components/LinkPreview.vue'
 
 export default {
   name: 'LessonDetailPanel',
-  components: { ResourceItem },
+  components: { LinkPreview },
   props: {
     planId: { type: [String, Number], required: false },
     lessonId: { type: [String, Number, String], default: null },
@@ -59,6 +63,22 @@ export default {
     },
   },
   methods: {
+    mergeLessons(lessons) {
+      if (!Array.isArray(lessons)) return []
+      const map = new Map()
+      lessons.forEach((lesson) => {
+        const key = lesson?.id || lesson?.name
+        if (!key) return
+        const existing = map.get(String(key))
+        const resources = Array.isArray(lesson.resources) ? lesson.resources : []
+        if (existing) {
+          existing.resources = existing.resources.concat(resources)
+        } else {
+          map.set(String(key), { ...lesson, resources: [...resources] })
+        }
+      })
+      return Array.from(map.values())
+    },
     async resolveLessonFromPlan() {
       try {
         const res = await apiClient.get('/StudyPlan/GetStudyPlanById', { params: { studyPlanId: this.planId } })
@@ -66,7 +86,7 @@ export default {
         if (!plan) return
         const secs = ['prerequisite','mainCurriculum','advancedTopics']
         for (const s of secs) {
-          const arr = plan[s] || []
+          const arr = this.mergeLessons(plan[s] || [])
           const found = arr.find(l => String(l.id||l.name) === String(this.lessonId))
           if (found) { this.current = found; await this.fetchLessonCompletedStatus(found); return }
         }
@@ -85,10 +105,45 @@ export default {
         // ignore
       }
     },
+    async toggleResource(resource) {
+      try {
+        if (!this.isInteractable) return
+        const next = !resource.learned
+        // optimistic update
+        resource.learned = next
+        this.$emit('resource-updated', { completed: next, resource })
+        const id = resource.id || resource.resourceId
+        if (id) {
+          if (next) {
+            await apiClient.post(`/resources/${id}/complete`, {
+              planId: this.planId,
+              lessonId: this.current?.id,
+              source: 'checkbox',
+              device: 'web',
+            })
+          } else {
+            await apiClient.delete(`/resources/${id}/complete`, { params: { planId: this.planId } })
+          }
+        } else {
+          await apiClient.post('/StudyPlan/LearningLessons/ToggleFinishedLearning', {
+            name: this.current?.name,
+            resourceLink: resource.link,
+          })
+        }
+      } catch (e) {
+        // rollback
+        resource.learned = !resource.learned
+        this.$emit('resource-updated', { completed: resource.learned, resource, error: e })
+      }
+    },
+  },
+  computed: {
+    isInteractable() { return !!this.canInteract && !this.disabled },
   },
 }
 </script>
 
 <style scoped>
+@import '../assets/css/link-preview.css';
 .placeholder { color: #999; text-align: center; width: 100%; margin-top: 20px; }
 </style>

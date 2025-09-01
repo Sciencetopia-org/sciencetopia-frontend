@@ -1,0 +1,4 @@
+[
+  { "id": "p2", "title": "机器学习入门", "role": "Viewer", "shareMode": "Readonly", "avgProgress": 33, "memberCount": 54, "cohortId": "c-ml-1" },
+  { "id": "p3", "title": "深度学习实践", "role": "Commenter", "shareMode": "Editable", "avgProgress": 12, "memberCount": 21, "cohortId": "c-ml-2" }
+]

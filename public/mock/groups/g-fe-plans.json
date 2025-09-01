@@ -1,5 +1,5 @@
 [
-  { "id": "p1", "title": "前端工程基础" },
-  { "id": "p4", "title": "Vue 3 实战" },
-  { "id": "p5", "title": "前端测试入门" }
+  { "id": "p1", "title": "前端工程基础", "role": "Commenter", "shareMode": "Editable", "avgProgress": 42, "memberCount": 27, "cohortId": "c-fe-1" },
+  { "id": "p4", "title": "Vue 3 实战", "role": "Viewer", "shareMode": "Readonly", "avgProgress": 18, "memberCount": 12, "cohortId": "c-fe-2" },
+  { "id": "p5", "title": "前端测试入门", "role": "Editor", "shareMode": "Editable", "avgProgress": 5, "memberCount": 8, "cohortId": "c-fe-3" }
 ]

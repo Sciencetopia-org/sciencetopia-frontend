@@ -1,0 +1,16 @@
+{
+  "notifications": {
+    "planUpdates": true,
+    "mentions": true,
+    "rankings": false
+  },
+  "privacy": {
+    "shareMetrics": true,
+    "showOnLeaderboard": false
+  },
+  "myPlans": [
+    { "planId": "p1", "title": "前端工程基础", "cohortTitle": "前端一班" },
+    { "planId": "p3", "title": "机器学习入门", "cohortTitle": null }
+  ]
+}
+

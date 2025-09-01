@@ -1,0 +1,14 @@
+{
+  "id": "3a0b5d0f-e067-4897-993e-c06bfa1d8be6",
+  "name": "测试学习小组",
+  "bio": "这里是学习小组的简介区域，可展示组的口号/愿景等。",
+  "description": "这是一个用于练习与演示的小组详情 Mock。支持成员头像、角色、基础字段等。",
+  "imageurl": "image_resources/image4.jpg",
+  "imageUrl": "image_resources/image4.jpg",
+  "status": "approved",
+  "memberIds": [
+    { "id": "u-001", "userName": "小明", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=10086", "role": "manager" },
+    { "id": "u-002", "userName": "小红", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=10082", "role": "member" },
+    { "id": "u-003", "userName": "小李", "avatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=10091", "role": "member" }
+  ]
+}

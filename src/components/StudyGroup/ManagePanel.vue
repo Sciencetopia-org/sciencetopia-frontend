@@ -1,47 +1,47 @@
 <template>
   <v-container class="manage-panel">
     <v-row>
-      <v-col cols="2">
-        <!-- Side Navigation List -->
-        <v-list variant="plain" class="tab-list">
-          <v-list-item
-            color="secondary"
-            v-for="(item, index) in tabs"
-            :key="index"
-            :active="activeTab === index"
-            @click="activeTab = index"
-            class="list-item"
-          >
-            <div style="display: flex; align-items: center; margin-left: 6vw">
-              <v-list-item-title style="font-size: 1.2rem">{{
-                item.title
-              }}</v-list-item-title>
-              <v-badge
-                style="margin-left: 20px; margin-bottom: 5px"
-                v-if="item.title === '加入请求' && pendingJoinRequests > 0"
-                color="red"
-                :content="pendingJoinRequests"
-                overlap
-              ></v-badge>
-            </div>
-          </v-list-item>
-        </v-list>
+      <v-col cols="3" class="pa-0">
+        <v-card class="left-panel panel-card panel-card--beige" rounded="xl" elevation="2">
+          <div class="plan-list-header d-flex align-center px-4 py-2">
+            <span class="text-subtitle-1">管理面板</span>
+          </div>
+          <v-divider />
+          <v-list density="compact" class="plan-list">
+            <v-list-item
+              v-for="(item, index) in tabs"
+              :key="item.key || index"
+              class="plan-card"
+              :class="{ 'selected-plan': activeTab === index }"
+              @click="activeTab = index"
+            >
+              <div class="d-flex align-center justify-space-between">
+                <v-list-item-title class="text-truncate">{{ item.title }}</v-list-item-title>
+                <v-badge v-if="item.key==='requests' && pendingJoinRequests > 0" :content="pendingJoinRequests" color="red" inline />
+              </div>
+            </v-list-item>
+          </v-list>
+        </v-card>
       </v-col>
 
-      <v-col cols="10">
-        <!-- Tab Content -->
-        <div v-if="activeTab === 0" class="tab-content">
-          <GroupOverview :groupId="groupId" />
-        </div>
-        <div v-if="isManager && activeTab === 1" class="tab-content">
-          <MemberManagement :groupId="groupId" />
-        </div>
-        <div v-if="isManager && activeTab === 2" class="tab-content">
-          <JoinRequests :groupId="groupId" />
-        </div>
-        <div v-if="isManager && activeTab === 3" class="tab-content">
-          <ActivityLogs :groupId="groupId" />
-        </div>
+      <v-col cols="9" class="pa-3">
+        <v-card class="panel-card panel-card--cream pa-4" rounded="xl" elevation="2">
+          <div v-if="currentTab.key==='overview'">
+            <GroupOverview :groupId="groupId" />
+          </div>
+          <div v-else-if="isManager && currentTab.key==='members'">
+            <MemberManagement :groupId="groupId" />
+          </div>
+          <div v-else-if="isManager && currentTab.key==='requests'">
+            <JoinRequests :groupId="groupId" />
+          </div>
+          <div v-else-if="isManager && currentTab.key==='logs'">
+            <ActivityLogs :groupId="groupId" />
+          </div>
+          <div v-else-if="currentTab.key==='settings'">
+            <GroupSettingsDialog :inline="true" :groupId="groupId" :role="isManager ? 'manager' : 'member'" />
+          </div>
+        </v-card>
       </v-col>
     </v-row>
   </v-container>
@@ -52,6 +52,7 @@ import GroupOverview from './GroupOverview.vue'
 import MemberManagement from './MemberManagement.vue'
 import JoinRequests from './JoinRequests.vue'
 import ActivityLogs from './ActivityLogs.vue'
+import GroupSettingsDialog from './GroupSettingsDialog.vue'
 import { apiClient } from '@/api'
 
 export default {
@@ -64,10 +65,11 @@ export default {
       isManager: false,
       activeTab: 0, // Default active tab
       tabs: [
-        { title: '基础信息', component: GroupOverview },
-        { title: '成员管理', component: MemberManagement },
-        { title: '加入请求', component: JoinRequests },
-        { title: '活动日志', component: ActivityLogs },
+        { title: '基础信息', key: 'overview', component: GroupOverview },
+        { title: '成员管理', key: 'members', component: MemberManagement },
+        { title: '加入请求', key: 'requests', component: JoinRequests },
+        { title: '活动日志', key: 'logs', component: ActivityLogs },
+        { title: '设置', key: 'settings' },
       ],
     }
   },
@@ -85,7 +87,8 @@ export default {
 
     // Filter tabs based on user role
     if (!this.isManager) {
-      this.tabs = this.tabs.filter((tab, index) => index === 0)
+      // For members: keep 基础信息 + 设置
+      this.tabs = this.tabs.filter((t) => t.key === 'overview' || t.key === 'settings')
     }
   },
   components: {
@@ -93,6 +96,12 @@ export default {
     MemberManagement,
     JoinRequests,
     ActivityLogs,
+    GroupSettingsDialog,
+  },
+  computed: {
+    currentTab() {
+      return this.tabs[this.activeTab] || { key: 'overview' }
+    },
   },
 }
 </script>
@@ -102,9 +111,8 @@ export default {
   display: flex;
   flex-direction: row;
   /* background-color: #F4EEE1; */
-  height: 84vh;
+  height: 92vh;
   position: relative;
-  top: -3vh;
   /* box-shadow: 0px 4px 8px 4px rgba(0, 0, 0, 0.05) !important; */
 }
 

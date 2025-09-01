@@ -5,7 +5,7 @@
 
       <!-- 左列：标签索引 + 结构筛选（卡片组） -->
       <v-col class="kgp-col kgp-left d-flex flex-column gap-4" :cols="12" :md="3" :lg="3" :xl="3">
-        <v-card class="kgp-card kgp-left-card card-stack" rounded="xl" elevation="2">
+        <v-card class="kgp-card card-stack panel-card panel-card--beige" rounded="xl" elevation="2">
           <v-card-title class="text-body-1 py-3">标签索引</v-card-title>
           <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
           <v-card-text>
@@ -31,7 +31,7 @@
           </v-card-text>
         </v-card>
 
-        <v-card rounded="xl" elevation="2" class="kgp-card kgp-left-card card-stack">
+        <v-card rounded="xl" elevation="2" class="kgp-card card-stack panel-card panel-card--beige">
           <v-card-title class="text-body-1 py-3">标签结构</v-card-title>
           <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
           <v-card-text class="pt-3">
@@ -46,7 +46,7 @@
 
       <!-- 中列：知识网络图 -->
       <v-col class="kgp-col kgp-center" :cols="12" :md="5" :lg="5" :xl="5">
-        <v-card class="kgp-card kgp-center-card" elevation="2" rounded="xl">
+        <v-card class="kgp-card panel-card panel-card--cream" elevation="2" rounded="xl">
           <v-card-title class="d-flex align-center justify-space-between">
             <span class="text-subtitle-1 font-weight-medium">知识网络</span>
             <div class="d-flex align-center ga-0">
@@ -137,7 +137,7 @@
 
       <!-- 右列：节点详情 / 创建表单 / 关系创建 -->
       <v-col class="kgp-col kgp-right" :cols="12" :md="4" :lg="4" :xl="4">
-        <v-card class="kgp-card kgp-right-card" elevation="2" rounded="xl">
+        <v-card class="kgp-card panel-card panel-card--beige" elevation="2" rounded="xl">
           <v-card-title class="text-subtitle-1 font-weight-medium">
             节点面板
           </v-card-title>
@@ -494,23 +494,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-.kgp-left-card {
-  background-color: #F1E9D7;
-  /* box-shadow: none !important; */
-  padding: 16px;
-}
-
-.kgp-center-card {
-  background-color: #FBF8F2;
-  /* box-shadow: none !important; */
-  height: calc(100vh - var(--footer-vh, 6vh) - 72px);
-}
-
-.kgp-right-card {
-  background-color: #F1E9D7;
-  /* box-shadow: none !important; */
-  padding: 16px;
-}
+.kgp-center .panel-card { height: calc(100vh - var(--footer-vh, 6vh) - 72px); }
 
 .kgp-center-body {
   flex: 1 1 auto;

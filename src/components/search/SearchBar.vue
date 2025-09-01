@@ -31,6 +31,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { onClickOutside } from '@vueuse/core'
 import { eventBus } from '@/eventBus'
+import { apiClient } from '@/api'
 
 import SearchResults from './SearchResults.vue'
 
@@ -52,38 +53,20 @@ export default {
       }
     })
 
-    const mockSearch = async (query) => {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
+    const doSearch = async (query) => {
+      const res = await apiClient.get('/search', { params: { q: query } })
+      const data = res?.data || {}
+      // Flatten grouped results to unified array expected by this component
       return [
-        {
-          id: 1,
-          type: 'knowledge',
-          title: `${query} 相关结果`,
-          excerpt: '这是模拟的搜索结果...',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          type: 'plan',
-          title: `${query} 学习计划`,
-          excerpt: '这是模拟的学习计划...',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 3,
-          type: 'group',
-          title: `${query} 学习小组`,
-          excerpt: '这是模拟的学习小组...',
-          createdAt: new Date().toISOString(),
-        },
+        ...(Array.isArray(data.knowledge) ? data.knowledge : []),
+        ...(Array.isArray(data.plan) ? data.plan : []),
+        ...(Array.isArray(data.group) ? data.group : []),
       ]
     }
 
     const performSearch = async () => {
       if (searchQuery.value.trim()) {
-        rawResults.value = await mockSearch(searchQuery.value)
+        rawResults.value = await doSearch(searchQuery.value)
         showResults.value = true
         console.log('Search results:', formattedResults.value) // 调试用
       }

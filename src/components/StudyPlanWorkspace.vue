@@ -7,8 +7,10 @@
           <div class="plan-list-header d-flex align-center px-4 py-2">
             <span class="text-h6">{{ $t('studyplan.myplans') }}</span>
             <v-spacer />
-            <v-btn :aria-label="$t('studyplan.create')" icon="mdi-plus" variant="text" @click="openCreateDialog" :disabled="backgroundGenerating" />
-            <v-btn :aria-label="$t('studyplan.aiGenerate')" icon="mdi-robot-outline" variant="text" @click="openAiDialog" :disabled="backgroundGenerating" />
+            <v-btn :aria-label="$t('studyplan.create')" icon="mdi-plus" variant="text" @click="openCreateDialog"
+              :disabled="backgroundGenerating" />
+            <v-btn :aria-label="$t('studyplan.aiGenerate')" icon="mdi-robot-outline" variant="text"
+              @click="openAiDialog" :disabled="backgroundGenerating" />
           </div>
           <v-divider />
           <v-tabs v-model="listScope" density="compact" class="px-2">
@@ -17,8 +19,19 @@
             <v-tab value="public">{{ $t('studyplan.tabs.public') }}</v-tab>
           </v-tabs>
           <div class="d-flex align-center px-3 pb-2 gap-2">
-            <v-text-field v-model="q" :label="$t('common.search')" density="compact" hide-details clearable @keyup.enter="fetchPlans" @click:clear="fetchPlans" />
-            <v-select v-model="sort" :items="sortItems" :label="$t('common.sort')" density="compact" hide-details style="max-width: 200px" @update:model-value="fetchPlans" />
+            <v-text-field
+              v-model="q"
+              :label="$t('common.search')"
+              density="compact"
+              hide-details
+              clearable
+              append-inner-icon="mdi-magnify"
+              @click:append-inner="fetchPlans"
+              @keyup.enter="fetchPlans"
+              @click:clear="fetchPlans"
+            />
+            <v-select v-model="sort" :items="sortItems" :label="$t('common.sort')" density="compact" hide-details
+              style="max-width: 200px" @update:model-value="fetchPlans" />
           </div>
           <v-divider />
           <template v-if="listLoading">
@@ -32,44 +45,46 @@
                 @click="selectPlan(plan.studyPlan)"
                 class="plan-card"
                 :class="{
-                  'selected-plan':
-                    currentPlan && currentPlan.id === plan.studyPlan.id,
+                  'selected-plan': currentPlan && currentPlan.id === plan.studyPlan.id,
                 }"
               >
-                <template #append>
-                  <v-chip v-if="getRole(plan.studyPlan.id)" size="x-small" label class="mr-2">
-                    {{ getRole(plan.studyPlan.id) }}
-                  </v-chip>
-                  <v-btn
-                    v-if="canEdit(plan.studyPlan.id)"
-                    icon="mdi-pencil"
-                    variant="text"
-                    density="comfortable"
-                    @click.stop="editPlanById(plan.studyPlan.id)"
-                    :aria-label="`编辑 ${plan.studyPlan.title}`"
-                  />
-                </template>
-                <div class="title">{{ plan.studyPlan.title }}</div>
+                <div class="plan-header-row d-flex align-center justify-space-between">
+                  <div class="title">{{ plan.studyPlan.title }}</div>
+                  <div class="actions d-flex align-center">
+                    <v-chip v-if="getRole(plan.studyPlan.id)" size="x-small" label class="mr-2">
+                      {{ getRole(plan.studyPlan.id) }}
+                    </v-chip>
+                    <v-btn
+                      v-if="canEdit(plan.studyPlan.id)"
+                      icon="mdi-pencil"
+                      variant="text"
+                      density="comfortable"
+                      @click.stop="editPlanById(plan.studyPlan.id)"
+                      :aria-label="`编辑 ${plan.studyPlan.title}`"
+                    />
+                  </div>
+                </div>
+                <v-progress-linear
+                  v-if="plan.studyPlan.progress !== undefined"
+                  :model-value="plan.studyPlan.progress"
+                  height="6"
+                  color="primary"
+                  rounded
+                  class="mt-2"
+                >
+                  <template #default>
+                    <span class="text-caption">{{ Math.round(plan.studyPlan.progress) }}%</span>
+                  </template>
+                </v-progress-linear>
               </v-list-item>
             </v-list>
           </template>
           <div v-else class="empty-plan-list text-center px-4">
             <p class="mb-4">你还没有创建学习计划</p>
-            <v-btn
-              block
-              class="mb-2"
-              color="primary"
-              @click="openCreateDialog"
-              :disabled="backgroundGenerating"
-            >
+            <v-btn block class="mb-2" color="primary" @click="openCreateDialog" :disabled="backgroundGenerating">
               新建学习计划
             </v-btn>
-            <v-btn
-              block
-              color="secondary"
-              @click="openAiDialog"
-              :disabled="backgroundGenerating"
-            >
+            <v-btn block color="secondary" @click="openAiDialog" :disabled="backgroundGenerating">
               AI 生成计划
             </v-btn>
           </div>
@@ -82,29 +97,19 @@
       <!-- Middle + Right (default): Plan and Lesson panels -->
       <template v-if="!showProgressPage">
         <v-col :cols="collapsed ? 6 : 5" class="center-panel">
-          <PlanContextBar
-            v-if="currentPlan?.id"
-            :scope="scope"
-            :groups="affiliations"
-            @change="onScopeChange"
-            @open-group="(gid) => $router.push({ name: 'GroupPlanWorkspace', params: { groupId: gid, planId: currentPlan.id } })"
-          />
-          <PlanDetailPanel
-            v-if="currentPlan?.id"
-            :planId="currentPlan.id"
-            :scope="scope"
-            :allowEditControls="true"
-            @select-lesson="selectLessonById"
-            @open-share="openShareDialog"
-            @open-progress="showProgressPage = true"
-            @updated-plan="(p) => (currentPlan = p)"
-          />
-          <div v-else class="placeholder">{{ studyPlans.length ? '请选择一个学习计划' : '尚未创建学习计划' }}</div>
+          <PlanContextBar v-if="currentPlan?.id" :scope="scope" :groups="affiliations" @change="onScopeChange"
+            @open-group="(gid) => $router.push({ name: 'GroupPlanWorkspace', params: { groupId: gid, planId: currentPlan.id } })" />
+          <PlanDetailPanel v-if="currentPlan?.id" :planId="currentPlan.id" :scope="scope" :allowEditControls="true"
+            @select-lesson="selectLessonById" @open-share="openShareDialog" @open-progress="showProgressPage = true"
+            @updated-plan="(p) => (currentPlan = p)" />
+          <!-- 未选择计划时不显示占位条 -->
+          <template v-else></template>
         </v-col>
 
         <!-- Right: Lesson detail panel -->
         <v-col :cols="collapsed ? 5 : 4" class="right-panel">
           <LessonDetailPanel
+            v-if="currentLesson || currentLessonId"
             :planId="currentPlan?.id"
             :lesson="currentLesson"
             :lessonId="currentLessonId"
@@ -234,6 +239,13 @@ export default {
         await this.selectPlan(selected.studyPlan)
         await this.refreshEffectiveRole(selected.studyPlan.id)
       }
+    } else if (!this.currentPlan && this.studyPlans.length) {
+      // No planId provided: default to first plan in the list
+      const first = this.studyPlans[0]?.studyPlan
+      if (first?.id) {
+        await this.selectPlan(first)
+        await this.refreshEffectiveRole(first.id)
+      }
     }
     // load affiliations for context bar when we have a plan
     if (this.currentPlan?.id) {
@@ -299,6 +311,24 @@ export default {
         items.forEach((item) => {
           if (item?.id && item?.role) this.roleMap[item.id] = item.role
         })
+
+        // Fetch per-plan progress for current user; non-blocking best-effort
+        const progressFetches = this.studyPlans.map(async (p) => {
+          try {
+            const pid = p?.studyPlan?.id
+            if (!pid) return
+            const resp = await apiClient.get(`/studyPlans/${pid}/progress/me`)
+            const prog = resp?.data?.planProgress
+            if (typeof prog === 'number') {
+              p.studyPlan.progress = prog
+            }
+          } catch (_) {
+            // ignore errors for individual progress requests
+          }
+        })
+        // Allow progress requests to run in background without delaying list rendering
+        Promise.allSettled(progressFetches)
+          .catch(() => { /* no-op */ })
       } catch (e) {
         console.error('Error fetching study plans:', e)
       } finally {
@@ -367,9 +397,10 @@ export default {
       // Batch check completion status when resource IDs are present
       this.fetchLessonCompletedStatus(lesson)
     },
-    selectLessonById(id) {
+    selectLessonById(id, lesson) {
       this.currentLessonId = id
-      this.currentLesson = null // let LessonDetailPanel resolve from plan
+      // If we have the lesson object, pass it to avoid extra API in right panel
+      this.currentLesson = lesson || null
     },
     onScopeChange(newScope) {
       this.scope = newScope
@@ -569,77 +600,11 @@ export default {
 }
 
 /* Make the row fill the container's height */
-.study-plan-workspace > .v-row {
+.study-plan-workspace>.v-row {
   height: 100%;
 }
 
-.left-panel {
-  background-color: #F1E9D7;
-  top: 12px;
-  /* display: flex; */
-  padding: 16px;
-  height: 100%;
-  overflow-y: auto;
-}
-
-.plan-list {
-  background-color: transparent !important;
-}
-
-.plan-list-header {
-  background-color: #F1E9D7;
-}
-
-.plan-card {
-  position: relative;
-  overflow: hidden;
-  background-color: white;
-  padding: 10px;
-  box-shadow: 0 2px 4px #e8dabd;
-  cursor: pointer;
-  transition: transform 0.3s ease;
-  margin-bottom: 20px;
-}
-
-.plan-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-}
-
-.plan-card .title {
-  margin: 5px 0;
-}
-
-.empty-plan-list {
-  margin-top: 40px;
-}
-
-.center-panel {
-  height: 100%;
-  overflow-y: auto;
-}
-
-.right-panel {
-  height: 100%;
-  overflow-y: auto;
-  padding: 16px;
-}
-
-.selected-plan {
-  background-color: #e0e0e0;
-}
-
-.selected-lesson {
-  font-weight: bold;
-  background-color: #f0f0f0;
-}
-
-.placeholder {
-  color: #999;
-  text-align: center;
-  width: 100%;
-  margin-top: 20px;
-}
+.empty-plan-list { margin-top: 40px; }
 
 /* Center panel header for the selected plan */
 .plan-header {

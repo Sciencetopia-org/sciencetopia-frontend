@@ -18,6 +18,8 @@ import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import '@mdi/font/css/materialdesignicons.css'
+// Load shared panel styles after Vuetify to win specificity
+import './assets/css/panels.css'
 
 const vuetify = createVuetify({
   icons: {

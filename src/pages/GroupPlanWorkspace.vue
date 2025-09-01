@@ -1,7 +1,7 @@
 <template>
   <v-container fluid>
     <v-row>
-      <v-col :cols="3">
+      <v-col :cols="3" class="pa-0">
         <GroupPlansList :groupId="groupId" :activePlanId="planId" @select="onSelectPlan" />
       </v-col>
       <v-col :cols="5">
@@ -39,4 +39,3 @@ export default {
 
 <style scoped>
 </style>
-

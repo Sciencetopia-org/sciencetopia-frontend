@@ -1,0 +1,11 @@
+{
+  "knowledge": [
+    { "id": 1, "type": "knowledge", "title": "Vue3 组合式API指南", "excerpt": "学习如何使用Vue3的组合式API进行开发...", "createdAt": "2023-05-15" }
+  ],
+  "plan": [
+    { "id": 101, "type": "plan", "title": "2023前端学习计划", "excerpt": "完整的前端开发学习路线图...", "createdAt": "2023-01-10" }
+  ],
+  "group": [
+    { "id": 201, "type": "group", "title": "Vue技术交流组", "excerpt": "讨论最新Vue技术和实践...", "createdAt": "2023-03-20" }
+  ]
+}

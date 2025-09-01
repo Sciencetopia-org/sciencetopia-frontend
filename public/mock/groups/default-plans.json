@@ -1,0 +1,5 @@
+[
+  { "id": "p1", "title": "程序员基础学科" , "role": "Viewer", "shareMode": "Readonly", "avgProgress": 30, "memberCount": 15 },
+  { "id": "p2", "title": "机器学习入门" , "role": "Commenter", "shareMode": "Editable", "avgProgress": 12, "memberCount": 28 },
+  { "id": "p3", "title": "数据结构与算法" , "role": "Viewer", "shareMode": "Readonly", "avgProgress": 8, "memberCount": 9 }
+]

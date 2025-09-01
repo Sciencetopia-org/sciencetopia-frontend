@@ -132,7 +132,7 @@
 <script>
 import { useGlobalLoading } from '../GlobalLoader.vue'
 import { mapActions } from 'vuex'
-import mockStudyGroup from '../../assets/data/mockStudyGroup.json'
+import { apiClient } from '@/api'
 import Masonry from 'masonry-layout'
 import imagesLoaded from 'imagesloaded'
 
@@ -201,19 +201,43 @@ export default {
 
     initMasonry() {
       const container = this.$refs.masonryContainer
-      this.masonryInstance = new Masonry(container, {
-        itemSelector: '.masonry-item',
-        columnWidth: '.masonry-item',
-        percentPosition: true,
-        gutter: 16,
-      })
-      imagesLoaded(container).on('progress', () => {
+      if (!container) return
+      if (!this.masonryInstance) {
+        this.masonryInstance = new Masonry(container, {
+          itemSelector: '.masonry-item',
+          columnWidth: '.masonry-item',
+          percentPosition: false, // use fixed px width for stability
+          gutter: 16,
+        })
+      } else {
+        this.masonryInstance.reloadItems()
+      }
+      // Recalculate after images load to avoid zero-width column detection
+      imagesLoaded(container).on('always', () => {
         this.masonryInstance.layout()
       })
+      // Also perform an immediate layout in case there are no images
+      this.masonryInstance.layout()
     },
 
     async fetchGroups() {
-      this.groups = mockStudyGroup
+      try {
+        const res = await apiClient.get('/StudyGroups')
+        const list = Array.isArray(res?.data) ? res.data : res?.data?.items || []
+        // normalize fields used by UI
+        this.groups = list.map(g => ({
+          id: g.id,
+          name: g.name,
+          description: g.description,
+          imageUrl: g.imageUrl || g.imageurl || null,
+          members: g.members || g.memberIds || [],
+          isMember: !!g.isMember,
+        }))
+      } catch (_) {
+        this.groups = []
+      }
+      // ensure masonry initializes after DOM updates
+      this.$nextTick(() => this.initMasonry())
     },
 
     toCreateGroupPage() {
@@ -236,8 +260,9 @@ export default {
       })
     },
   },
-  mounted() {
-    this.fetchGroups()
+  async mounted() {
+    await this.fetchGroups()
+    // initMasonry is called in fetchGroups nextTick; keep a safety call
     this.$nextTick(() => this.initMasonry())
   },
   beforeUnmount() {
@@ -383,7 +408,10 @@ export default {
 
 /* Masonry */
 .masonry-container { position: relative; }
-.masonry-item { margin-bottom: 24px; margin-left: 8px; width: 210px; }
+.masonry-item { margin-bottom: 24px; margin-left: 8px; width: 260px; }
+
+/* allow page to scroll when content overflows */
+:host, .v-container { overflow: visible; }
 
 .group-image { border-radius: 4px 4px 0 0; margin-bottom: 8px; cursor: pointer; }
 .group-name { font-weight: bold; font-size: 1.2rem; color: #1c2b42; text-align: left; margin: 0; border: none; background: none; cursor: pointer; }

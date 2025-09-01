@@ -103,7 +103,42 @@ function matchMockPath(config) {
   cap = m(/^\/groups\/([^/]+)\/plans$/i)
   if (cap) {
     const [groupId] = cap
-    return `/mock/groups/${groupId}-plans.json`
+    // Known demo groups; otherwise fall back to default
+    if (/^(g-fe|g-ml)$/i.test(groupId)) return `/mock/groups/${groupId}-plans.json`
+    return '/mock/groups/default-plans.json'
+  }
+
+  // 9) Study groups list
+  if (/^\/StudyGroups$/i.test(url)) {
+    return '/mock/studygroups/list.json'
+  }
+
+  // 10) Study group details and related
+  cap = m(/^\/StudyGroup\/GetStudyGroupById\/([^/]+)$/i)
+  if (cap) {
+    // Use a shared detail stub for any id
+    return '/mock/studygroups/detail.json'
+  }
+  cap = m(/^\/StudyGroup\/GetUserRoleInGroup\/([^/]+)$/i)
+  if (cap) {
+    return '/mock/studygroups/role.json'
+  }
+  cap = m(/^\/StudyGroup\/GetPendingJoinRequestsCount\/([^/]+)$/i)
+  if (cap) {
+    return '/mock/studygroups/pending-count.json'
+  }
+
+  // 11) Study group settings (manager/member view)
+  cap = m(/^\/StudyGroup\/Settings\/([^/]+)$/i)
+  if (cap) {
+    const as = (params.as || '').toLowerCase()
+    return as === 'manager' ? '/mock/studygroups/settings-manager.json' : '/mock/studygroups/settings-member.json'
+  }
+
+  // 12) Search endpoint (returns grouped results)
+  cap = m(/^\/search$/i)
+  if (cap !== null) {
+    return '/mock/search/results.json'
   }
 
   return null

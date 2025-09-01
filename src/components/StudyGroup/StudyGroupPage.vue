@@ -9,12 +9,8 @@
                 aspect-ratio="16/9"
                 cover
                 style="max-width: 90%; max-height: 40%"
-                :src="
-                  group.imageurl
-                    ? group.imageurl
-                    : require('@/assets/images/default_study_group.png')
-                "
-              ></v-img>
+                :src="groupImageSrc"
+              />
             </div>
             <v-card-title>{{ group.name }}</v-card-title>
             <!-- eslint-disable-next-line vue/no-v-text-v-html-on-component -->
@@ -171,7 +167,7 @@
           <v-card class="study-path-card">
             <v-card-title>{{ $t('studygroup.studypath') }}</v-card-title>
             <v-card-text>
-              <p>{{ $t('studygroup.studypathdefault') }}</p>
+              <GroupPlansList :groupId="groupId" @select="goToGroupPlan" />
             </v-card-text>
           </v-card>
 
@@ -255,6 +251,7 @@
 <script>
 import { apiClient } from '@/api'
 import ManagePanel from './ManagePanel.vue'
+import GroupPlansList from '@/components/group/GroupPlansList.vue'
 import { mapActions } from 'vuex'
 
 export default {
@@ -293,6 +290,12 @@ export default {
             ? 'translateY(0)'
             : 'translateY(100%)',
       }
+    },
+    groupImageSrc() {
+      const img = this.group?.imageurl || this.group?.imageUrl
+      if (!img) return require('@/assets/images/default_study_group.png')
+      // Support both absolute URLs and local asset filenames like 'image_resources/image4.jpg'
+      return /^https?:\/\//i.test(img) ? img : require(`@/assets/images/${img}`)
     },
   },
   methods: {
@@ -420,6 +423,9 @@ export default {
       this.DissolveDialog = false // Close the dialog
       this.enteredGroupName = '' // Reset the input field
     },
+    goToGroupPlan(planId) {
+      this.$router.push({ name: 'GroupPlanWorkspace', params: { groupId: this.groupId, planId } })
+    },
   },
   async mounted() {
     // Fetch group details and user role from the backend on component mount
@@ -432,6 +438,7 @@ export default {
   },
   components: {
     ManagePanel,
+    GroupPlansList,
   },
 }
 </script>

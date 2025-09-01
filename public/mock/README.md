@@ -12,4 +12,23 @@ Key mappings (example):
 - GET /plans/p1/enrollment/me → /mock/enrollment/p1-me.json
 - GET /permissions/effective?planId=p1[&cohortId=c1] → /mock/permissions/p1.json
 - GET /groups/g-fe/plans → /mock/groups/g-fe-plans.json
+- GET /groups/g-ml/plans → /mock/groups/g-ml-plans.json
+- GET /groups/{any}/plans → /mock/groups/default-plans.json (fallback)
+- GET /StudyGroups → /mock/studygroups/list.json
+- GET /StudyGroup/GetStudyGroupById/{groupId} → /mock/studygroups/detail.json
+- GET /StudyGroup/GetUserRoleInGroup/{groupId} → /mock/studygroups/role.json
+- GET /StudyGroup/GetPendingJoinRequestsCount/{groupId} → /mock/studygroups/pending-count.json
+- GET /search?q=... → /mock/search/results.json (static sample)
 
+Group plans list item shape (example):
+[
+  {
+    "id": "p1",
+    "title": "计划标题",
+    "role": "Viewer|Commenter|Editor|Owner",
+    "shareMode": "Editable|Readonly",
+    "avgProgress": 42,
+    "memberCount": 27,
+    "cohortId": "c-xyz"
+  }
+]

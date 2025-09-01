@@ -1,0 +1,20 @@
+{
+  "profile": {
+    "name": "测试学习小组",
+    "bio": "追求高质量学习与互助成长"
+  },
+  "sharedPlans": [
+    { "id": "p1", "title": "前端工程基础", "permission": "Editable", "autoEnroll": true },
+    { "id": "p2", "title": "算法与数据结构", "permission": "Readonly", "autoEnroll": false }
+  ],
+  "cohorts": [
+    { "id": "c-fe-1", "title": "前端一班", "planId": "p1", "planTitle": "前端工程基础", "enrollMode": "Auto", "pinnedVersionNumber": 3 },
+    { "id": "c-algo-1", "title": "算法一班", "planId": "p2", "planTitle": "算法与数据结构", "enrollMode": "OptIn" }
+  ],
+  "notifications": { "planUpdates": true, "mentions": true, "rankings": true },
+  "privacy": { "shareMetrics": true, "showOnLeaderboard": true },
+  "myPlans": [
+    { "planId": "p1", "title": "前端工程基础", "cohortTitle": "前端一班" }
+  ]
+}
+

@@ -1,0 +1,125 @@
+/* Shared panel and list styles for study plan/workspace UIs */
+
+.left-panel {
+  background-color: #F1E9D7 !important; /* override Vuetify card bg */
+  top: 12px;
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+  border-radius: 24px; /* align with rounded="xl" */
+}
+
+/* Ensure Vuetify card variant doesn't repaint white */
+.v-card.left-panel { background-color: #F1E9D7 !important; border-radius: 24px; }
+
+/* Generic panel card styles for reuse across pages */
+.panel-card {
+  border-radius: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  background-color: #ffffff;
+}
+.panel-card--beige { background-color: #F1E9D7 !important; }
+.panel-card--cream { background-color: #FBF8F2 !important; }
+
+/* Card-like list items */
+.plan-list .v-list-item.plan-card,
+.plan-card {
+  position: relative;
+  overflow: hidden;
+  background-color: #ffffff !important;
+  padding: 10px;
+  box-shadow: 0 2px 4px #e8dabd;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.2s ease;
+  margin-bottom: 20px;
+  border-radius: 10px;
+}
+
+.plan-list .v-list-item.plan-card:hover,
+.plan-card:hover { transform: translateY(-5px); box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
+
+.plan-card .title { margin: 5px 0; }
+
+/* Selected state overrides (ensure visible highlight) */
+.plan-card.selected-plan,
+.plan-list .v-list-item.plan-card.v-list-item--active {
+  background-color: #e0e0e0 !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  border-left: 4px solid #304E75; /* visible selection bar */
+}
+/* Higher-specificity variant to beat base .plan-list .v-list-item.plan-card rule */
+.plan-list .v-list-item.plan-card.selected-plan {
+  background-color: #e0e0e0 !important;
+}
+
+/* Hide Vuetify list overlay when active so our bg shows */
+.plan-card.selected-plan .v-list-item__overlay,
+.group-plan-item.v-list-item--active .v-list-item__overlay {
+  opacity: 0 !important;
+}
+/* And ensure overlay hidden for selected-plan with higher specificity */
+.plan-list .v-list-item.plan-card.selected-plan .v-list-item__overlay {
+  opacity: 0 !important;
+}
+
+.center-panel {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.right-panel {
+  height: 100%;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.plan-list {
+  background-color: transparent !important;
+}
+
+.plan-list-header {
+  background-color: #F1E9D7;
+}
+
+.plan-card {
+  position: relative;
+  overflow: hidden;
+  background-color: white;
+  padding: 10px;
+  box-shadow: 0 2px 4px #e8dabd;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  margin-bottom: 20px;
+}
+
+.plan-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+.plan-card .title {
+  margin: 5px 0;
+}
+
+.selected-plan {
+  background-color: #e0e0e0;
+}
+
+/* Group plan list items share card look */
+.group-plan-item {
+  background: #fff !important;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px #e8dabd;
+  margin-bottom: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.group-plan-item:hover { transform: translateY(-3px); box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
+.group-plan-item.v-list-item--active { background-color: #e0e0e0 !important; }
+.group-plan-item.v-list-item--active { border-left: 4px solid #304E75; }
+
+.placeholder {
+  color: #999;
+  text-align: center;
+  width: 100%;
+  margin-top: 20px;
+}

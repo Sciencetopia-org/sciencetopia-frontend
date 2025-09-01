@@ -34,7 +34,7 @@
                   :aria-label="`编辑 ${plan.title}`" />
               </template>
               <v-btn size="small" variant="outlined" color="primary" class="ml-2" @click="$emit('open-progress')">
-                学习小组·速度与排行榜
+                同学与排行榜
               </v-btn>
             </div>
           </div>
@@ -144,6 +144,10 @@ export default {
           sections.forEach((sec) => { if (plan[sec]) plan[sec] = this.mergeLessons(plan[sec]) })
           this.plan = plan
           await this.fetchMyProgress()
+          // fetch per-lesson progress for current user
+          await this.fetchLessonsProgress()
+          // auto-select first unfinished lesson if none selected yet
+          if (!this.selectedLesson) this.selectFirstUnfinishedLesson()
         } else {
           this.plan = null
         }
@@ -152,6 +156,44 @@ export default {
       } finally {
         this.loading = false
       }
+    },
+    selectFirstUnfinishedLesson() {
+      if (!this.plan) return
+      const secs = ['prerequisite', 'mainCurriculum', 'advancedTopics']
+      for (const sec of secs) {
+        const list = Array.isArray(this.plan[sec]) ? this.plan[sec] : []
+        const target = list.find(l => typeof l?.progressPercentage !== 'number' || l.progressPercentage < 100)
+        if (target) { this.select(target); return }
+      }
+      // fallback: pick the very first lesson if all completed
+      for (const sec of secs) {
+        const list = Array.isArray(this.plan[sec]) ? this.plan[sec] : []
+        if (list.length) { this.select(list[0]); return }
+      }
+    },
+    async fetchLessonsProgress() {
+      try {
+        if (!this.plan) return
+        const sections = ['prerequisite', 'mainCurriculum', 'advancedTopics']
+        const promises = []
+        sections.forEach((sec) => {
+          const list = this.plan[sec]
+          if (!Array.isArray(list)) return
+          list.forEach((lesson) => {
+            const lid = lesson?.id || lesson?.lessonId || lesson?.name
+            if (!lid) return
+            const p = apiClient
+              .get(`/StudyPlans/${this.planId}/Lessons/${encodeURIComponent(lid)}/Progress/Me`)
+              .then((res) => {
+                const val = res?.data?.lessonProgress ?? res?.data?.progress ?? res?.data?.percentage ?? res?.data?.progressPercentage ?? res?.data
+                if (typeof val === 'number') lesson.progressPercentage = val
+              })
+              .catch(() => { /* ignore individual errors */ })
+            promises.push(p)
+          })
+        })
+        await Promise.allSettled(promises)
+      } catch (_) { /* no-op */ }
     },
     async fetchMyProgress() {
       try {
@@ -184,7 +226,8 @@ export default {
     select(lesson) {
       this.selectedLesson = lesson
       const id = lesson?.id || lesson?.name
-      this.$emit('select-lesson', id)
+      // Emit both id and lesson to allow parent to avoid refetching in the right panel
+      this.$emit('select-lesson', id, lesson)
     },
     startEdit() {
       if (!this.allowEditControls || !this.canEditComputed) return
