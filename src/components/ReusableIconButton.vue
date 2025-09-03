@@ -3,7 +3,14 @@
     :aria-label="computedLabel" :data-tooltip="computedLabel">
     <v-tooltip :text="computedLabel" location="right" open-delay="300">
       <template v-slot:activator="{ props }">
-        <v-btn v-bind="props" class="icon-btn" variant="text" :disabled="disabled" :aria-label="computedLabel">
+        <v-btn
+          v-bind="props"
+          class="icon-btn"
+          :class="{ 'icon-btn--active': active }"
+          variant="text"
+          :disabled="disabled"
+          :aria-label="computedLabel"
+        >
           <v-icon :size="computedIconSize">{{ computedIcon }}</v-icon>
         </v-btn>
       </template>
@@ -48,6 +55,10 @@ export default {
       // 父组件传递的备用值
       type: Boolean,
       default: null,
+    },
+    active: {
+      type: Boolean,
+      default: false,
     },
   },
   data() {
@@ -105,23 +116,31 @@ export default {
 
 /* 按钮本身 */
 .icon-btn {
-  width: 48px;
-  height: 48px;
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 0 !important;
   border-radius: 50%;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: transparent;
+  aspect-ratio: 1 / 1;
 }
 
 .icon-btn:hover {
   transform: scale(1.1);
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: #FAF6F0;
 }
 
 .icon-btn:active {
   transform: scale(0.95);
+}
+
+/* 选中高亮为浅色正圆 */
+.icon-btn--active {
+  background-color: #F1E9D7 !important;
+  border-radius: 50% !important;
 }
 
 /* 移除图标下方文字 */

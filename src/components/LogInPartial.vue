@@ -2,60 +2,50 @@
   <div class="avatar-container icon-item">
     <!-- 已登录状态 -->
     <div v-if="isAuthenticated" class="icon-item">
-      <div @mouseenter="hovering = true" @mouseleave="hovering = false" class="avatar-hover-container">
-        <!-- 用户头像按钮 -->
-        <v-btn variant="text" class="icon-btn default-avatar avatar-hover" :class="{ 'icon-btn--active': avatarActive }"
-          :style="{ width: iconSize + 'px', height: iconSize + 'px' }" @click="personalcenter">
-          <v-avatar :size="iconSize">
-            <img :src="avatarUrl" :alt="$t('user.useravatar')" />
-          </v-avatar>
-        </v-btn>
-
-            <!-- 悬浮弹出卡片 -->
-            <v-card v-if="hovering" class="user-info-card animated-card st-card" elevation="3" width="250">
-              <v-card-title @click="personalcenter">
-                <v-row>
-                  <v-col cols="auto">
-                    <v-btn icon class="default-avatar" :style="{
-                      width: iconSize * 1.3 + 'px',
-                      height: iconSize * 1.3 + 'px',
-                    }">
-                      <v-avatar :size="iconSize * 1.25">
-                        <img :src="avatarUrl" :alt="$t('user.useravatar')" />
-                      </v-avatar>
-                    </v-btn>
-                  </v-col>
-                  <v-col cols="auto" class="d-flex justify-center align-center">
-                    <v-list-item-title class="user-name">
-                      {{ $store.state.userInfo.userName }}
-                    </v-list-item-title>
-                  </v-col>
-                </v-row>
-              </v-card-title>
-              <v-divider color="text" opacity="0.1" :thickness="2" style="margin: 5px 0" />
-              <v-list class="list-on-card" dense>
-                <v-list-item @click="personalcenter">
-                  <v-list-item-title>
-                    <v-icon>mdi-account</v-icon>{{ $t('user.personalcenter') }}
-                  </v-list-item-title>
-                </v-list-item>
-
-                <v-divider color="text" opacity="0.1" style="margin: 5px 0" />
-                <v-list-item @click="accountcenter">
-                  <v-list-item-title>
-                    <v-icon>mdi-cog</v-icon>{{ $t('user.accountsetting') }}
-                  </v-list-item-title>
-                </v-list-item>
-
-                <v-divider color="text" opacity="0.1" style="margin: 5px 0" />
-                <v-list-item @click="logout">
-                  <v-list-item-title>
-                    <v-icon>mdi-logout</v-icon>{{ $t('user.logout') }}
-                  </v-list-item-title>
-                </v-list-item>
-              </v-list>
-            </v-card>
-      </div>
+      <v-menu
+        v-model="menuOpen"
+        open-on-hover
+        location="right"
+        offset="8"
+        :disabled="menuHoverBlocked"
+        :close-on-content-click="true"
+        :open-delay="80"
+        :close-delay="150"
+      >
+        <template #activator="{ props }">
+          <v-btn v-bind="props" variant="text" class="icon-btn default-avatar avatar-hover"
+            :class="{ 'icon-btn--active': avatarActive }"
+            :style="{ width: iconSize + 'px', height: iconSize + 'px' }" @click="personalcenter">
+            <v-avatar :size="iconSize">
+              <img :src="avatarUrl" :alt="$t('user.useravatar')" />
+            </v-avatar>
+          </v-btn>
+        </template>
+        <v-card class="user-info-card st-card" elevation="3" width="260" @mouseenter="onMenuMouseEnter" @mouseleave="onMenuMouseLeave">
+          <v-card-title @click="personalcenter">
+            <v-row>
+              <v-col cols="auto">
+                <v-btn icon class="default-avatar" :style="{ width: iconSize * 1.3 + 'px', height: iconSize * 1.3 + 'px' }">
+                  <v-avatar :size="iconSize * 1.25">
+                    <img :src="avatarUrl" :alt="$t('user.useravatar')" />
+                  </v-avatar>
+                </v-btn>
+              </v-col>
+              <v-col cols="auto" class="d-flex justify-center align-center">
+                <v-list-item-title class="user-name">{{ $store.state.userInfo.userName }}</v-list-item-title>
+              </v-col>
+            </v-row>
+          </v-card-title>
+          <v-divider color="text" opacity="0.1" :thickness="2" style="margin: 5px 0" />
+          <v-list class="list-on-card" dense>
+            <v-list-item @click="personalcenter"><v-list-item-title><v-icon>mdi-account</v-icon>{{ $t('user.personalcenter') }}</v-list-item-title></v-list-item>
+            <v-divider color="text" opacity="0.1" style="margin: 5px 0" />
+            <v-list-item @click="accountcenter"><v-list-item-title><v-icon>mdi-cog</v-icon>{{ $t('user.accountsetting') }}</v-list-item-title></v-list-item>
+            <v-divider color="text" opacity="0.1" style="margin: 5px 0" />
+            <v-list-item @click="logout"><v-list-item-title><v-icon>mdi-logout</v-icon>{{ $t('user.logout') }}</v-list-item-title></v-list-item>
+          </v-list>
+        </v-card>
+      </v-menu>
     </div>
 
     <!-- 未登录状态 -->
@@ -91,6 +81,8 @@ export default {
   data() {
     return {
       hovering: false,
+      menuOpen: false,
+      menuHoverBlocked: false,
     }
   },
   computed: {
@@ -114,25 +106,42 @@ export default {
     },
     personalcenter() {
       const userId = this.$store.state.currentUserID
+      this.closeMenuForNavigation()
       this.$router.push({ name: 'personalcenter', params: { userId } })
     },
     accountcenter() {
       const userId = this.$store.state.currentUserID
+      this.closeMenuForNavigation()
       this.$router.push({ name: 'accountcenter', params: { userId } })
     },
     async logout() {
       try {
         await apiClient.post('/users/Account/Logout')
         await this.$store.dispatch('checkAuthenticationStatus')
+        this.closeMenuForNavigation()
         this.$router.push('/')
       } catch (error) {
         console.error(this.$t('user.erroroccur'), error)
       }
     },
+    closeMenuForNavigation() {
+      this.menuOpen = false
+      this.menuHoverBlocked = true
+      setTimeout(() => { this.menuHoverBlocked = false }, 500)
+    },
+    onMenuMouseEnter() { this.menuOpen = true },
+    onMenuMouseLeave() { this.menuOpen = false },
   },
   mounted() {
     this.$store.dispatch('checkAuthenticationStatus')
   },
+  watch: {
+    $route() {
+      this.menuOpen = false
+      this.menuHoverBlocked = true
+      setTimeout(() => { this.menuHoverBlocked = false }, 500)
+    }
+  }
 }
 </script>
 
@@ -184,12 +193,7 @@ export default {
     transform 0.3s ease;
 }
 
-.user-info-card {
-  position: absolute !important;
-  top: -20px !important;
-  left: 60px !important;
-  z-index: 1000 !important;
-}
+.user-info-card { /* v-menu 会定位，无需手动绝对定位 */ }
 
 .avatar-hover {
   opacity: 1;

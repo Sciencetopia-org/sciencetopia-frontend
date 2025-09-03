@@ -1,5 +1,5 @@
 <template>
-  <v-card class="cohort-stats" variant="outlined">
+  <v-card class="cohort-stats">
     <v-card-title class="d-flex align-center">
       {{ $t('cohort.statsTitle') }}
       <v-spacer />
@@ -279,6 +279,7 @@ export default {
 <style scoped>
 .cohort-stats {
   margin-top: 12px;
+  background-color: transparent !important;
 }
 .cohort-select {
   max-width: 260px;

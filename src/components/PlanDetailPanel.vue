@@ -48,7 +48,7 @@
                   <v-list-item v-for="(lesson, idx) in plan.prerequisite" :key="'pre-' + idx" @click="select(lesson)"
                     :class="{ 'selected-lesson': selectedLesson && selectedLesson.name === lesson.name }">
                     <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                    <v-progress-linear :model-value="lesson.progressPercentage" height="6" color="primary" />
+                    <v-progress-linear v-if="lesson._personalProgressLoaded && typeof lesson.progressPercentage === 'number'" :model-value="lesson.progressPercentage" height="6" color="primary" />
                   </v-list-item>
                 </v-list>
               </v-expansion-panel-text>
@@ -60,7 +60,7 @@
                   <v-list-item v-for="(lesson, idx) in plan.mainCurriculum" :key="'main-' + idx" @click="select(lesson)"
                     :class="{ 'selected-lesson': selectedLesson && selectedLesson.name === lesson.name }">
                     <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                    <v-progress-linear :model-value="lesson.progressPercentage" height="6" color="primary" />
+                    <v-progress-linear v-if="lesson._personalProgressLoaded && typeof lesson.progressPercentage === 'number'" :model-value="lesson.progressPercentage" height="6" color="primary" />
                   </v-list-item>
                 </v-list>
               </v-expansion-panel-text>
@@ -72,7 +72,7 @@
                   <v-list-item v-for="(lesson, idx) in plan.advancedTopics" :key="'adv-' + idx" @click="select(lesson)"
                     :class="{ 'selected-lesson': selectedLesson && selectedLesson.name === lesson.name }">
                     <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                    <v-progress-linear :model-value="lesson.progressPercentage" height="6" color="accent" />
+                    <v-progress-linear v-if="lesson._personalProgressLoaded && typeof lesson.progressPercentage === 'number'" :model-value="lesson.progressPercentage" height="6" color="accent" />
                   </v-list-item>
                 </v-list>
               </v-expansion-panel-text>
@@ -142,19 +142,30 @@ export default {
         if (plan) {
           const sections = ['prerequisite', 'mainCurriculum', 'advancedTopics']
           sections.forEach((sec) => { if (plan[sec]) plan[sec] = this.mergeLessons(plan[sec]) })
+          // Hide lesson progress bars until personal progress API returns
+          sections.forEach((sec) => {
+            const list = plan[sec]
+            if (Array.isArray(list)) list.forEach(l => { l._personalProgressLoaded = false })
+          })
           this.plan = plan
-          await this.fetchMyProgress()
-          // fetch per-lesson progress for current user
-          await this.fetchLessonsProgress()
-          // auto-select first unfinished lesson if none selected yet
+          // Immediately render plan details without waiting for progress APIs
+          this.loading = false
+          // Fire-and-forget progress fetches; update UI when they resolve
+          this.fetchMyProgress().catch(() => { this.myProgress = null })
+          this.fetchLessonsProgress()
+            .then(() => { if (!this.selectedLesson) this.selectFirstUnfinishedLesson() })
+            .catch(() => { /* ignore individual lesson progress errors */ })
+          // Also try to select something promptly before per-lesson progress returns
           if (!this.selectedLesson) this.selectFirstUnfinishedLesson()
+          return
         } else {
           this.plan = null
         }
       } catch (e) {
         this.plan = null
       } finally {
-        this.loading = false
+        // Ensure loading is cleared in error/empty-plan cases
+        if (this.loading) this.loading = false
       }
     },
     selectFirstUnfinishedLesson() {
@@ -186,7 +197,10 @@ export default {
               .get(`/StudyPlans/${this.planId}/Lessons/${encodeURIComponent(lid)}/Progress/Me`)
               .then((res) => {
                 const val = res?.data?.lessonProgress ?? res?.data?.progress ?? res?.data?.percentage ?? res?.data?.progressPercentage ?? res?.data
-                if (typeof val === 'number') lesson.progressPercentage = val
+                if (typeof val === 'number') {
+                  lesson.progressPercentage = val
+                  lesson._personalProgressLoaded = true
+                }
               })
               .catch(() => { /* ignore individual errors */ })
             promises.push(p)
@@ -197,7 +211,7 @@ export default {
     },
     async fetchMyProgress() {
       try {
-        const res = await apiClient.get(`/studyPlans/${this.planId}/progress/me`)
+        const res = await apiClient.get(`StudyPlans/${this.planId}/Progress/Me`)
         const p = res?.data?.planProgress
         this.myProgress = typeof p === 'number' ? p : null
       } catch (_) {
@@ -287,4 +301,6 @@ export default {
   width: 100%;
   margin-top: 20px;
 }
+
+/* no skeleton styles; progress bars appear only when data is ready */
 </style>

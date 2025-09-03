@@ -4,9 +4,15 @@
       <div class="placeholder">请选择一个课程</div>
     </div>
     <div v-else>
-      <h3 class="mb-2">{{ current.name }}</h3>
-      <p class="text-body-2 mb-3">{{ current.description }}</p>
-      <div v-if="current.resources && current.resources.length">
+      <h3 class="mb-2">{{ displayName }}</h3>
+      <p class="text-body-2 mb-3">{{ displayDescription }}</p>
+      <!-- Loading skeletons for resource list while fetching -->
+      <div v-if="loadingLesson">
+        <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+        <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+        <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+      </div>
+      <div v-else-if="current.resources && current.resources.length">
         <v-card-item v-for="(resource, idx) in current.resources" :key="idx" class="link-preview-container">
           <LinkPreview :url="resource.link || resource.url" />
           <div class="d-flex align-center mt-1">
@@ -21,7 +27,7 @@
           </div>
         </v-card-item>
       </div>
-      <div v-else class="text-medium-emphasis text-caption">暂无资源</div>
+      <div v-else-if="resourcesLoaded" class="text-medium-emphasis text-caption">暂无资源</div>
     </div>
   </v-card>
 </template>
@@ -43,26 +49,56 @@ export default {
   },
   emits: ['resource-updated'],
   data() {
-    return { current: this.lesson }
+    return { current: this.lesson, loadingLesson: false, resourcesLoaded: false }
   },
   watch: {
     lesson: {
       immediate: true,
-      handler(lesson) {
+      async handler(lesson) {
+        const needFetch = this.planId && this.lessonId && (!lesson || !Array.isArray(lesson.resources) || lesson.resources.length === 0)
+        if (needFetch) {
+          // Avoid flicker: start loading first and set header from incoming lesson
+          this.loadingLesson = true
+          this.resourcesLoaded = false
+          if (lesson) this.current = lesson
+          await this.fetchLessonById()
+          return
+        }
         this.current = lesson
+        this.resourcesLoaded = true
         if (lesson) this.fetchLessonCompletedStatus(lesson)
       },
     },
     lessonId: {
       immediate: true,
       async handler(id) {
-        if (!this.lesson && id && this.planId) {
-          await this.resolveLessonFromPlan()
+        if (!id || !this.planId) return
+        const hasResources = Array.isArray(this.current?.resources) && this.current.resources.length > 0
+        const sameId = String(this.current?.id || this.current?.name || '') === String(id)
+        if (!sameId || !hasResources) {
+          this.loadingLesson = true
+          this.resourcesLoaded = false
+          await this.fetchLessonById()
         }
       },
     },
   },
   methods: {
+    async fetchLessonById() {
+      try {
+        // loadingLesson is set by callers to avoid flicker
+        if (!this.loadingLesson) this.loadingLesson = true
+        this.resourcesLoaded = false
+        const lid = encodeURIComponent(this.lessonId)
+        const res = await apiClient.get(`/StudyPlans/${this.planId}/Lessons/${lid}`)
+        const lesson = res?.data?.lesson || res?.data
+        if (lesson) {
+          this.current = lesson
+          await this.fetchLessonCompletedStatus(lesson)
+        }
+      } catch (_) { /* ignore */ }
+      finally { this.loadingLesson = false; this.resourcesLoaded = true }
+    },
     mergeLessons(lessons) {
       if (!Array.isArray(lessons)) return []
       const map = new Map()
@@ -78,19 +114,6 @@ export default {
         }
       })
       return Array.from(map.values())
-    },
-    async resolveLessonFromPlan() {
-      try {
-        const res = await apiClient.get('/StudyPlan/GetStudyPlanById', { params: { studyPlanId: this.planId } })
-        const plan = res?.data?.studyPlan || res?.data
-        if (!plan) return
-        const secs = ['prerequisite','mainCurriculum','advancedTopics']
-        for (const s of secs) {
-          const arr = this.mergeLessons(plan[s] || [])
-          const found = arr.find(l => String(l.id||l.name) === String(this.lessonId))
-          if (found) { this.current = found; await this.fetchLessonCompletedStatus(found); return }
-        }
-      } catch (_) {}
     },
     async fetchLessonCompletedStatus(lesson) {
       try {
@@ -139,6 +162,14 @@ export default {
   },
   computed: {
     isInteractable() { return !!this.canInteract && !this.disabled },
+    displayName() {
+      const l = this.current || {}
+      return l.name || l.title || l.lessonName || ''
+    },
+    displayDescription() {
+      const l = this.current || {}
+      return l.description || l.summary || l.desc || ''
+    },
   },
 }
 </script>

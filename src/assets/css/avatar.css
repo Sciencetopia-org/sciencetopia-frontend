@@ -1,6 +1,11 @@
 .default-avatar {
   background-color: black !important;
   box-shadow: none !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  aspect-ratio: 1 / 1 !important;
+  /* Ensure square button; override Vuetify min-width */
+  min-width: 0 !important;
 
   &:hover {
     box-shadow: none !important;
@@ -13,4 +18,18 @@
   &:active {
     box-shadow: none !important;
   }
+}
+
+/* Active highlight ring for avatar */
+.default-avatar.icon-btn--active {
+  /* 保持黑色底的正圆，增加浅色描边作为高亮 */
+  border-radius: 50% !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6) inset, 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+/* 强制内部 overlay/underlay/content 也为正圆，避免椭圆 */
+.default-avatar :is(.v-btn__overlay, .v-btn__underlay, .v-btn__content) {
+  border-radius: 50% !important;
+  width: 100% !important;
+  height: 100% !important;
 }

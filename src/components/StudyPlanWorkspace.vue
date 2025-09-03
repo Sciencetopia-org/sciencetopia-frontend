@@ -305,6 +305,7 @@ export default {
             title: item.title,
             // keep shape consistent; introduction used in center panel
             introduction: item.description ? { description: item.description } : null,
+            progress: typeof item.progress === 'number' ? item.progress : undefined,
           },
         }))
         // Prime role map from list if role provided; otherwise, leave to permission service on demand
@@ -317,6 +318,8 @@ export default {
           try {
             const pid = p?.studyPlan?.id
             if (!pid) return
+            // Skip if list already provided progress
+            if (p.studyPlan.progress !== undefined) { return }
             const resp = await apiClient.get(`/studyPlans/${pid}/progress/me`)
             const prog = resp?.data?.planProgress
             if (typeof prog === 'number') {
@@ -619,4 +622,6 @@ export default {
   margin: 0 0 8px 0;
   color: rgba(0, 0, 0, 0.7);
 }
+
+/* no skeleton styles; show progress only when value exists */
 </style>

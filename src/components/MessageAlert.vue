@@ -14,7 +14,17 @@
     </v-tooltip>
 
     <!-- 登录状态下显示下拉菜单并添加悬停提示 -->
-    <v-menu v-else open-on-hover>
+    <v-menu
+      v-else
+      v-model="menuOpen"
+      open-on-hover
+      location="right"
+      offset="8"
+      :disabled="menuHoverBlocked"
+      :close-on-content-click="true"
+      :open-delay="80"
+      :close-delay="150"
+    >
       <template v-slot:activator="{ props: menuProps }">
         <v-tooltip location="right" open-delay="300" :text="$t('header.messages')">
           <template v-slot:activator="{ props: tooltipProps }">
@@ -30,7 +40,7 @@
       </template>
 
       <!-- 下拉菜单: 仅当已登录(isAuthenticated)时才显示 -->
-      <v-list class="header-list st-card">
+      <v-list class="header-list st-card" @mouseenter="onMenuMouseEnter" @mouseleave="onMenuMouseLeave">
         <v-list-item variant="plain" @click="directMessages">
           <v-list-item-title>{{
             $t('message.privatemessage')
@@ -66,6 +76,8 @@ export default {
   data() {
     return {
       isSmallScreenLocal: window.innerWidth <= 1200, // 初始判断屏幕大小
+      menuOpen: false,
+      menuHoverBlocked: false,
     }
   },
   computed: {
@@ -80,27 +92,41 @@ export default {
         : this.isSmallScreenLocal
     },
   },
+  watch: {
+    $route() {
+      this.menuOpen = false
+      this.menuHoverBlocked = true
+      setTimeout(() => { this.menuHoverBlocked = false }, 500)
+    }
+  },
   methods: {
     login() {
       this.$router.push({ name: 'login' })
     },
     directMessages() {
       if (!this.isAuthenticated) {
-        // 未登录 -> 提示或跳转登录
         alert('请先登录再查看消息列表')
       } else {
         const userId = this.$store.state.currentUserID
+        this.closeMenuForNavigation()
         this.$router.push({ name: 'directMessages', params: { userId } })
       }
     },
     notifications() {
       const userId = this.$store.state.currentUserID
+      this.closeMenuForNavigation()
       this.$router.push({ name: 'notifications', params: { userId } })
     },
     handleResize() {
-      // 更新屏幕大小的状态
       this.isSmallScreenLocal = window.innerWidth <= 1200
     },
+    closeMenuForNavigation() {
+      this.menuOpen = false
+      this.menuHoverBlocked = true
+      setTimeout(() => { this.menuHoverBlocked = false }, 500)
+    },
+    onMenuMouseEnter() { this.menuOpen = true },
+    onMenuMouseLeave() { this.menuOpen = false },
   },
   mounted() {
     // 监听窗口大小变化

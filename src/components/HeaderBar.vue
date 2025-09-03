@@ -9,14 +9,15 @@
 
         <!-- 学习计划 / StudyPlan -->
         <ReusableIconButton icon="mdi-book-open-variant" :label="$t('header.studyplan')" :iconSize="iconSize"
-          @click="handleStudyPlan" />
+          :active="activeKey==='studyplan'" @click="handleStudyPlan" />
 
         <!-- 学习小组 / StudyGroup -->
         <ReusableIconButton icon="mdi-account-group" :label="$t('header.studygroup')" :iconSize="iconSize"
-          @click="RouteToStudyGroup" />
+          :active="activeKey==='studygroup'" @click="RouteToStudyGroup" />
 
         <!-- 趋势 / Trend -->
-        <ReusableIconButton icon="mdi-rss" :label="$t('header.trend')" :iconSize="iconSize" @click="scrollToSection" />
+        <ReusableIconButton icon="mdi-rss" :label="$t('header.trend')" :iconSize="iconSize"
+          :active="activeKey==='trend'" @click="scrollToSection" />
 
         <!-- 登录 / Login (handled by LogInPartial) -->
         <LogInPartial :is-small-screen="isSmallScreen" :icon-size="iconSize" />
@@ -85,6 +86,7 @@ export default {
         { title: 'Chinese', value: 'zh' },
       ],
       langTextWidth: 0,
+      activeKey: '',
     }
   },
   computed: {
@@ -126,6 +128,18 @@ export default {
     },
   },
   methods: {
+    updateActiveFromRoute() {
+      const name = this.$route?.name
+      if (name === 'StudyPlanWorkspace' || name === 'PlanPage' || name === 'StudyPlanDetail') {
+        this.activeKey = 'studyplan'
+      } else if (name === 'studyGroupList' || name === 'studyGroupPage' || name === 'GroupPlanWorkspace') {
+        this.activeKey = 'studygroup'
+      } else if (name === 'allFeeds') {
+        this.activeKey = 'trend'
+      } else {
+        this.activeKey = ''
+      }
+    },
     openSearchInput() {
       eventBus.emit('show-search-bar')
     },
@@ -143,6 +157,7 @@ export default {
       this.$router.push({ name: 'HomePage' })
     },
     scrollToSection() {
+      this.activeKey = 'trend'
       this.$router.push({ name: 'allFeeds' })
     },
     // async globalSearch() {
@@ -159,6 +174,7 @@ export default {
     //   this.searchDialogOpen = false
     // },
     RouteToStudyGroup() {
+      this.activeKey = 'studygroup'
       this.$router.push({ name: 'studyGroupList' })
     },
     handleStudyPlan() {
@@ -166,6 +182,7 @@ export default {
         alert('请先登录再查看学习计划')
       } else {
         const userId = this.$store.state.currentUserID
+        this.activeKey = 'studyplan'
         this.$router.push({ name: 'StudyPlanWorkspace', params: { userId } })
       }
     },
@@ -206,9 +223,15 @@ export default {
       this.isDarkThemeEnabled = storedTheme === 'true'
       this.$vuetify.theme.dark = this.isDarkThemeEnabled
     }
+    this.updateActiveFromRoute()
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.debouncedResize)
+  },
+  watch: {
+    $route() {
+      this.updateActiveFromRoute()
+    },
   },
 }
 </script>
@@ -302,7 +325,6 @@ export default {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.2);
   padding: 0;
   display: flex;
   align-items: center;
@@ -313,7 +335,7 @@ export default {
 
 .language-toggle:hover {
   transform: scale(1.1);
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: #FAF6F0;
 }
 
 .language-text {
