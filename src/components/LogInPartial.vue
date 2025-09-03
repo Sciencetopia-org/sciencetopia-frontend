@@ -1,18 +1,15 @@
 <template>
   <div class="avatar-container icon-item">
     <!-- 已登录状态 -->
-    <div v-if="isAuthenticated" @mouseleave="hovering = false" class="icon-item">
-      <v-tooltip :text="$store.state.userInfo.userName" location="right" open-delay="300">
-        <template v-slot:activator="slotProps">
-          <div v-bind="slotProps.props" @mouseenter="hovering = true" @mouseleave="hovering = false"
-            class="avatar-hover-container">
-            <!-- 用户头像按钮 -->
-            <v-btn variant="text" class="icon-btn default-avatar avatar-hover"
-              :style="{ width: iconSize + 'px', height: iconSize + 'px' }" @click="personalcenter">
-              <v-avatar :size="iconSize">
-                <img :src="avatarUrl" :alt="$t('user.useravatar')" />
-              </v-avatar>
-            </v-btn>
+    <div v-if="isAuthenticated" class="icon-item">
+      <div @mouseenter="hovering = true" @mouseleave="hovering = false" class="avatar-hover-container">
+        <!-- 用户头像按钮 -->
+        <v-btn variant="text" class="icon-btn default-avatar avatar-hover" :class="{ 'icon-btn--active': avatarActive }"
+          :style="{ width: iconSize + 'px', height: iconSize + 'px' }" @click="personalcenter">
+          <v-avatar :size="iconSize">
+            <img :src="avatarUrl" :alt="$t('user.useravatar')" />
+          </v-avatar>
+        </v-btn>
 
             <!-- 悬浮弹出卡片 -->
             <v-card v-if="hovering" class="user-info-card animated-card st-card" elevation="3" width="250">
@@ -58,9 +55,7 @@
                 </v-list-item>
               </v-list>
             </v-card>
-          </div>
-        </template>
-      </v-tooltip>
+      </div>
     </div>
 
     <!-- 未登录状态 -->
@@ -104,6 +99,10 @@ export default {
     },
     avatarUrl() {
       return this.$store.state.avatarUrl
+    },
+    avatarActive() {
+      const name = this.$route?.name
+      return name === 'personalcenter' || name === 'accountcenter'
     },
   },
   methods: {
@@ -198,8 +197,8 @@ export default {
 }
 
 .avatar-hover-container:hover .avatar-hover {
-  opacity: 0.9;
-  transform: scale(0.95);
+  opacity: 1;
+  transform: scale(1.1);
 }
 
 .avatar-hover-container:hover .user-info-card {
