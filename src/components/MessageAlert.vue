@@ -1,7 +1,7 @@
 <template>
   <div class="icon-item" role="button" tabindex="0" @keydown.enter.prevent="directMessages">
     <!-- 根据登录状态动态显示悬停提示 -->
-    <v-tooltip v-if="!isAuthenticated" :text="$t('header.toseemessage')" location="right" open-delay="300">
+    <v-tooltip v-if="!isAuthenticated" :text="$t('header.pleaselogin') + $t('header.toseemessage')" location="right" open-delay="300">
       <template v-slot:activator="{ props }">
         <v-btn v-bind="props" class="icon-btn" variant="text">
           <v-icon :size="iconSize">mdi-bell</v-icon>
@@ -105,7 +105,7 @@ export default {
     },
     directMessages() {
       if (!this.isAuthenticated) {
-        alert('请先登录再查看消息列表')
+        alert(this.$t('header.pleaselogin') + this.$t('header.toseemessage'))
       } else {
         const userId = this.$store.state.currentUserID
         this.closeMenuForNavigation()
@@ -149,8 +149,9 @@ export default {
 }
 
 .icon-btn {
-  width: 48px;
-  height: 48px;
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 0 !important;
   border-radius: 50%;
   position: relative;
   transition: all 0.3s ease;
@@ -158,15 +159,22 @@ export default {
   align-items: center;
   justify-content: center;
   background-color: transparent;
+  aspect-ratio: 1 / 1;
 }
 
 .icon-btn:hover {
   transform: scale(1.1);
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: #FAF6F0;
 }
 
 .icon-btn:active {
   transform: scale(0.95);
+}
+
+/* 选中高亮为浅色正圆 */
+.icon-btn--active {
+  background-color: #F1E9D7 !important;
+  border-radius: 50% !important;
 }
 
 .icon-btn:disabled {

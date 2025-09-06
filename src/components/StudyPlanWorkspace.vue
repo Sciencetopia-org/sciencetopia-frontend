@@ -13,11 +13,11 @@
               @click="openAiDialog" :disabled="backgroundGenerating" />
           </div>
           <v-divider />
-          <v-tabs v-model="listScope" density="compact" class="px-2">
+          <!-- <v-tabs v-model="listScope" density="compact" class="px-2">
             <v-tab value="mine">{{ $t('studyplan.tabs.mine') }}</v-tab>
             <v-tab value="shared">{{ $t('studyplan.tabs.shared') }}</v-tab>
             <v-tab value="public">{{ $t('studyplan.tabs.public') }}</v-tab>
-          </v-tabs>
+          </v-tabs> -->
           <div class="d-flex align-center px-3 pb-2 gap-2">
             <v-text-field
               v-model="q"
@@ -33,7 +33,7 @@
             <v-select v-model="sort" :items="sortItems" :label="$t('common.sort')" density="compact" hide-details
               style="max-width: 200px" @update:model-value="fetchPlans" />
           </div>
-          <v-divider />
+          <!-- <v-divider /> -->
           <template v-if="listLoading">
             <v-skeleton-loader type="list-item" v-for="n in 3" :key="n" />
           </template>
@@ -80,16 +80,17 @@
             </v-list>
           </template>
           <div v-else class="empty-plan-list text-center px-4">
-            <p class="mb-4">你还没有创建学习计划</p>
+            <p class="mb-4">{{ $t('studyplan.noPlansYet') }}</p>
             <v-btn block class="mb-2" color="primary" @click="openCreateDialog" :disabled="backgroundGenerating">
-              新建学习计划
+              {{ $t('studyplan.create') }}
             </v-btn>
             <v-btn block color="secondary" @click="openAiDialog" :disabled="backgroundGenerating">
-              AI 生成计划
+              {{ $t('studyplan.aiGenerate') }}
             </v-btn>
           </div>
           <div class="d-flex justify-end pa-2">
-            <v-btn icon="mdi-menu-open" @click="collapsed = !collapsed" />
+            <v-btn v-if="!collapsed" variant="plain" icon="mdi-menu-open" @click="collapsed = !collapsed" />
+            <v-btn v-else variant="plain" icon="mdi-menu-close" @click="collapsed = !collapsed" />
           </div>
         </v-card>
       </v-col>
@@ -132,13 +133,13 @@
     <!-- AI planner dialog -->
     <v-dialog v-model="aiDialog" max-width="800" theme="light" persistent @update:model-value="onAiDialogChange">
       <v-card color="white" rounded="xl">
-        <v-card-title class="text-h6">AI 学习计划生成器</v-card-title>
+        <v-card-title class="text-h6">{{ $t('studyplan.ai.plannerTitle') }}</v-card-title>
         <v-card-text>
           <!-- 子组件在任一输入变化时 $emit('dirty') -->
           <LearningPlanner @dirty="aiDirty = true" @background="handleBackground" />
         </v-card-text>
         <v-card-actions class="justify-end">
-          <v-btn variant="text" @click="attemptClose('ai')">关闭</v-btn>
+          <v-btn variant="text" @click="attemptClose('ai')">{{ $t('close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -146,15 +147,13 @@
     <!-- Edit / create dialog -->
     <v-dialog v-model="editDialog" max-width="800" theme="light" persistent>
       <v-card color="white" rounded="xl">
-        <v-card-title class="text-h6">
-          {{ editPlan && editPlan.id ? '编辑学习计划' : '新建学习计划' }}
-        </v-card-title>
+        <v-card-title class="text-h6">{{ $t(editPlan && editPlan.id ? 'studyplan.dialogs.editTitle' : 'studyplan.dialogs.createTitle') }}</v-card-title>
         <v-card-text>
           <!-- 子组件在任一输入变化时 $emit('dirty') -->
           <EditStudyPlanForm :studyPlan="editPlan" @save="saveStudyPlan" @dirty="editDirty = true" />
         </v-card-text>
         <v-card-actions class="justify-end">
-          <v-btn variant="text" @click="attemptClose('edit')">关闭</v-btn>
+          <v-btn variant="text" @click="attemptClose('edit')">{{ $t('close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -179,13 +178,14 @@ import PlanDetailPanel from '@/components/PlanDetailPanel.vue'
 import LessonDetailPanel from '@/components/LessonDetailPanel.vue'
 import ProgressPage from '@/components/ProgressPage.vue'
 import ShareStudyPlanDialog from '@/components/ShareStudyPlanDialog.vue'
+import EditStudyPlanForm from '@/components/EditStudyPlanForm.vue'
 import { eventBus } from '@/eventBus'
 import { connection } from '@/services/signalr-service'
 import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit, roleAllowsComment } from '@/services/studyplan-permissions'
 
 export default {
   name: 'StudyPlanWorkspace',
-  components: { LearningPlanner, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage },
+  components: { LearningPlanner, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage, EditStudyPlanForm },
   data() {
     return {
       studyPlans: [],
@@ -211,11 +211,6 @@ export default {
       q: null,
       sort: null,
       listScope: 'mine',
-      sortItems: [
-        { title: '最近学习', value: 'recent' },
-        { title: '创建时间', value: 'created' },
-        { title: '热度', value: 'hot' },
-      ],
       // my progress now handled in PlanDetailPanel
       roleMap: {},
       unsubscribers: [],
@@ -226,6 +221,13 @@ export default {
   computed: {
     backgroundGenerating() {
       return this.$store.state.backgroundGenerating
+    },
+    sortItems() {
+      return [
+        { title: this.$t('common.sortOptions.recent'), value: 'recent' },
+        { title: this.$t('common.sortOptions.created'), value: 'created' },
+        { title: this.$t('common.sortOptions.hot'), value: 'hot' },
+      ]
     },
   },
   async created() {
@@ -256,7 +258,7 @@ export default {
       if (this.canEdit(this.currentPlan.id)) {
         this.startEdit(this.currentPlan)
       } else {
-        alert('无权限编辑，已进入只读模式')
+        alert(this.$t('studyplan.dialogs.noEditPermission'))
         this.$router.replace({ query: { ...this.$route.query, edit: undefined } })
       }
     }
@@ -410,7 +412,7 @@ export default {
     },
     openCreateDialog() {
       if (this.backgroundGenerating) {
-        alert('AI 正在生成学习计划，请稍后再试')
+        alert(this.$t('studyplan.ai.generatingTryLater'))
         return
       }
       this.editPlan = {
@@ -425,7 +427,7 @@ export default {
     },
     startEdit(plan) {
       if (!this.canEdit(plan.id)) {
-        alert('无权限编辑该学习计划')
+        alert(this.$t('studyplan.dialogs.noEditPermissionShort'))
         return
       }
       // Ensure the selected plan matches the one being edited
@@ -438,7 +440,7 @@ export default {
     },
     cancelEditInCenter() {
       if (this.editDirty) {
-        const ok = window.confirm('你在编辑中已有输入，确定要取消吗？未保存的内容将丢失。')
+        const ok = window.confirm(this.$t('studyplan.dialogs.confirmCloseWithUnsaved'))
         if (!ok) return
       }
       this.isEditing = false
@@ -452,7 +454,7 @@ export default {
     },
     openAiDialog() {
       if (this.backgroundGenerating) {
-        alert('AI 正在生成学习计划，请稍后再试')
+        alert(this.$t('studyplan.ai.generatingTryLater'))
         return
       }
       this.aiDialog = true
@@ -486,7 +488,7 @@ export default {
     async editPlanById(planId) {
       // Ensure user has edit rights and load full details before editing
       if (!this.canEdit(planId)) {
-        alert('无权限编辑该学习计划')
+        alert(this.$t('studyplan.dialogs.noEditPermissionShort'))
         return
       }
       await this.fetchPlanDetailsById(planId)
@@ -557,14 +559,14 @@ export default {
     attemptClose(which) {
       if (which === 'ai') {
         if (this.aiDirty) {
-          const ok = window.confirm('你在对话框中已有输入，确定要关闭吗？未保存的内容将丢失。')
+          const ok = window.confirm(this.$t('studyplan.dialogs.confirmCloseWithUnsaved'))
           if (!ok) return
         }
         this.aiDialog = false
         this.aiDirty = false
       } else if (which === 'edit') {
         if (this.editDirty) {
-          const ok = window.confirm('你在对话框中已有输入，确定要关闭吗？未保存的内容将丢失。')
+          const ok = window.confirm(this.$t('studyplan.dialogs.confirmCloseWithUnsaved'))
           if (!ok) return
         }
         this.editDialog = false
@@ -585,7 +587,7 @@ export default {
         if (this.canEdit(this.currentPlan.id)) {
           this.startEdit(this.currentPlan)
         } else {
-          alert('无权限编辑，已进入只读模式')
+          alert(this.$t('studyplan.dialogs.noEditPermission'))
           this.$router.replace({ query: { ...this.$route.query, edit: undefined } })
         }
       } else if (val === undefined || val === null) {

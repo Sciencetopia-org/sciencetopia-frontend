@@ -57,16 +57,18 @@ export default {
       largeLogo: require('@/assets/images/logo_banner.png'),
       smallLogo: require('@/assets/images/logo.png'),
       isSmallScreen: window.innerWidth <= 1200,
-      languageOptions: [
-        { title: 'English', value: 'en' },
-        { title: 'Chinese', value: 'zh' },
-      ],
       currentLocale: this.$i18n.locale,
       langTextWidth: 0,
     }
   },
 
   computed: {
+    languageOptions() {
+      return [
+        { title: this.$t('languages.en'), value: 'en' },
+        { title: this.$t('languages.zh'), value: 'zh' },
+      ]
+    },
     isAuthenticated() {
       return this.$store.state.isAuthenticated
     },
@@ -161,7 +163,7 @@ export default {
 
     handleStudyPlan() {
       if (!this.isAuthenticated) {
-        this.alertMessage = this.$t('pleaseLoginToViewStudyPlan')
+        this.alertMessage = this.$t('header.pleaseLoginToViewStudyPlan')
         return
       }
       this.$router.push({ name: 'StudyPlanWorkspace' })
@@ -170,7 +172,8 @@ export default {
     handleLanguageChange(val) {
       this.currentLocale = val
       this.$i18n.locale = val
-      this.$vuetify.locale = val
+      this.$vuetify.locale.current = val
+      try { localStorage.setItem('locale', val) } catch (_) {}
       this.$nextTick(() => {
         this.measureLangTextWidth()
       })

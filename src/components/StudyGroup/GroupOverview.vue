@@ -11,19 +11,19 @@
 
   <!-- Edit Mode -->
   <v-card class="group-settings" v-else>
-    <v-card-title>小组设置</v-card-title>
+    <v-card-title>{{ $t('groupSettings.titleManager') }}</v-card-title>
     <v-card-text>
       <v-form>
-        <v-text-field v-model="groupName" label="小组名称"></v-text-field>
-        <v-textarea v-model="groupDescription" label="小组描述"></v-textarea>
+        <v-text-field v-model="groupName" :label="$t('groupSettings.name')"></v-text-field>
+        <v-textarea v-model="groupDescription" :label="$t('studygroup.groupdescription')"></v-textarea>
         <v-file-input
           v-model="groupImage"
-          label="小组图片"
+          :label="$t('studygroup.groupbanner')"
           accept="image/*"
         ></v-file-input>
         <v-card-actions>
-          <v-btn color="primary" @click="saveSettings">保存设置</v-btn>
-          <v-btn color="red" @click="cancelEditMode">取消</v-btn>
+          <v-btn color="primary" @click="saveSettings">{{ $t('savesetting') }}</v-btn>
+          <v-btn color="red" @click="cancelEditMode">{{ $t('cancel') }}</v-btn>
         </v-card-actions>
       </v-form>
     </v-card-text>
@@ -74,7 +74,7 @@ export default {
         `/StudyGroupManage/UpdateGroupSettings/${this.groupId}`,
         formData
       )
-      alert('设置已保存')
+      alert(this.$t('groupSettings.saveSuccess'))
       this.isEditMode = false
       await this.fetchGroupData() // Refresh the group data after saving
     },

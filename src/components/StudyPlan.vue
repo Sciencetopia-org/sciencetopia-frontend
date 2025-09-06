@@ -273,10 +273,10 @@ export default {
         await apiClient.post(`/StudyPlan/UpdateStudyPlan`, {
           studyPlan: this.localStudyPlan,
         })
-        alert('Study plan updated successfully!')
+        alert(this.$t('studyplan.savesuccessmsg'))
       } catch (error) {
         console.error('Failed to update study plan:', error)
-        alert('Failed to update study plan')
+        alert(this.$t('studyplan.savefailedmsg'))
       }
     },
 
@@ -301,7 +301,7 @@ export default {
 
       if (wasLearned) {
         // If trying to unlearn, confirm the action
-        const confirmed = confirm('确定要将它重新标记为未完成吗?')
+        const confirmed = confirm(this.$t('studyplan.confirmMarkUnfinished') || 'Are you sure to mark it as not completed?')
         if (!confirmed) {
           // If the user cancels, revert the learned status and exit the method
           // resource.learned = !wasLearned;

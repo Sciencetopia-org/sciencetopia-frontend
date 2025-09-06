@@ -3,7 +3,7 @@
     <div class="result-title">{{ result.title }}</div>
     <div class="result-excerpt">{{ result.excerpt }}</div>
     <div class="result-meta">
-      <v-chip small>{{ typeLabel }}</v-chip>
+      <v-chip small>{{ $t(`search.types.${normalizedType}`) }}</v-chip>
     </div>
   </div>
 </template>
@@ -19,16 +19,16 @@ export default {
     }
   },
   setup(props) {
-    const typeLabel = computed(() => {
-      const labels = {
-        knowledge: '知识',
-        plan: '计划',
-        group: '小组'
+    const normalizedType = computed(() => {
+      const map = {
+        KnowledgeBase: 'knowledge',
+        Resources: 'resources',
+        StudyGroups: 'group',
       }
-      return labels[props.result.type] || props.result.type
+      return map[props.result.type] || props.result.type
     })
 
-    return { typeLabel }
+    return { normalizedType }
   }
 }
 </script>

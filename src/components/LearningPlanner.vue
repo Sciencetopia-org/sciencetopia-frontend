@@ -47,7 +47,7 @@ export default {
     async generateStudyPlan() {
       if (!this.learningObjective) return
       if (this.$store.state.backgroundGenerating) {
-        alert('AI 正在生成学习计划，请稍后再试')
+        alert(this.$t('studyplan.ai.generatingTryLater'))
         return
       }
       this.loading = true

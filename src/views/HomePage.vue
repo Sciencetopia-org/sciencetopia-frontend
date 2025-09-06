@@ -6,7 +6,7 @@
       <!-- 左列：标签索引 + 结构筛选（卡片组） -->
       <v-col class="kgp-col kgp-left d-flex flex-column gap-4" :cols="12" :md="3" :lg="3" :xl="3">
         <v-card class="kgp-card card-stack panel-card panel-card--beige" rounded="xl" elevation="2">
-          <v-card-title class="text-body-1 py-3">标签索引</v-card-title>
+          <v-card-title class="text-body-1 py-3">{{ $t('home.tagsIndex') }}</v-card-title>
           <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
           <v-card-text>
             <!-- 仅筛选时显示的细进度条 -->
@@ -14,32 +14,31 @@
               class="card-top-loader" />
             <v-autocomplete :key="acKey" v-model="tagSearch" v-model:search="tagSearchQuery" v-model:menu="tagMenuOpen"
               :items="tagSuggestions" density="comfortable" variant="outlined" hide-details clearable
-              placeholder="搜索标签..." prepend-inner-icon="" :loading="tagLoading" @update:search="onTagSearch"
+              :placeholder="$t('home.searchTagsPlaceholder')" prepend-inner-icon="" :loading="tagLoading" @update:search="onTagSearch"
               @update:menu="onTagMenuChange" @update:modelValue="addTag" @click:prepend-inner="filterByTags">
               <!-- 用 slot 自定义放大镜：点击筛选且可显示 loading 动效 -->
               <template #prepend-inner>
                 <v-btn icon size="small" variant="text" :loading="filterLoading" :disabled="filterLoading"
-                  @click.stop="filterByTags" aria-label="按所选标签筛选">
+                  @click.stop="filterByTags" :aria-label="$t('home.filterSelectedAria')">
                   <v-icon v-if="!filterLoading">mdi-magnify</v-icon>
                 </v-btn>
               </template>
             </v-autocomplete>
             <div class="d-flex flex-wrap gap-2 mt-2">
               <v-chip size="small" v-for="t in selectedTags" :key="t" closable @click:close="removeTag(t)">{{ t
-                }}</v-chip>
+              }}</v-chip>
             </div>
           </v-card-text>
         </v-card>
 
         <v-card rounded="xl" elevation="2" class="kgp-card card-stack panel-card panel-card--beige">
-          <v-card-title class="text-body-1 py-3">标签结构</v-card-title>
+          <v-card-title class="text-body-1 py-3">{{ $t('home.tagsStructure') }}</v-card-title>
           <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
           <v-card-text class="pt-3">
-            <v-expansion-panels v-model="activeTagSystem" variant="accordion" class="kgp-filter-group">
-              <v-expansion-panel v-for="(sys, i) in tagSystems" :key="sys">
-                <v-expansion-panel-title>{{ sys }}</v-expansion-panel-title>
-              </v-expansion-panel>
-            </v-expansion-panels>
+            <v-list class="kgp-filter-group plan-list" nav>
+              <v-list-item class="group-plan-item plan-card kgp-list-item" v-for="(sys, i) in tagSystems" :key="sys" :title="sys" :active="activeTagSystem === i"
+                @click="activeTagSystem = i"/>
+            </v-list>
           </v-card-text>
         </v-card>
       </v-col>
@@ -48,7 +47,7 @@
       <v-col class="kgp-col kgp-center" :cols="12" :md="5" :lg="5" :xl="5">
         <v-card class="kgp-card panel-card panel-card--cream" elevation="2" rounded="xl">
           <v-card-title class="d-flex align-center justify-space-between">
-            <span class="text-subtitle-1 font-weight-medium">知识网络</span>
+            <span class="text-subtitle-1 font-weight-medium">{{ $t('home.knowledgeNetwork') }}</span>
             <div class="d-flex align-center ga-0">
               <template v-if="selectedNodes.length > 0">
                 <v-tooltip :text="$t('knowledgeGraph.adjacentnodes')" location="top">
@@ -138,9 +137,7 @@
       <!-- 右列：节点详情 / 创建表单 / 关系创建 -->
       <v-col class="kgp-col kgp-right" :cols="12" :md="4" :lg="4" :xl="4">
         <v-card class="kgp-card panel-card panel-card--beige" elevation="2" rounded="xl">
-          <v-card-title class="text-subtitle-1 font-weight-medium">
-            节点面板
-          </v-card-title>
+          <v-card-title class="text-subtitle-1 font-weight-medium">{{ $t('home.nodePanel') }}</v-card-title>
           <v-card-text class="pt-0">
             <NodeCreationForm v-if="$store.state.displayNodeCreationForm" @submitted="afterEditOrCreate" />
             <LinkCreationForm v-else-if="$store.state.displayLinkCreationForm" @submitted="afterEditOrCreate" />
@@ -154,13 +151,13 @@
     <!-- 移动端：左侧抽屉（卡片风格内容简化版） -->
     <v-navigation-drawer v-model="leftDrawer" temporary location="start" width="320" class="d-md-none">
       <v-card flat>
-        <v-card-title class="py-3">标签</v-card-title>
+        <v-card-title class="py-3">{{ $t('home.tags') }}</v-card-title>
         <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
         <v-card-text>
           <v-text-field v-model="tagSearch" density="comfortable" variant="outlined" hide-details clearable
-            placeholder="搜索标签..." prepend-inner-icon="mdi-magnify" />
+            :placeholder="$t('home.searchTagsPlaceholder')" prepend-inner-icon="mdi-magnify" />
           <v-list density="compact" nav class="mt-2">
-            <v-list-item v-for="i in 12" :key="'m-' + i" :title="`标签 ${i}`" />
+            <v-list-item v-for="i in 12" :key="'m-' + i" :title="`${$t('home.tag')} ${i}`" />
           </v-list>
         </v-card-text>
       </v-card>
@@ -494,7 +491,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-.kgp-center .panel-card { height: calc(100vh - var(--footer-vh, 6vh) - 72px); }
+.kgp-center .panel-card {
+  height: calc(100vh - var(--footer-vh, 6vh) - 72px);
+}
 
 .kgp-center-body {
   flex: 1 1 auto;
@@ -529,6 +528,10 @@ onBeforeUnmount(() => {
 /* 左列表单小间距 */
 .kgp-filter-group :deep(.v-field) {
   --v-input-control-height: 36px;
+}
+
+.kgp-list-item {
+  border-radius: 0px !important;
 }
 
 /* 响应式处理：窄屏时堆叠三列，并放松最小宽度限制 */

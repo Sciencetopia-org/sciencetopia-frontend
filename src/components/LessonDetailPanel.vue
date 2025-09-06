@@ -1,7 +1,7 @@
 <template>
   <v-card class="panel-card panel-card--beige pa-4 lesson-detail-panel" rounded="xl" elevation="2">
     <div v-if="!current">
-      <div class="placeholder">请选择一个课程</div>
+      <div class="placeholder">{{ $t('lessonDetail.selectLesson') }}</div>
     </div>
     <div v-else>
       <h3 class="mb-2">{{ displayName }}</h3>
@@ -22,12 +22,12 @@
               hide-details
               density="compact"
               @click.stop="toggleResource(resource)"
-              :label="resource.learned ? '已完成' : '未完成'"
+              :label="resource.learned ? $t('lessonDetail.completed') : $t('lessonDetail.notCompleted')"
             />
           </div>
         </v-card-item>
       </div>
-      <div v-else-if="resourcesLoaded" class="text-medium-emphasis text-caption">暂无资源</div>
+      <div v-else-if="resourcesLoaded" class="text-medium-emphasis text-caption">{{ $t('lessonDetail.noResources') }}</div>
     </div>
   </v-card>
 </template>

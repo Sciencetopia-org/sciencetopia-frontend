@@ -478,7 +478,7 @@ export default function useKnowledgeGraph(endpoint) {
 
   let clickTimeout = null
 
-  function handleNodeClick(event, d) {
+  async function handleNodeClick(event, d) {
     // 如果已经有 clickTimeout，说明可能是双击 → 延迟取消
     if (clickTimeout) {
       clearTimeout(clickTimeout)
@@ -489,14 +489,16 @@ export default function useKnowledgeGraph(endpoint) {
     // —— 保留你的点击逻辑不变 —— 
     if (store.state.isEditing) {
       if (store.state.displayNodeCreationForm) {
-        if (confirm('确定离开创建节点页面？创建的节点将不会被保存！')) {
+        const { default: i18n } = await import('@/i18n.js')
+        if (confirm(i18n.global.t('knowledgeGraph.confirmNodeCancel'))) {
           store.dispatch('toggleNodeCreationForm', false)
           store.commit('setSelectedNodes', d)
           // 点击后（你原来的选中逻辑之后）：
           getNodeDetail(d.id, { revalidate: true }).catch(() => { })
         }
       } else if (store.state.displayLinkCreationForm) {
-        if (confirm('确定离开创建关系页面？创建的关系将不会被保存！')) {
+        const { default: i18n } = await import('@/i18n.js')
+        if (confirm(i18n.global.t('knowledgeGraph.confirmLinkCancel'))) {
           store.dispatch('toggleLinkCreationForm', false)
           store.commit('setSelectedNodes', d)
           // 点击后（你原来的选中逻辑之后）：

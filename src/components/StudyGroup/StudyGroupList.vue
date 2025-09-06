@@ -1,14 +1,10 @@
 <template>
   <GlobalLoader />
-  <v-container v-if="!isLoading">
+  <v-container>
     <div class="group-nav-bar">
       <div class="nav-items">
-        <button
-          v-for="item in navItems"
-          :key="item.value"
-          :class="['nav-item', { active: activeNav === item.value }]"
-          @click="setActiveNav(item.value)"
-        >
+        <button v-for="item in navItems" :key="item.value" :class="['nav-item', { active: activeNav === item.value }]"
+          @click="setActiveNav(item.value)">
           {{ item.label }}
         </button>
       </div>
@@ -17,41 +13,25 @@
         <!-- 搜索框（内嵌放大镜与清除按钮） -->
         <div class="search-wrapper">
           <!-- 左侧放大镜按钮（可点击执行搜索） -->
-          <button class="search-icon-btn" @click="performSearch" aria-label="搜索">
+          <button class="search-icon-btn" @click="performSearch" :aria-label="$t('header.search')">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
           </button>
 
-          <input
-            v-model="searchQuery"
-            class="search-bar"
-            type="text"
-            placeholder="搜索学习小组"
-            @input="onSearchInput"
-            @keydown.enter.prevent="performSearch"
-          />
+          <input v-model="searchQuery" class="search-bar" type="text" :placeholder="$t('studygroup.searchPlaceholder')" @input="onSearchInput"
+            @keydown.enter.prevent="performSearch" />
 
           <!-- 右侧清除按钮（仅有内容时显示） -->
-          <button
-            v-if="hasQuery"
-            class="clear-btn"
-            @click="clearSearch"
-            aria-label="清除"
-          >
+          <button v-if="hasQuery" class="clear-btn" @click="clearSearch" :aria-label="$t('reset')">
             ×
           </button>
 
           <!-- 纵向列表建议 -->
           <ul v-if="showSuggestions" class="search-suggestions">
-            <li
-              v-for="s in suggestions"
-              :key="s.id"
-              class="suggestion-item"
-              @click="selectSuggestion(s.name)"
-            >
+            <li v-for="s in suggestions" :key="s.id" class="suggestion-item" @click="selectSuggestion(s.name)">
               {{ s.name }}
             </li>
           </ul>
@@ -61,37 +41,37 @@
         <button class="create-group-btn" @click="toCreateGroupPage">
           <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="24" height="24" viewBox="0 0 32 32">
             <path
-              d="M 12 2 C 6.4889971 2 2 6.4889971 2 12 C 2 17.511003 6.4889971 22 12 22 C 17.511003 22 22 17.511003 22 12 C 22 6.4889971 17.511003 2 12 2 z M 12 4 C 16.430123 4 20 7.5698774 20 12 C 20 16.430123 16.430123 20 12 20 C 7.5698774 20 4 16.430123 4 12 C 4 7.5698774 7.5698774 4 12 4 z M 11 7 L 11 11 L 7 11 L 7 13 L 11 13 L 11 17 L 13 17 L 13 13 L 17 13 L 17 11 L 13 11 L 13 7 L 11 7 z"
-            ></path>
+              d="M 12 2 C 6.4889971 2 2 6.4889971 2 12 C 2 17.511003 6.4889971 22 12 22 C 17.511003 22 22 17.511003 22 12 C 22 6.4889971 17.511003 2 12 2 z M 12 4 C 16.430123 4 20 7.5698774 20 12 C 20 16.430123 16.430123 20 12 20 C 7.5698774 20 4 16.430123 4 12 C 4 7.5698774 7.5698774 4 12 4 z M 11 7 L 11 11 L 7 11 L 7 13 L 11 13 L 11 17 L 13 17 L 13 13 L 17 13 L 17 11 L 13 11 L 13 7 L 11 7 z">
+            </path>
           </svg>
-          创建学习小组
+          {{ $t('studygroup.create.title') }}
         </button>
       </div>
     </div>
 
-    <div v-if="filteredGroups.length === 0" class="empty-state">
+    <div v-if="!loadingGroups && filteredGroups.length === 0" class="empty-state">
       <p>
-        暂时没有学习小组，去
-        <button @click="toCreateGroupPage">创建</button>
-        第一个吧！
+        {{ $t('studygroup.noGroups') }}，
+        <button @click="toCreateGroupPage">{{ $t('add') }}</button>
+        {{ $t('studygroup.createFirst') }}
       </p>
     </div>
 
-    <div ref="masonryContainer" class="masonry-container">
+    <!-- Loading skeleton grid -->
+    <div v-if="loadingGroups" class="masonry-container skeleton-grid">
+      <div v-for="n in 8" :key="'sk-'+n" class="masonry-item">
+        <v-skeleton-loader type="image, heading, text, text, actions" class="st-card" />
+      </div>
+    </div>
+
+    <div v-else ref="masonryContainer" class="masonry-container">
       <div v-for="group in filteredGroups" :key="group.id" class="masonry-item">
         <!-- 下面保持不变 -->
         <v-card class="st-card">
-          <v-img
-            class="group-image"
-            @click="toGroupPage(group.id)"
-            :src="
-              group.imageUrl
-                ? require(`@/assets/images/${group.imageUrl}`)
-                : require('@/assets/images/default_study_group.png')
-            "
-            aspect-ratio="16/9"
-            cover
-          />
+          <v-img class="group-image" @click="toGroupPage(group.id)" :src="group.imageUrl
+              ? require(`@/assets/images/${group.imageUrl}`)
+              : require('@/assets/images/default_study_group.png')
+            " aspect-ratio="16/9" cover />
           <v-card-title>
             <button @click="toGroupPage(group.id)" class="group-name">
               {{ group.name }}
@@ -101,28 +81,22 @@
             {{ group.description }}
           </v-card-text>
           <v-card-text class="group-members">
-            小组成员:
+            {{ $t('studygroup.groupmember') }}{{ $t(':') }}
             <div class="member-list">
-              <v-btn
-                v-for="member in group.members"
-                :key="member.id"
-                icon
-                class="default-avatar"
-                @click="navigateToProfile(member.id)"
-                size="38"
-              >
+              <v-btn v-for="member in group.members" :key="member.id" icon class="default-avatar"
+                @click="navigateToProfile(member.id)" size="38">
                 <v-avatar size="36">
-                  <img :src="member.avatarUrl" alt="用户头像" />
+                  <img :src="member.avatarUrl" :alt="$t('user.useravatar')" />
                 </v-avatar>
               </v-btn>
             </div>
           </v-card-text>
           <v-card-actions>
-            <v-btn v-if="group.isMember" color="primary" text disabled>已加入</v-btn>
+            <v-btn v-if="group.isMember" color="primary" text disabled>{{ $t('studygroup.joined') }}</v-btn>
             <template v-else>
-              <v-btn color="primary" text @click="applyToJoin(group.id)">申请加入</v-btn>
-              <v-btn color="primary" text @click="follow(group.id)">关注</v-btn>
-            </template>
+              <v-btn color="primary" text @click="applyToJoin(group.id)">{{ $t('studygroup.applytojoin') }}</v-btn>
+              <v-btn color="primary" text @click="follow(group.id)">{{ $t('studygroup.follow') }}</v-btn>
+          </template>
           </v-card-actions>
         </v-card>
       </div>
@@ -146,22 +120,26 @@ export default {
     return {
       groups: [],
       masonryInstance: null,
-      navItems: [
-        { label: '推荐', value: 'recommend' },
-        { label: '已加入', value: 'joined' },
-        { label: '关注', value: 'follow' },
-        { label: '科普', value: 'popular' },
-        { label: '编程', value: 'coding' },
-        { label: '哲学', value: 'philosophy' },
-        { label: '更多', value: 'more' },
-      ],
+      // navItems are now computed for i18n
       activeNav: 'recommend',
       searchQuery: '',
       searchTerm: '',
       showSuggestions: false,
+      loadingGroups: true,
     }
   },
   computed: {
+    navItems() {
+      return [
+        { label: this.$t('studygroup.list.nav.recommend'), value: 'recommend' },
+        { label: this.$t('studygroup.list.nav.joined'), value: 'joined' },
+        { label: this.$t('studygroup.list.nav.follow'), value: 'follow' },
+        { label: this.$t('studygroup.list.nav.popular'), value: 'popular' },
+        { label: this.$t('studygroup.list.nav.coding'), value: 'coding' },
+        { label: this.$t('studygroup.list.nav.philosophy'), value: 'philosophy' },
+        { label: this.$t('studygroup.list.nav.more'), value: 'more' },
+      ]
+    },
     filteredGroups() {
       if (!this.searchTerm) return this.groups
       const query = this.searchTerm.toLowerCase()
@@ -222,7 +200,8 @@ export default {
 
     async fetchGroups() {
       try {
-        const res = await apiClient.get('/StudyGroups')
+        this.loadingGroups = true
+        const res = await apiClient.get('/StudyGroup/GetAllStudyGroups')
         const list = Array.isArray(res?.data) ? res.data : res?.data?.items || []
         // normalize fields used by UI
         this.groups = list.map(g => ({
@@ -235,12 +214,21 @@ export default {
         }))
       } catch (_) {
         this.groups = []
+      } finally {
+        this.loadingGroups = false
       }
       // ensure masonry initializes after DOM updates
       this.$nextTick(() => this.initMasonry())
     },
 
     toCreateGroupPage() {
+      // 检查用户是否已登录（假设有 userId 存在于 localStorage 或 vuex）
+      const userId = this.$store?.state?.user?.id || localStorage.getItem('userId')
+      if (!userId) {
+        this.$toast?.warning?.(this.$t('studygroup.loginToCreate')) || alert(this.$t('studygroup.loginToCreate'))
+        // this.$router.push('/login')
+        return
+      }
       this.$router.push('/createstudygroup')
     },
     toGroupPage(groupId) {
@@ -299,12 +287,14 @@ export default {
 /* ===== 搜索输入（内嵌按钮） ===== */
 .search-wrapper {
   position: relative;
-  width: 280px; /* 可按需调整 */
+  width: 280px;
+  /* 可按需调整 */
 }
 
 .search-bar {
   width: 100%;
-  padding: 8px 36px 8px 36px; /* 为左右内嵌按钮留出空间 */
+  padding: 8px 36px 8px 36px;
+  /* 为左右内嵌按钮留出空间 */
   border: 1px solid #ccc;
   border-radius: 18px;
   font-size: 14px;
@@ -350,6 +340,7 @@ export default {
   line-height: 1;
   color: #7a7a7a;
 }
+
 .clear-btn:hover {
   color: #333;
 }
@@ -375,10 +366,12 @@ export default {
 }
 
 .suggestion-item {
-  display: block;            /* 单项独占一行 */
+  display: block;
+  /* 单项独占一行 */
   padding: 8px 12px;
   cursor: pointer;
-  white-space: nowrap;       /* 单行展示，过长可改成正常换行 */
+  white-space: nowrap;
+  /* 单行展示，过长可改成正常换行 */
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -407,18 +400,67 @@ export default {
 }
 
 /* Masonry */
-.masonry-container { position: relative; }
-.masonry-item { margin-bottom: 24px; margin-left: 8px; width: 260px; }
+.masonry-container {
+  position: relative;
+}
+
+.masonry-item {
+  margin-bottom: 24px;
+  margin-left: 8px;
+  width: 260px;
+}
+
+/* Skeleton: simple flex grid to mimic masonry columns before JS layout is ready */
+.skeleton-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.skeleton-grid .masonry-item {
+  /* reuse same width; spacing controlled via existing margins */
+}
 
 /* allow page to scroll when content overflows */
-:host, .v-container { overflow: visible; }
+:host,
+.v-container {
+  overflow: visible;
+}
 
-.group-image { border-radius: 4px 4px 0 0; margin-bottom: 8px; cursor: pointer; }
-.group-name { font-weight: bold; font-size: 1.2rem; color: #1c2b42; text-align: left; margin: 0; border: none; background: none; cursor: pointer; }
-.group-name:hover { color: #304e75; }
-.group-description { font-size: 0.9rem; color: #304e75; }
-.group-members { color: #4a4a4a; }
-.member-list { display: flex; gap: 5px; }
+.group-image {
+  border-radius: 4px 4px 0 0;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.group-name {
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: #1c2b42;
+  text-align: left;
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.group-name:hover {
+  color: #304e75;
+}
+
+.group-description {
+  font-size: 0.9rem;
+  color: #304e75;
+}
+
+.group-members {
+  color: #4a4a4a;
+}
+
+.member-list {
+  display: flex;
+  gap: 5px;
+}
 
 .create-group-btn {
   display: flex;
@@ -431,7 +473,11 @@ export default {
   font-size: 16px;
   cursor: pointer;
 }
-.create-group-btn svg { margin-right: 4px; }
+
+.create-group-btn svg {
+  margin-right: 4px;
+}
+
 .create-group-btn:hover {
   transform: scale(1.05);
   transition: transform 0.2s ease-in-out;

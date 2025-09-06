@@ -1,20 +1,20 @@
 <template>
   <v-container>
     <div class="create-studygroup">
-      <v-card-title class="headline">创建学习小组</v-card-title>
+      <v-card-title class="headline">{{ $t('studygroup.create.title') }}</v-card-title>
       <v-card-text>
         <v-form @submit.prevent="createGroup">
           <input
             v-model="groupName"
-            placeholder="帕鲁岛工人夜校"
+            :placeholder="$t('studygroup.create.placeholderName')"
             type="text"
             class="custom-input"
           />
           <!-- Placeholder for Quill Editor -->
           <div ref="quillEditor" class="quill-editor"></div>
           <v-card-actions>
-            <v-btn type="submit" variant="text">创建</v-btn>
-            <v-btn @click="cancel" variant="text" color="red">取消</v-btn>
+            <v-btn type="submit" variant="text">{{ $t('studygroup.create.create') }}</v-btn>
+            <v-btn @click="cancel" variant="text" color="red">{{ $t('cancel') }}</v-btn>
           </v-card-actions>
         </v-form>
       </v-card-text>
@@ -42,7 +42,7 @@ export default {
     onMounted(() => {
       quillInstance = new Quill(quillEditor.value, {
         theme: 'snow', // Specify theme
-        placeholder: '在帕鲁岛工人夜校，你可以学到...', // Specify placeholder
+        placeholder: this.$t('studygroup.create.placeholderDesc'), // Specify placeholder
         modules: {
           toolbar: [
             [{ header: [1, 2, 3, 4] }], // 标题
@@ -75,18 +75,18 @@ export default {
         }
         // API call logic here
         await apiClient.post('/StudyGroup/CreateStudyGroup', payload)
-        // 创建成功后的处理，例如跳转到小组列表或显示成功消息
-        alert('学习小组创建的请求已提交审核，请耐心等待。')
+        // 创建成功后的处理
+        alert(this.$t('studygroup.create.success'))
         router.push({ name: 'studyGroupList' })
       } catch (error) {
-        console.error('创建学习小组失败:', error)
-        alert('学习小组创建失败!')
+        console.error('Create study group failed:', error)
+        alert(this.$t('studygroup.create.failed'))
       }
     }
 
     const cancel = () => {
       // Cancel logic here
-      if (confirm('确定要取消学习小组创建吗?')) {
+      if (confirm(this.$t('studygroup.create.cancelConfirm'))) {
         router.push({ name: 'studyGroupList' })
       }
     }

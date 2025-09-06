@@ -44,15 +44,37 @@
     "studygroup": "Study Group",
     "studyplan": "Study Plan",
     "messages": "Messages",
-    "toseemessage": "see messages",
+    "pleaselogin": "Please log in",
+    "toseemessage": "to see messages",
     "lightmode": "Light Mode",
     "darkmode": "Dark Mode",
     "tocreateplan": "to create study plans",
     "languageSwitch": "Switch Language",
-    "switchTo": "Switch to"
+    "switchTo": "Switch to",
+    "pleaseLoginToViewStudyPlan": "Please log in to view study plans"
+  },
+  "languages": {
+    "en": "English",
+    "zh": "Chinese"
   },
   "searchbar": {
     "iwanttolearn": "I want to learn about..."
+  },
+  "search": {
+    "results": "Search Results",
+    "tabs": {
+      "knowledge": "Knowledge",
+      "resources": "Resources",
+      "group": "Study Groups"
+    },
+    "noResults": "No matching results",
+    "loadMore": "Load More",
+    "types": {
+      "knowledge": "Knowledge",
+      "plan": "Study Plan",
+      "resources": "Resources",
+      "group": "Study Group"
+    }
   },
   "footer": {
     "about": "About Us",
@@ -75,6 +97,29 @@
     "editing": "Editing Message...",
     "send": "Send",
     "sendmessage": "Send Message"
+  },
+  "home": {
+    "tagsIndex": "Tag Index",
+    "tagsStructure": "Tag Structure",
+    "knowledgeNetwork": "Knowledge Network",
+    "nodePanel": "Node Panel",
+    "tags": "Tags",
+    "tag": "Tag",
+    "searchTagsPlaceholder": "Search tags…",
+    "filterSelectedAria": "Filter by selected tags"
+  },
+  "contactPage": {
+    "title": "Contact Us",
+    "intro": "If you are interested in joining our team or have feedback, please contact us:",
+    "email": "Email",
+    "bilibili": "Bilibili Account"
+  },
+  "notifications": {
+    "unknownType": "Unknown",
+    "types": {
+      "JoinRequest": "Join Request",
+      "SystemAlert": "System Alert"
+    }
   },
   "userprofile": {
     "gender": "Gender",
@@ -140,6 +185,7 @@
     "AIplaceholder": "AI assistant is generating your study plan...",
     "savefailedmsg": "Failed to save study plan.",
     "savesuccessmsg": "Study plan saved successfully!",
+    "confirmMarkUnfinished": "Are you sure you want to mark it as not completed?",
     "empty": "(None)",
     "prerequisitelimitmsg": "Maximum number of prerequisite lessons reached.",
     "maincurriculumlimitmsg": "Maximum number of main curriculum lessons reached.",
@@ -148,10 +194,38 @@
     "create": "Create Plan",
     "aiGenerate": "AI Generate Plan",
     "share": "Share",
-    "tabs": { "mine": "Mine", "shared": "Shared with me", "public": "Public" },
-    "myProgress": "My progress {percent}%"
+    "tabs": {
+      "mine": "Mine",
+      "shared": "Shared with me",
+      "public": "Public"
+    },
+    "myProgress": "My progress {percent}%",
+    "noPlansYet": "You haven't created any study plans yet",
+    "ai": {
+      "plannerTitle": "AI Study Plan Generator",
+      "generatingTryLater": "AI is generating a study plan, please try again later.",
+      "generatingBackground": "AI is generating your study plan in the background...",
+      "generated": "AI study plan generated. Click to view",
+      "generateFailed": "Failed to generate AI study plan. Click to close"
+    },
+    "dialogs": {
+      "editTitle": "Edit Study Plan",
+      "createTitle": "Create Study Plan",
+      "confirmCloseWithUnsaved": "You have unsaved changes. Close anyway? Unsaved content will be lost.",
+      "noEditPermission": "No permission to edit, entering read-only mode.",
+      "noEditPermissionShort": "No permission to edit this study plan."
+    }
   },
-  "common": { "search": "Search", "sort": "Sort" },
+  "common": {
+    "search": "Search",
+    "sort": "Sort",
+    "sortOptions": {
+      "recent": "Recent",
+      "created": "Created",
+      "hot": "Hot"
+    },
+    "noData": "No data"
+  },
   "cohort": {
     "statsTitle": "Cohort · Progress & Leaderboard",
     "select": "Select Cohort",
@@ -159,7 +233,20 @@
     "noactivity": "No activity yet",
     "join": "Join",
     "leave": "Leave",
-    "allowShareMetrics": "Share my metrics on leaderboard"
+    "allowShareMetrics": "Share my metrics on leaderboard",
+    "noPlanGroups": "This study plan has no cohorts yet. Use 'Share' to create and link.",
+    "avgProgress": "Avg Progress",
+    "members": "Members",
+    "leaderboard": "Leaderboard",
+    "top": "Top",
+    "viewStats": "Progress & Leaderboard",
+    "autoEnroll": "Auto Enroll",
+    "form": {
+      "title": "Title",
+      "visibility": "Visibility",
+      "startAt": "Start Time",
+      "endAt": "End Time"
+    }
   },
   "accountsetting": {
     "strengthofpassword": "Current Password Strength:",
@@ -188,6 +275,8 @@
     "changephonefailedmsg": "Failed to change phone number"
   },
   "studygroup": {
+    "studygroup": "Study Group",
+    "select": "Select Group",
     "joined": "Joined",
     "applytojoin": "Apply to Join",
     "follow": "Follow",
@@ -219,10 +308,84 @@
     "nogroup_their": "This user hasn't joined any study group yet!",
     "groupDissolveMessage": "Are you sure you want to dissolve this study group? This action cannot be undone.",
     "groupLeaveMessage": "Are you sure you want to leave this study group? This action cannot be undone.",
-    "confirmGroupName": "Please enter the group name to continue:"
+    "confirmGroupName": "Please enter the group name to continue:",
+    "selectPrompt": "Please select a study group on the left",
+    "sharedToGroup": "Plan shared to the study group",
+    "loginToCreate": "Please log in before creating a study group",
+    "searchPlaceholder": "Search study groups",
+    "noGroups": "No study groups yet",
+    "createFirst": "Create the first one",
+    "list": {
+      "nav": {
+        "recommend": "Recommended",
+        "joined": "Joined",
+        "follow": "Following",
+        "popular": "Popular",
+        "coding": "Coding",
+        "philosophy": "Philosophy",
+        "more": "More"
+      }
+    },
+    "create": {
+      "title": "Create Study Group",
+      "placeholderName": "Enter group name",
+      "placeholderDesc": "Describe your study group...",
+      "create": "Create",
+      "success": "Your study group request has been submitted for review.",
+      "failed": "Failed to create study group!",
+      "cancelConfirm": "Cancel creating the study group?"
+    },
+    "errors": {
+      "invalidGroupName": "Group name does not match, please re-enter.",
+      "leaveFailed": "Failed to leave group, please try again later.",
+      "dissolveFailed": "Failed to dissolve group, please try again later."
+    },
+    "success": {
+      "leave": "You have left the study group.",
+      "dissolved": "The study group has been dissolved."
+    }
+  },
+  "groupSettings": {
+    "titleManager": "Group Settings",
+    "titleMember": "My Group Settings",
+    "profile": "Group Profile",
+    "name": "Group Name",
+    "bio": "Bio",
+    "sharedPlans": "Shared Study Plans",
+    "plan": "Plan",
+    "permission": "Permission",
+    "autoEnroll": "Auto Enroll",
+    "groupCohorts": "Group Cohorts",
+    "enrollMode": "Enroll Mode",
+    "pinnedVersion": "Pinned Version",
+    "unpinned": "Not pinned",
+    "notificationPrefs": "Notification Preferences",
+    "planUpdates": "Plan Updates",
+    "mentions": "@Mentions",
+    "rankings": "Leaderboard Changes",
+    "learningVisibility": "Learning & Visibility",
+    "shareMetricsWithGroup": "Share my progress with group",
+    "showOnLeaderboard": "Show me on leaderboard",
+    "myPlans": "My Plans in this Group",
+    "currentCohort": "Current Cohort",
+    "notJoined": "Not joined",
+    "perms": {
+      "readonly": "Read only",
+      "comment": "Comment",
+      "editable": "Editable",
+      "admin": "Admin"
+    },
+    "enroll": {
+      "optIn": "Opt-in",
+      "auto": "Auto"
+    },
+    "loadFailed": "Failed to load settings",
+    "saveFailed": "Save failed, please try again later",
+    "saveSuccess": "Settings saved"
   },
   "knowledgeGraph": {
     "knowledgeGraph": "Knowledge Graph",
+    "noDescription": "No description available.",
     "defaultmessage": "Start gaining knowledge by clicking on a node.",
     "adjacentnodes": "Adjacent Nodes",
     "frontnodes": "Front Nodes",
@@ -266,7 +429,10 @@
     "confirmCancel": "Are you sure you want to cancel? Unsaved changes will be lost.",
     "selecttwonodes": "Please select two nodes to create a relationship.",
     "linkSubmitted": "The relationship has been submitted and is awaiting approval.",
-    "confirmLinkCancel": "Are you sure you want to leave the create relationship page? The created relationship will not be saved!"
+    "confirmLinkCancel": "Are you sure you want to leave the create relationship page? The created relationship will not be saved!",
+    "favoriteAdded": "Node added to favorites successfully!",
+    "favoriteRemoved": "Node removed from favorites successfully!",
+    "favoriteToggleFailed": "Failed to toggle favorite status."
   },
   "validation": {
     "required": "This field is required.",
@@ -274,5 +440,57 @@
     "passwordrequirement": "Password must contain at least 8 characters",
     "inconsistentpassword": "The two passwords you entered do not match",
     "incorrectphoneFormat": "Incorrect phone number format"
+  },
+  "lessonDetail": {
+    "selectLesson": "Please select a lesson",
+    "noResources": "No resources",
+    "completed": "Completed",
+    "notCompleted": "Not completed"
+  },
+  "about": {
+    "title": "About Us",
+    "tagline": { "before": "Sciencetopia is built by an", "after": ", a comprehensive, public-serving, and forever-free science platform." },
+    "independentTeam": "independent team",
+    "p1": "Today, accessing information is easier than ever, yet the goal of free and all-rounded development for everyone is far from achieved.",
+    "p2": "Surveys show many are blocked by lack of time, financial pressure, difficulty finding resources, and lack of direction.",
+    "p3": "This is a systemic, not individual, problem.",
+    "p4": "1. Time has become the scarce universal currency for learning.",
+    "p5": "2. Many knowledge apps optimize for business goals over learner outcomes; content is fragmented or gated by price. 3. A learning environment and community are missing.",
+    "p6": "It is a social and systemic challenge.",
+    "p7": "We aim to achieve the following goals:",
+    "goal1": "1. Provide systematic, open, and free knowledge to lower barriers for everyone from basics to frontiers.",
+    "goal2": "2. Design for learners to ignite motivation and learn efficiently.",
+    "goal3": "3. Build a community to find peers and progress together.",
+    "goal4": "4. Enable everyone to participate in knowledge production and sharing.",
+    "p8": "Looking ahead, we hope to connect practice, learning, and research so everyone can explore, study, and innovate.",
+    "p9": "We hope Sciencetopia becomes a science platform for everyone to find partners, resources, and momentum.",
+    "p10": "That is the meaning of 'topia': an environment, a scene, a place — right here.",
+    "p11": "We strive to build a replicable model for mass learning and innovation and light the way forward.",
+    "joinPrompt": { "before": "If you are interested, please", "after": ", and build a Sciencetopia for everyone." },
+    "joinUs": "join us",
+    "team": { "title": "Contributors", "name": "Name", "role": "Role", "contribution": "Contribution" },
+    "roles": { "fullstack": "Full-stack Developer", "db": "Database Developer", "art": "Art Designer", "ux": "UI/UX Designer" },
+    "desc": {
+      "fullstack": "Responsible for full-stack development and implementation",
+      "db": "Contributed to the knowledge graph database",
+      "art": "Contributed art and illustrations",
+      "ux": "Contributed visual and UX design"
+    }
+  },
+  "sponsor": {
+    "title": "Support Us",
+    "intro": "Sciencetopia is a forever-free learning platform. If it helps you, consider supporting us—your support keeps us going.",
+    "howToSupport": "How to Support",
+    "supportWays": "You can support us via:",
+    "wechat": "WeChat Pay",
+    "alipay": "Alipay",
+    "paypal": "PayPal",
+    "scanToSupport": "Scan to support us.",
+    "thanksTitle": "Thank You",
+    "thanksText": "We appreciate every donation. Our income and expenses are transparent to you.",
+    "contact": "Contact Us",
+    "contactPrompt": "If you have questions or need more info, please contact us:",
+    "phone": "Phone",
+    "sponsors": "Sponsors"
   }
 }

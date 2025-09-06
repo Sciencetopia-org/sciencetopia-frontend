@@ -93,13 +93,9 @@ export default {
       return DateTime.fromISO(date).toLocaleString(DateTime.DATETIME_MED)
     },
     getTypeLabel(type) {
-      // Map type to a human-readable label (customize as needed)
-      const typeLabels = {
-        JoinRequest: '加入请求',
-        SystemAlert: '系统警报',
-        // Add more types as needed
-      }
-      return typeLabels[type] || '未知类型'
+      const key = `notifications.types.${type}`
+      const translated = this.$t(key)
+      return translated !== key ? translated : this.$t('notifications.unknownType')
     },
     viewDetails(data) {
       // Route to the appropriate page based on the notification data (url)

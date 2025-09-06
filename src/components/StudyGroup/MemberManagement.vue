@@ -1,14 +1,14 @@
 <template>
   <v-card class="member-management">
-    <v-card-title>成员管理</v-card-title>
+    <v-card-title>{{ $t('memberMgmt.title') }}</v-card-title>
     <v-card-text>
       <v-simple-table class="full-width-table">
         <thead>
           <tr>
-            <th>头像</th>
-            <th>用户名</th>
-            <th>角色</th>
-            <th class="actions-column">操作</th>
+            <th>{{ $t('avatar') }}</th>
+            <th>{{ $t('username') }}</th>
+            <th>{{ $t('role') }}</th>
+            <th class="actions-column">{{ $t('operation') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -20,14 +20,14 @@
                 size="40"
               >
                 <v-avatar size="38">
-                  <img :src="member.avatarUrl" alt="用户头像" />
+                  <img :src="member.avatarUrl" :alt="$t('user.useravatar')" />
                 </v-avatar>
               </v-btn>
             </td>
             <td>{{ member.userName }}</td>
             <td>{{ member.role }}</td>
             <td class="actions-column">
-              <v-tooltip text="提升为管理员" location="bottom">
+              <v-tooltip :text="$t('studygroup.promote')" location="bottom">
                 <template v-slot:activator="{ props }">
                   <v-btn
                     icon
@@ -38,7 +38,7 @@
                 </template>
               </v-tooltip>
 
-              <v-tooltip text="设为普通成员" location="bottom">
+              <v-tooltip :text="$t('studygroup.demote')" location="bottom">
                 <template v-slot:activator="{ props }">
                   <v-btn icon v-bind="props" @click="demoteToMember(member.id)"
                     >🧑</v-btn
@@ -46,7 +46,7 @@
                 </template>
               </v-tooltip>
 
-              <v-tooltip text="移除成员" location="bottom">
+              <v-tooltip :text="$t('memberMgmt.remove')" location="bottom">
                 <template v-slot:activator="{ props }">
                   <v-btn icon v-bind="props" @click="removeMember(member.id)"
                     >❎</v-btn
@@ -59,7 +59,7 @@
       </v-simple-table>
 
       <v-card-actions>
-        <v-btn color="primary" @click="inviteMember">邀请成员</v-btn>
+        <v-btn color="primary" @click="inviteMember">{{ $t('memberMgmt.invite') }}</v-btn>
       </v-card-actions>
     </v-card-text>
   </v-card>

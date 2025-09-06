@@ -238,6 +238,7 @@ export default {
 }
 
 .right-card {
+  position: relative;
   height: 42vh;
   width: 42vw;
   background-color: #f4eee1;
@@ -245,9 +246,9 @@ export default {
 }
 
 .login-button {
-  position: relative;
-  left: 17vw;
-  top: -10vh;
+  position: absolute;
+  right: 2vw;
+  top: 27vh;
   color: white;
   border: none;
   cursor: pointer;
@@ -258,6 +259,9 @@ export default {
 }
 
 .login-arrow {
+  position: absolute;
+  top: -80px;
+  right: -80px;
   width: 80px;
   height: 240px;
   background: linear-gradient(to left, #aa1b1d 50%, #ec0017 50%);
@@ -266,9 +270,9 @@ export default {
 }
 
 .login-whitebox {
-  position: relative;
-  top: -15vh;
-  right: 120px;
+  position: absolute;
+  top: 0vh;
+  right: 40px;
   width: 80px;
   height: 80px;
   background-color: white;
@@ -276,23 +280,18 @@ export default {
 }
 
 .login-text {
-  position: relative;
-  top: -21vh;
-  right: 60px;
+  /* position: absolute; */
+  top: 0vh;
+  /* right: 100px; */
   font-size: 20px;
   font-weight: normal;
-
-  /* Add 3D distortion */
-  transform: perspective(500px) rotateX(20deg) rotateY(8deg) skewX(15deg)
-    scaleX(1.5);
+  transform: perspective(500px) rotateX(20deg) rotateY(8deg) skewX(15deg) scaleX(1.5);
   transform-origin: center;
-  /* Rotate around the center */
   display: inline-block;
-  /* Ensures the transform applies correctly */
 }
 
 .horizontal-line {
-  position: relative;
+  position: absolute;
   bottom: 9.3vh;
   left: 15.6vw;
   width: calc(22vw - 40px);

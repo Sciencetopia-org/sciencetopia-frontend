@@ -1,14 +1,14 @@
 <template>
   <v-card class="join-requests">
-    <v-card-title>加入请求</v-card-title>
+    <v-card-title>{{ $t('studygroup.joinrequest') }}</v-card-title>
     <v-card-text>
       <v-simple-table class="full-width-table">
         <thead>
           <tr>
-            <th>头像</th>
-            <th>用户名</th>
-            <th>请求日期</th>
-            <th class="actions-column">操作</th>
+            <th>{{ $t('avatar') }}</th>
+            <th>{{ $t('username') }}</th>
+            <th>{{ $t('studygroup.requestdate') }}</th>
+            <th class="actions-column">{{ $t('operation') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -21,7 +21,7 @@
                 @click="navigateToProfile(request.userId)"
               >
                 <v-avatar size="38">
-                  <img :src="request.avatarUrl" alt="用户头像" />
+                  <img :src="request.avatarUrl" :alt="$t('user.useravatar')" />
                 </v-avatar>
               </v-btn>
             </td>
@@ -32,13 +32,13 @@
                 variant="text"
                 color="primary"
                 @click="approveRequest(request.id)"
-                >同意</v-btn
+                >{{ $t('approve') }}</v-btn
               >
               <v-btn
                 variant="text"
                 color="secondary"
                 @click="rejectRequest(request.id)"
-                >拒绝</v-btn
+                >{{ $t('reject') }}</v-btn
               >
             </td>
           </tr>

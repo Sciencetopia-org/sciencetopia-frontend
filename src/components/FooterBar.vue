@@ -3,12 +3,7 @@
   <v-container>
     <v-row justify="center" align="center">
       <v-col cols="3">
-        <v-btn
-          class="Chinese-text-btn"
-          variant="plain"
-          href="/about"
-          style="padding: 0; height: 100%"
-        >
+        <v-btn class="Chinese-text-btn" variant="plain" :to="{ path: '/about' }" style="padding: 0; height: 100%">
           <img
             width="40"
             height="40"
@@ -20,12 +15,7 @@
         </v-btn>
       </v-col>
       <v-col cols="3">
-        <v-btn
-          class="Chinese-text-btn"
-          variant="plain"
-          href="/contact"
-          style="padding: 0; height: 100%"
-        >
+        <v-btn class="Chinese-text-btn" variant="plain" :to="{ path: '/contact' }" style="padding: 0; height: 100%">
           <img
             width="36"
             height="36"
@@ -37,12 +27,7 @@
         </v-btn>
       </v-col>
       <v-col cols="3">
-        <v-btn
-          class="Chinese-text-btn"
-          variant="plain"
-          href="/support"
-          style="padding: 0; height: 100%"
-        >
+        <v-btn class="Chinese-text-btn" variant="plain" :to="{ path: '/support' }" style="padding: 0; height: 100%">
           <img
             width="40"
             height="40"

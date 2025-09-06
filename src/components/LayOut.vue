@@ -170,7 +170,7 @@ export default {
     },
     handleDialogClick() {
       if (this.$store.state.backgroundGenerating) {
-        alert('AI 正在生成学习计划，请稍后再试')
+        alert(this.$t('studyplan.ai.generatingTryLater'))
         return
       }
       this.dialog = true
@@ -184,7 +184,7 @@ export default {
     handleBackground(promise) {
       this.dialog = false
       this.showStudyPlan = false
-      this.backgroundMessage = 'AI 正在后台生成学习计划...'
+      this.backgroundMessage = this.$t('studyplan.ai.generatingBackground')
       this.backgroundSnackbar = true
       this.backgroundLoading = true
       this.backgroundSuccess = false
@@ -201,16 +201,16 @@ export default {
               this.generatedPlanId =
                 saveRes.data?.id || saveRes.data?.studyPlan?.id || null
             }
-            this.backgroundMessage = 'AI 学习计划已生成，点击查看'
+            this.backgroundMessage = this.$t('studyplan.ai.generated')
             this.backgroundSuccess = true
           } catch (e) {
             console.error('Error saving background study plan:', e)
-            this.backgroundMessage = 'AI 学习计划生成失败，点击关闭'
+            this.backgroundMessage = this.$t('studyplan.ai.generateFailed')
             this.backgroundSuccess = false
           }
         })
         .catch(() => {
-          this.backgroundMessage = 'AI 学习计划生成失败，点击关闭'
+          this.backgroundMessage = this.$t('studyplan.ai.generateFailed')
           this.backgroundSuccess = false
         })
         .finally(() => {

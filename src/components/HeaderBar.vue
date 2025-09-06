@@ -81,15 +81,17 @@ export default {
       largeLogo: require('@/assets/images/logo_banner.png'),
       smallLogo: require('@/assets/images/logo.png'),
       isSmallScreen: window.innerWidth <= 1200,
-      languageOptions: [
-        { title: 'English', value: 'en' },
-        { title: 'Chinese', value: 'zh' },
-      ],
       langTextWidth: 0,
       activeKey: '',
     }
   },
   computed: {
+    languageOptions() {
+      return [
+        { title: this.$t('languages.en'), value: 'en' },
+        { title: this.$t('languages.zh'), value: 'zh' },
+      ]
+    },
     isAuthenticated() {
       return this.$store.state.isAuthenticated
     },
@@ -179,7 +181,7 @@ export default {
     },
     handleStudyPlan() {
       if (!this.isAuthenticated) {
-        alert('请先登录再查看学习计划')
+        alert(this.$t('header.pleaseLoginToViewStudyPlan'))
       } else {
         const userId = this.$store.state.currentUserID
         this.activeKey = 'studyplan'
@@ -191,8 +193,10 @@ export default {
         (item) => item.value === this.$i18n.locale
       )
       const nextIndex = (currentIndex + 1) % this.languageOptions.length
-      this.$i18n.locale = this.languageOptions[nextIndex].value
-      this.$vuetify.locale.current = this.languageOptions[nextIndex].value
+      const next = this.languageOptions[nextIndex].value
+      this.$i18n.locale = next
+      this.$vuetify.locale.current = next
+      try { localStorage.setItem('locale', next) } catch (_) {}
     },
     measureLangTextWidth() {
       const tempSpan = document.createElement('span')
@@ -321,9 +325,9 @@ export default {
 }
 
 .language-toggle {
-  min-width: 40px !important;
-  width: 40px;
-  height: 40px;
+  min-width: 48px !important;
+  width: 48px !important;
+  height: 48px !important;
   border-radius: 50%;
   padding: 0;
   display: flex;

@@ -20,9 +20,13 @@ function loadLocaleMessages() {
 
 // Detect user's default locale (fall back to 'en' if not detected)
 function detectLocale() {
-  const language = navigator.language || navigator.userLanguage
-  const supportedLocales = Object.keys(loadLocaleMessages())
-  return supportedLocales.includes(language) ? language : 'zh'
+  try {
+    const saved = localStorage.getItem('locale')
+    if (saved) return saved
+  } catch (_) {}
+  const language = (navigator.language || navigator.userLanguage || 'zh').slice(0, 2)
+  const supported = Object.keys(loadLocaleMessages())
+  return supported.includes(language) ? language : 'zh'
 }
 
 // Create the i18n instance

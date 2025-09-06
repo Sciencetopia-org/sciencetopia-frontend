@@ -46,10 +46,10 @@ const vuetify = createVuetify({
     themes: {
       light: {
         colors: {
-          primary: '#000',
-          text: '#304E75',
+          text: '#000',
           // background: '#E8DABD',
           secondary: '#EC0017',
+          primary: '#304E75',
           yellow: '#E2B43C',
           accent: '#00FFF7',
           darkred: '#C8001D',
@@ -87,5 +87,11 @@ app.use(router)
 app.use(store)
 app.use(vuetify)
 app.use(i18n)
+
+// Sync Vuetify locale with i18n on startup
+try {
+  const initial = (i18n.global?.locale?.value) || i18n.global?.locale || 'zh'
+  vuetify.locale.current = initial
+} catch (_) {}
 
 app.mount('#app')

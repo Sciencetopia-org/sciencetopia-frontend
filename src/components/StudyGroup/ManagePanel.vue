@@ -4,7 +4,7 @@
       <v-col cols="3" class="pa-0">
         <v-card class="left-panel panel-card panel-card--beige" rounded="xl" elevation="2">
           <div class="plan-list-header d-flex align-center px-4 py-2">
-            <span class="text-subtitle-1">管理面板</span>
+            <span class="text-subtitle-1">{{ $t('studygroup.managerboard') }}</span>
           </div>
           <v-divider />
           <v-list density="compact" class="plan-list">
@@ -65,11 +65,11 @@ export default {
       isManager: false,
       activeTab: 0, // Default active tab
       tabs: [
-        { title: '基础信息', key: 'overview', component: GroupOverview },
-        { title: '成员管理', key: 'members', component: MemberManagement },
-        { title: '加入请求', key: 'requests', component: JoinRequests },
-        { title: '活动日志', key: 'logs', component: ActivityLogs },
-        { title: '设置', key: 'settings' },
+        { title: this.$t('studygroup.basicinfo'), key: 'overview', component: GroupOverview },
+        { title: this.$t('memberMgmt.title'), key: 'members', component: MemberManagement },
+        { title: this.$t('studygroup.joinrequest'), key: 'requests', component: JoinRequests },
+        { title: this.$t('studygroup.activitylog'), key: 'logs', component: ActivityLogs },
+        { title: this.$t('studygroup.groupsetting'), key: 'settings' },
       ],
     }
   },

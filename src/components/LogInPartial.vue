@@ -162,8 +162,9 @@ export default {
 
 /* 统一头像按钮大小，并确保在鼠标悬浮时有类似放大效果 */
 .icon-btn {
-  width: 48px;
-  height: 48px;
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
   border-radius: 50%;
   transition: all 0.3s ease;
   display: flex;
@@ -174,7 +175,7 @@ export default {
 
 .icon-btn:hover {
   transform: scale(1.1);
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: #FAF6F0;
 }
 
 .icon-btn:active {

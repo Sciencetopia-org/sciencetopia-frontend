@@ -44,15 +44,37 @@
     "studygroup": "学习小组",
     "studyplan": "学习计划",
     "messages": "消息",
-    "toseemessage": "查看消息",
+    "pleaselogin": "请登录",
+    "toseemessage": "以查看消息",
     "lightmode": "明模式",
     "darkmode": "暗模式",
     "tocreateplan": "以创建学习计划",
     "languageSwitch": "切换语言",
-    "switchTo": "切换至"
+    "switchTo": "切换至",
+    "pleaseLoginToViewStudyPlan": "请先登录再查看学习计划"
+  },
+  "languages": {
+    "en": "English",
+    "zh": "中文"
   },
   "searchbar": {
     "iwanttolearn": "我想要了解..."
+  },
+  "search": {
+    "results": "搜索结果",
+    "tabs": {
+      "knowledge": "知识",
+      "resources": "资源",
+      "group": "学习小组"
+    },
+    "noResults": "未找到匹配内容",
+    "loadMore": "加载更多",
+    "types": {
+      "knowledge": "知识",
+      "plan": "学习计划",
+      "resources": "资源",
+      "group": "小组"
+    }
   },
   "footer": {
     "about": "关于我们",
@@ -75,6 +97,29 @@
     "editing": "编辑消息...",
     "send": "发送",
     "sendmessage": "发消息"
+  },
+  "home": {
+    "tagsIndex": "标签索引",
+    "tagsStructure": "标签结构",
+    "knowledgeNetwork": "知识网络",
+    "nodePanel": "节点面板",
+    "tags": "标签",
+    "tag": "标签",
+    "searchTagsPlaceholder": "搜索标签...",
+    "filterSelectedAria": "按所选标签筛选"
+  },
+  "contactPage": {
+    "title": "联系我们",
+    "intro": "如果你对我们感兴趣，想加入团队或有任何意见反馈，欢迎联系我们：",
+    "email": "邮箱",
+    "bilibili": "B站账号"
+  },
+  "notifications": {
+    "unknownType": "未知类型",
+    "types": {
+      "JoinRequest": "加入请求",
+      "SystemAlert": "系统警报"
+    }
   },
   "userprofile": {
     "gender": "性别",
@@ -140,6 +185,7 @@
     "AIplaceholder": "AI小助手为您生成学习计划中...",
     "savefailedmsg": "学习计划保存失败。",
     "savesuccessmsg": "学习计划保存成功!",
+    "confirmMarkUnfinished": "确定要将它重新标记为未完成吗?",
     "empty": "（暂无）",
     "prerequisitelimitmsg": "已达到预备课程的最大数量。",
     "maincurriculumlimitmsg": "已达到主课程的最大数量。",
@@ -149,9 +195,33 @@
     "aiGenerate": "AI 生成计划",
     "share": "分享",
     "tabs": { "mine": "我的", "shared": "与我共享", "public": "公开" },
-    "myProgress": "我的进度 {percent}%"
+    "myProgress": "我的进度 {percent}%",
+    "noPlansYet": "你还没有创建学习计划",
+    "ai": {
+      "plannerTitle": "AI 学习计划生成器",
+      "generatingTryLater": "AI 正在生成学习计划，请稍后再试",
+      "generatingBackground": "AI 正在后台生成学习计划...",
+      "generated": "AI 学习计划已生成，点击查看",
+      "generateFailed": "AI 学习计划生成失败，点击关闭"
+    },
+    "dialogs": {
+      "editTitle": "编辑学习计划",
+      "createTitle": "新建学习计划",
+      "confirmCloseWithUnsaved": "你在对话框中已有输入，确定要关闭吗？未保存的内容将丢失。",
+      "noEditPermission": "无权限编辑，已进入只读模式",
+      "noEditPermissionShort": "无权限编辑该学习计划"
+    }
   },
-  "common": { "search": "搜索", "sort": "排序" },
+  "common": {
+    "search": "搜索",
+    "sort": "排序",
+    "sortOptions": {
+      "recent": "最近学习",
+      "created": "创建时间",
+      "hot": "热度"
+    },
+    "noData": "暂无数据"
+  },
   "cohort": {
     "statsTitle": "学习小组 · 进度与排行榜",
     "select": "选择小组",
@@ -160,6 +230,19 @@
     "join": "加入一起学",
     "leave": "退出",
     "allowShareMetrics": "允许在排行榜显示我的进度",
+    "noPlanGroups": "该学习计划尚无小组。可通过“分享”创建并关联。",
+    "avgProgress": "平均进度",
+    "members": "成员",
+    "leaderboard": "排行榜",
+    "top": "Top",
+    "viewStats": "进度与排行榜",
+    "autoEnroll": "自动加入",
+    "form": {
+      "title": "标题",
+      "visibility": "可见性",
+      "startAt": "开始时间",
+      "endAt": "结束时间"
+    },
     "hasNewVersion": "该学习计划有新版本可用",
     "upgrade": "升级",
     "gotoGroupManage": "去小组管理",
@@ -245,6 +328,8 @@
     "changephonefailedmsg": "更改手机号失败"
   },
   "studygroup": {
+    "studygroup": "学习小组",
+    "select": "选择小组",
     "joined": "已加入",
     "applytojoin": "申请加入",
     "follow": "关注",
@@ -276,10 +361,84 @@
     "nogroup_their": "TA还没有加入任何学习小组哦！",
     "groupDissolveMessage": "你确定要解散该学习小组吗？此操作不可撤销。",
     "groupLeaveMessage": "你确定要退出该学习小组吗？此操作不可撤销。",
-    "confirmGroupName": "请输入小组名称以继续:"
+    "confirmGroupName": "请输入小组名称以继续:",
+    "selectPrompt": "请先在左侧选择一个学习小组",
+    "sharedToGroup": "已将计划分享到学习小组",
+    "loginToCreate": "请先登录后再创建学习小组",
+    "searchPlaceholder": "搜索学习小组",
+    "noGroups": "暂时没有学习小组",
+    "createFirst": "去创建第一个吧！",
+    "list": {
+      "nav": {
+        "recommend": "推荐",
+        "joined": "已加入",
+        "follow": "关注",
+        "popular": "科普",
+        "coding": "编程",
+        "philosophy": "哲学",
+        "more": "更多"
+      }
+    },
+    "create": {
+      "title": "创建学习小组",
+      "placeholderName": "请输入小组名称",
+      "placeholderDesc": "请输入小组介绍...",
+      "create": "创建",
+      "success": "学习小组创建的请求已提交审核，请耐心等待。",
+      "failed": "学习小组创建失败!",
+    "cancelConfirm": "确定要取消学习小组创建吗?"
+    },
+    "errors": {
+      "invalidGroupName": "小组名称不正确，请重新输入。",
+      "leaveFailed": "退出小组失败，请稍后再试。",
+      "dissolveFailed": "解散小组失败，请稍后再试。"
+    },
+    "success": {
+      "leave": "已成功退出学习小组。",
+      "dissolved": "学习小组已成功解散。"
+    }
+  },
+  "groupSettings": {
+    "titleManager": "小组设置",
+    "titleMember": "我的小组设置",
+    "profile": "小组资料",
+    "name": "小组名称",
+    "bio": "简介",
+    "sharedPlans": "共享学习计划",
+    "plan": "计划",
+    "permission": "权限",
+    "autoEnroll": "自动入学",
+    "groupCohorts": "组域 Cohorts",
+    "enrollMode": "入学模式",
+    "pinnedVersion": "固定版本",
+    "unpinned": "未固定",
+    "notificationPrefs": "通知偏好",
+    "planUpdates": "计划更新",
+    "mentions": "@提及",
+    "rankings": "排行榜变动",
+    "learningVisibility": "学习与可见性",
+    "shareMetricsWithGroup": "与小组共享学习进度",
+    "showOnLeaderboard": "在排行榜显示我",
+    "myPlans": "我在本组的计划",
+    "currentCohort": "当前 Cohort",
+    "notJoined": "未加入",
+    "perms": {
+      "readonly": "只读",
+      "comment": "评论",
+      "editable": "编辑",
+      "admin": "管理员"
+    },
+    "enroll": {
+      "optIn": "手动加入",
+      "auto": "自动加入"
+    },
+    "loadFailed": "加载设置失败",
+    "saveFailed": "保存失败，请稍后重试",
+    "saveSuccess": "设置已保存"
   },
   "knowledgeGraph": {
     "knowledgeGraph": "知识图谱",
+    "noDescription": "暂无描述。",
     "defaultmessage": "获取知识，从点击一个节点开始。",
     "adjacentnodes": "相邻节点",
     "frontnodes": "前置节点",
@@ -324,7 +483,10 @@
     "selecttwonodes": "请选择两个节点以创建关系。",
     "linkSubmitted": "关系已提交并等待审核。",
     "confirmLinkCancel": "确定离开创建关系页面？创建的关系将不会被保存！",
-    "confirmNodeCancel": "确定离开创建节点页面？创建的节点将不会被保存！"
+    "confirmNodeCancel": "确定离开创建节点页面？创建的节点将不会被保存！",
+    "favoriteAdded": "已添加到收藏夹",
+    "favoriteRemoved": "已从收藏夹移除",
+    "favoriteToggleFailed": "收藏状态切换失败"
   },
   "validation": {
     "required": "此项为必填项",
@@ -332,5 +494,58 @@
     "passwordrequirement": "密码至少需包含8个字符",
     "inconsistentpassword": "两次输入的密码不匹配",
     "incorrectphoneFormat": "手机号格式不正确"
+  },
+  "sponsor": {
+    "title": "赞助我们",
+    "intro": "Sciencetopia 是一个对用户永久免费的自主学习平台。如果你从中受益，你可以为我们打赏赞助。你的支持会让 Sciencetopia 走得更远。",
+    "howToSupport": "如何支持我们",
+    "supportWays": "您可以通过以下方式支持我们：",
+    "wechat": "微信支付",
+    "alipay": "支付宝支付",
+    "paypal": "PayPal 支付",
+    "scanToSupport": "打开应用扫一扫，支持我们。",
+    "thanksTitle": "谢谢你的支持",
+    "thanksText": "你的每一次赞助我们都记在心上。我们的每一笔收支都向你公开、透明。",
+    "contact": "联系我们",
+    "contactPrompt": "如果您有任何问题或需要进一步的信息，请随时联系我们：",
+    "phone": "电话",
+    "sponsors": "赞助者"
+  },
+  "lessonDetail": {
+    "selectLesson": "请选择一个课程",
+    "noResources": "暂无资源",
+    "completed": "已完成",
+    "notCompleted": "未完成"
+  },
+  
+  "about": {
+    "title": "关于我们",
+    "tagline": { "before": "Sciencetopia是一个由", "after": "搭建的，系统、完备、面向群众、永久免费的科学平台。" },
+    "independentTeam": "独立团队",
+    "p1": "在当下，汲取信息、学习知识从未如此容易过……然而真正的自由而全面的发展并未因此普遍实现。",
+    "p2": "我们通过调查发现，许多人在学习路上受时间、经济、检索难度、缺乏方向等因素阻碍。",
+    "p3": "这并非个体问题，而是系统性问题。",
+    "p4": "1. 时间成为学习的稀缺通用货币。",
+    "p5": "2. 知识应用多以商业目标优化而非学习者收益，内容往往碎片化或存在价格门槛。3. 缺乏学习环境与社区。",
+    "p6": "这是社会性的系统性问题。",
+    "p7": "我们希望并有信心达成以下目标：",
+    "goal1": "1. 以系统化、开放免费的知识降低门槛，让从基础到前沿的科学知识抵达所有人。",
+    "goal2": "2. 以学习者为中心设计产品，激发动力，高效学习所需知识。",
+    "goal3": "3. 建立互助共进的学习社区。",
+    "goal4": "4. 以开放方式让每个人参与知识的生产与传播。",
+    "p8": "未来，我们希望产学研结合，让每个人参与探索、研究与创新。",
+    "p9": "我们希望Sciencetopia成为属于每个人的科学平台，找到伙伴、资源与动力，实现全面发展。",
+    "p10": "这正是“topia”的含义：一个环境、一个场景、一个地方——就在此处。",
+    "p11": "我们愿在此搭建平台，探索可推广的大众学习与创新模式，照亮未来。",
+    "joinPrompt": { "before": "如果你有兴趣，请", "after": "，一起创造这个属于每个人的Sciencetopia。" },
+    "joinUs": "加入我们",
+    "team": { "title": "开发者名单", "name": "名字", "role": "角色", "contribution": "贡献" },
+    "roles": { "fullstack": "全栈开发", "db": "数据库开发", "art": "美术设计", "ux": "UI/UX设计" },
+    "desc": {
+      "fullstack": "负责网站的前后端开发和实现",
+      "db": "参与知识网络数据库搭建",
+      "art": "参与了网站的美术设计和插图制作",
+      "ux": "参与了网站的美术设计"
+    }
   }
 }

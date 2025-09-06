@@ -1,6 +1,6 @@
 <template>
   <v-card class="activity-logs">
-    <v-card-title>活动日志</v-card-title>
+  <v-card-title>{{ $t('studygroup.activitylog') }}</v-card-title>
     <v-card-text>
       <v-list>
         <v-list-item v-for="log in logs" :key="log.id">

@@ -39,7 +39,7 @@
         <v-skeleton-loader type="list-item-two-line" />
       </div>
       <div v-else-if="!cohorts.length">
-        <em>该学习计划尚无小组。可通过“分享”创建并关联。</em>
+        <em>{{ $t('cohort.noPlanGroups') }}</em>
       </div>
       <template v-else>
         <div class="d-flex align-center mb-2" v-if="loadingSummary">
@@ -48,9 +48,9 @@
         </div>
         <div v-else-if="summary">
           <v-chip class="mr-2" color="primary" label>
-            平均进度：{{ (summary?.avgProgress ?? summary?.planProgress ?? 0) }}%
+            {{ $t('cohort.avgProgress') }}{{ $t(':') }}{{ (summary?.avgProgress ?? summary?.planProgress ?? 0) }}%
           </v-chip>
-          <v-chip label>成员：{{ summary?.memberCount ?? 0 }}</v-chip>
+          <v-chip label>{{ $t('cohort.members') }}{{ $t(':') }}{{ summary?.memberCount ?? 0 }}</v-chip>
         </div>
 
         <div class="mt-2 d-flex align-center">
@@ -69,12 +69,12 @@
 
         <div class="mt-4">
           <div class="d-flex align-center mb-2">
-            <strong>排行榜</strong>
+            <strong>{{ $t('cohort.leaderboard') }}</strong>
             <v-spacer />
             <v-select
               v-model="top"
               :items="[10, 20, 50]"
-              label="Top"
+              :label="$t('cohort.top')"
               density="compact"
               style="max-width: 120px"
               @update:model-value="fetchLeaderboard"

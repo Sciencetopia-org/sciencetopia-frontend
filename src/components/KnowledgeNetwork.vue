@@ -100,12 +100,12 @@ export default {
 
           // Show different alert messages based on the new favorite status
           if (isFavorited.value) {
-            alert('Node added to favorites successfully!')
+            alert(this.$t('knowledgeGraph.favoriteAdded') || 'Node added to favorites successfully!')
           } else {
-            alert('Node removed from favorites successfully!')
+            alert(this.$t('knowledgeGraph.favoriteRemoved') || 'Node removed from favorites successfully!')
           }
         } else {
-          alert('Failed to toggle favorite status.')
+          alert(this.$t('knowledgeGraph.favoriteToggleFailed') || 'Failed to toggle favorite status.')
         }
       } catch (error) {
         console.error('Error toggling favorite status:', error)

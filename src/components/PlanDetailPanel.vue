@@ -8,11 +8,11 @@
         <div v-if="isEditing">
           <div class="plan-header d-flex align-center justify-space-between">
             <div>
-              <h2 class="plan-title">编辑：{{ plan.title }}</h2>
+              <h2 class="plan-title">{{ $t('edit') }}{{ $t(':') }}{{ plan.title }}</h2>
             </div>
             <div>
-              <v-btn class="mr-2" variant="text" @click="cancelEdit">取消</v-btn>
-              <v-btn size="small" variant="text" color="blue" @click="saveFromHeader">保存学习计划</v-btn>
+              <v-btn class="mr-2" variant="text" @click="cancelEdit">{{ $t('cancel') }}</v-btn>
+              <v-btn size="small" variant="text" color="blue" @click="saveFromHeader">{{ $t('save') }}{{ $t('wordbreaker') }}{{ $t('header.studyplan') }}</v-btn>
             </div>
           </div>
           <EditStudyPlanForm ref="editForm" :studyPlan="editDraft" :showTopSave="false" @save="saveStudyPlan"
@@ -28,13 +28,12 @@
               <v-chip v-if="myProgress !== null" size="x-small" label class="mr-2" color="primary">{{
                 $t('studyplan.myProgress', { percent: myProgress }) }}</v-chip>
               <template v-if="allowEditControls">
-                <v-btn v-if="isOwnerComputed" class="mr-1" variant="text" @click="$emit('open-share')">{{
-                  $t('studyplan.share') }}</v-btn>
+                <v-btn v-if="isOwnerComputed" class="mr-1" variant="text" @click="$emit('open-share')">{{ $t('studyplan.share') }}</v-btn>
                 <v-btn v-if="canEditComputed" icon="mdi-pencil" variant="text" @click="startEdit()"
-                  :aria-label="`编辑 ${plan.title}`" />
+                  :aria-label="`${$t('edit')} ${plan.title}`" />
               </template>
-              <v-btn size="small" variant="outlined" color="primary" class="ml-2" @click="$emit('open-progress')">
-                同学与排行榜
+              <v-btn size="small" color="primary" class="ml-2" @click="$emit('open-progress')">
+                {{ $t('cohort.viewStats') }}
               </v-btn>
             </div>
           </div>
@@ -42,7 +41,7 @@
 
           <!-- 进度与排行榜已迁移为独立 ProgressPage -->
           <v-expansion-panels multiple v-model="openSections" class="mt-2">
-            <v-expansion-panel title="预备知识" v-if="plan.prerequisite && plan.prerequisite.length">
+            <v-expansion-panel :title="$t('studyplan.prerequisites')" v-if="plan.prerequisite && plan.prerequisite.length">
               <v-expansion-panel-text>
                 <v-list density="comfortable">
                   <v-list-item v-for="(lesson, idx) in plan.prerequisite" :key="'pre-' + idx" @click="select(lesson)"
@@ -54,7 +53,7 @@
               </v-expansion-panel-text>
             </v-expansion-panel>
 
-            <v-expansion-panel title="主要课程" v-if="plan.mainCurriculum && plan.mainCurriculum.length">
+            <v-expansion-panel :title="$t('studyplan.maincurriculum')" v-if="plan.mainCurriculum && plan.mainCurriculum.length">
               <v-expansion-panel-text>
                 <v-list density="comfortable">
                   <v-list-item v-for="(lesson, idx) in plan.mainCurriculum" :key="'main-' + idx" @click="select(lesson)"
@@ -66,7 +65,7 @@
               </v-expansion-panel-text>
             </v-expansion-panel>
 
-            <v-expansion-panel title="进阶内容" v-if="plan.advancedTopics && plan.advancedTopics.length">
+            <v-expansion-panel :title="$t('studyplan.advancedtopics')" v-if="plan.advancedTopics && plan.advancedTopics.length">
               <v-expansion-panel-text>
                 <v-list density="comfortable">
                   <v-list-item v-for="(lesson, idx) in plan.advancedTopics" :key="'adv-' + idx" @click="select(lesson)"
@@ -114,7 +113,7 @@ export default {
   },
   computed: {
     emptyText() {
-      return '暂无数据'
+      return this.$t('common.noData')
     },
     isOwnerComputed() {
       return this.roleLabel === 'Owner'
@@ -251,7 +250,7 @@ export default {
     },
     cancelEdit() {
       if (this.editDirty) {
-        const ok = window.confirm('你在编辑中已有输入，确定要取消吗？未保存的内容将丢失。')
+        const ok = window.confirm(this.$t('studyplan.dialogs.confirmCloseWithUnsaved'))
         if (!ok) return
       }
       this.isEditing = false

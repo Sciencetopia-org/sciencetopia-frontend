@@ -237,9 +237,9 @@ export default {
 
 /* Register-specific styles */
 .register-button {
-  position: relative;
-  left: 17vw;
-  top: -10vh;
+  position: absolute;
+  right: 2vw;
+  top: 35vh;
   color: white;
   border: none;
   cursor: pointer;
@@ -250,6 +250,9 @@ export default {
 }
 
 .register-arrow {
+  position: absolute;
+  top: -80px;
+  right: -80px;
   width: 80px;
   height: 240px;
   background: linear-gradient(to left, #aa1b1d 50%, #ec0017 50%);
@@ -258,9 +261,9 @@ export default {
 }
 
 .register-whitebox {
-  position: relative;
-  top: -15vh;
-  right: 120px;
+  position: absolute;
+  top: 0vh;
+  right: 40px;
   width: 80px;
   height: 80px;
   background-color: white;
@@ -268,9 +271,7 @@ export default {
 }
 
 .register-text {
-  position: relative;
-  top: -21vh;
-  right: 60px;
+  /* position: absolute; */
   font-size: 20px;
   font-weight: normal;
   transform: perspective(500px) rotateX(20deg) rotateY(8deg) skewX(15deg)

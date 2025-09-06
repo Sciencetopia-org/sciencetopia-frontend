@@ -2,27 +2,37 @@
   <div class="search-bar-container" ref="searchContainer">
     <v-text-field
       v-model="searchQuery"
-      placeholder="Search..."
+      :placeholder="$t('searchbar.iwanttolearn')"
       solo
       hide-details
       clearable
+      :loading="isLoading"
       @keyup.enter="performSearch"
       @click:clear="clearSearch"
       ref="searchInput"
     >
       <template v-slot:append>
-        <v-btn icon @click="performSearch">
+        <v-btn icon :loading="isLoading" :disabled="isLoading" @click="performSearch">
           <v-icon>mdi-magnify</v-icon>
         </v-btn>
       </template>
     </v-text-field>
 
-    <SearchResults
-      v-if="showResults"
-      :results="formattedResults"
-      @result-click="handleResultClick"
-      @close="showResults = false"
-    />
+    <div v-if="showResults">
+      <div v-if="isLoading" class="search-results-wrapper" aria-busy="true" aria-live="polite">
+        <div class="search-results">
+          <v-skeleton-loader
+            type="heading, list-item-two-line, list-item-two-line, list-item-two-line"
+          />
+        </div>
+      </div>
+      <SearchResults
+        v-else
+        :results="formattedResults"
+        @result-click="handleResultClick"
+        @close="showResults = false"
+      />
+    </div>
   </div>
 </template>
 
@@ -41,6 +51,7 @@ export default {
     const searchQuery = ref('')
     const rawResults = ref([])
     const showResults = ref(false)
+    const isLoading = ref(false)
     const searchContainer = ref(null)
     const router = useRouter()
 
@@ -48,27 +59,76 @@ export default {
     const formattedResults = computed(() => {
       return {
         knowledge: rawResults.value.filter((item) => item.type === 'knowledge'),
-        plan: rawResults.value.filter((item) => item.type === 'plan'),
+        resources: rawResults.value.filter((item) => item.type === 'resources'),
         group: rawResults.value.filter((item) => item.type === 'group'),
       }
     })
 
     const doSearch = async (query) => {
-      const res = await apiClient.get('/search', { params: { q: query } })
+      // Backend expects 'query' param (not 'q');
+      // Response keys can be either camelCase or PascalCase depending on environment.
+      const res = await apiClient.get('/Search', { params: { query } })
       const data = res?.data || {}
-      // Flatten grouped results to unified array expected by this component
-      return [
-        ...(Array.isArray(data.knowledge) ? data.knowledge : []),
-        ...(Array.isArray(data.plan) ? data.plan : []),
-        ...(Array.isArray(data.group) ? data.group : []),
-      ]
+
+      // Normalize potential key casings from the API
+      const kb = Array.isArray(data.knowledgeBase)
+        ? data.knowledgeBase
+        : Array.isArray(data.KnowledgeBase)
+          ? data.KnowledgeBase
+          : []
+
+      const resources = Array.isArray(data.resources)
+        ? data.resources
+        : Array.isArray(data.Resources)
+          ? data.Resources
+          : []
+
+      const groups = Array.isArray(data.studyGroups)
+        ? data.studyGroups
+        : Array.isArray(data.StudyGroups)
+          ? data.StudyGroups
+          : []
+
+      // Map items to a unified shape expected by UI components
+      const normKb = kb.map((k) => ({
+        id: k.id ?? k.knowledgeId ?? k.ID,
+        type: 'knowledge',
+        title: k.title || k.name || '',
+        excerpt: k.excerpt || k.description || '',
+      }))
+
+      const normResources = resources.map((r) => ({
+        id: r.id ?? r.resourceId ?? r.ID,
+        type: 'resources',
+        title: r.title || r.name || r.link || '',
+        excerpt: r.excerpt || r.description || r.link || '',
+        link: r.link || r.url || undefined,
+      }))
+
+      const normGroups = groups.map((g) => ({
+        id: g.id ?? g.groupId ?? g.ID,
+        type: 'group',
+        title: g.title || g.name || '',
+        excerpt: g.excerpt || g.description || '',
+      }))
+
+      return [...normKb, ...normResources, ...normGroups]
     }
 
     const performSearch = async () => {
-      if (searchQuery.value.trim()) {
-        rawResults.value = await doSearch(searchQuery.value)
+      const q = searchQuery.value.trim()
+      if (!q) return
+      try {
+        isLoading.value = true
         showResults.value = true
-        console.log('Search results:', formattedResults.value) // 调试用
+        rawResults.value = []
+        rawResults.value = await doSearch(q)
+        console.log('Search results:', formattedResults.value)
+      } catch (err) {
+        console.error('Search error:', err)
+        showResults.value = false
+      } finally {
+        isLoading.value = false
       }
     }
 
@@ -79,7 +139,19 @@ export default {
     }
 
     const handleResultClick = (result) => {
-      window.open(`/detail/${result.type}/${result.id}`, '_blank')
+      if (!result) return
+      if (result.type === 'plan') {
+        window.open(`/plans/${result.id}`, '_blank')
+      } else if (result.type === 'group') {
+        window.open(`/studygroup/${result.id}`, '_blank')
+      } else if (result.type === 'resources') {
+        if (result.link) {
+          window.open(result.link, '_blank')
+        }
+      } else {
+        // For knowledge or unknown types, keep the panel open for now
+        // Optionally, navigate to a dedicated detail page if available in the future.
+      }
     }
 
     // Close on outside click
@@ -104,15 +176,16 @@ export default {
     onMounted(() => document.addEventListener('keydown', onEscapeKey))
     onBeforeUnmount(() => document.removeEventListener('keydown', onEscapeKey))
 
-    return {
-      searchQuery,
-      formattedResults,
-      showResults,
-      performSearch,
-      clearSearch,
-      handleResultClick,
-      searchContainer,
-    }
+      return {
+        searchQuery,
+        formattedResults,
+        showResults,
+        isLoading,
+        performSearch,
+        clearSearch,
+        handleResultClick,
+        searchContainer,
+      }
   },
 }
 </script>

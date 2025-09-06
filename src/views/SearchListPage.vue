@@ -2,7 +2,7 @@
   <v-container>
     <v-row>
       <v-col cols="6">
-        <h3>搜索结果：知识节点</h3>
+        <h3>{{ $t('search.results') }}{{ $t(':') }}{{ $t('search.tabs.knowledge') }}</h3>
         <v-container v-for="result in searchResults" :key="result.id">
           <v-card>
             <v-card-title>{{ result.properties.name }}</v-card-title>
@@ -14,7 +14,7 @@
       </v-col>
       <v-divider vertical></v-divider>
       <v-col cols="6">
-        <h3>搜索结果：知识资源</h3>
+        <h3>{{ $t('search.results') }}{{ $t(':') }}{{ $t('search.tabs.resources') }}</h3>
         <v-container v-for="resource in searchResources" :key="resource.id">
           <v-card>
             <v-card-item class="link-preview-container">

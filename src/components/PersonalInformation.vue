@@ -1,17 +1,10 @@
 <template>
-  <v-container
-    class="d-flex align-center justify-center personal-information-container"
-  >
+  <v-container class="d-flex align-center justify-center personal-information-container">
     <!-- Display Mode -->
     <div v-if="!isEditMode">
       <v-container>
         <div align="center">
-          <v-btn
-            :disabled="true"
-            icon="dots-vertical"
-            class="default-avatar profile-avatar"
-            size="200"
-          >
+          <v-btn :disabled="true" icon="dots-vertical" class="default-avatar profile-avatar" size="200">
             <v-avatar size="196">
               <img :src="avatarUrl" alt="Avatar" />
             </v-avatar>
@@ -24,13 +17,7 @@
                 userInfo.userName
               }}</v-card-title>
               <!-- Show edit button only if it's the current user's profile -->
-              <v-btn
-                v-if="isCurrentUser"
-                icon
-                variant="text"
-                @click="enterEditMode"
-                >✏️</v-btn
-              >
+              <v-btn v-if="isCurrentUser" icon variant="text" @click="enterEditMode">✏️</v-btn>
               <slot v-if="!isCurrentUser"></slot>
             </div>
             <div class="profile-text">
@@ -78,63 +65,34 @@
                   <img :src="avatarUrl" alt="Avatar" />
                 </v-avatar>
                 <v-btn icon variant="text" @click="openFilePicker">📷</v-btn>
-                <input
-                  type="file"
-                  ref="fileInput"
-                  hidden
-                  @change="onFileSelected"
-                  accept="image/*"
-                />
+                <input type="file" ref="fileInput" hidden @change="onFileSelected" accept="image/*" />
               </v-col>
             </v-row>
             <v-row>
               <v-col>
-                <v-text-field
-                  variant="outlined"
-                  :label="$t('username')"
-                  v-model="userInfo.userName"
-                  :rules="usernameRules"
-                ></v-text-field>
-                <v-select
-                  variant="outlined"
-                  :label="$t('userprofile.gender')"
-                  v-model="userInfo.gender"
-                  :items="['Male', 'Female', 'Others', 'Secret']"
-                ></v-select>
-                <v-menu
-                  ref="menu"
-                  v-model="menu"
-                  :close-on-content-click="false"
-                  transition="scale-transition"
-                  offset-y
-                  min-width="auto"
-                >
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-text-field
-                      variant="outlined"
-                      v-model="userInfo.formattedBirthDate"
-                      :label="$t('userprofile.dateofbirth')"
-                      prepend-icon="mdi-calendar"
-                      readonly
-                      v-bind="attrs"
-                      v-on="on"
-                    >
-                    </v-text-field>
+                <v-text-field variant="outlined" :label="$t('username')" v-model="userInfo.userName"
+                  :rules="usernameRules"></v-text-field>
+                <v-select variant="outlined" :label="$t('userprofile.gender')" v-model="userInfo.gender"
+                  :items="['Male', 'Female', 'Others', 'Secret']"></v-select>
+                <!-- 日期（生日）选择：点击文本框才弹出，悬浮层，不占位 -->
+                <v-menu v-model="menu" :close-on-content-click="false" location="bottom start" :offset="[0, 8]">
+                  <template #activator="{ props }">
+                    <v-text-field variant="outlined" v-bind="props" :label="$t('userprofile.dateofbirth')"
+                      prepend-icon="mdi-calendar" readonly :model-value="userInfo.formattedBirthDate || ''" />
                   </template>
-                  <!-- Your date picker and other content here -->
+
+                  <v-date-picker v-model="userInfo.formattedBirthDate" :max="today" show-adjacent-months scrollable
+                    @update:modelValue="onPickBirthDate" />
                 </v-menu>
-                <v-textarea
-                  variant="outlined"
-                  :label="$t('userprofile.aboutme')"
-                  v-model="userInfo.selfIntroduction"
-                ></v-textarea>
+                <v-textarea variant="outlined" :label="$t('userprofile.aboutme')"
+                  v-model="userInfo.selfIntroduction"></v-textarea>
               </v-col>
             </v-row>
           </v-container>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="primary" :disabled="!valid" @click="updateUserInfo">{{
+          <v-btn color="primary" :disabled="!valid" @click="updateUserInfo({ formRef: $refs.form })">{{
             $t('save')
           }}</v-btn>
           <v-btn color="grey" @click="exitEditMode">{{ $t('cancel') }}</v-btn>
@@ -147,6 +105,7 @@
 <script>
 import { apiClient } from '@/api'
 import { mapState, mapActions } from 'vuex'
+import { normalizeDateString } from '@/utils/date'
 
 export default {
   name: 'PersonalInformation',
@@ -186,9 +145,19 @@ export default {
       // Check if the userId passed as a prop matches the current authenticated user
       return this.userId === this.currentUserId
     },
+    today() {
+      return new Date().toISOString().slice(0, 10) // 限制生日不超过今天
+    },
   },
   methods: {
     ...mapActions(['fetchUserInfo', 'updateUserInfo']),
+    onPickBirthDate(val) {
+      // v-date-picker(v3) 通常已给 'YYYY-MM-DD'，这里再保险规整一下：
+      this.userInfo.formattedBirthDate = normalizeDateString
+        ? normalizeDateString(val)
+        : (typeof val === 'string' ? val.slice(0, 10) : '')
+      this.menu = false
+    },
     async fetchUserStatistics() {
       try {
         const userId = this.isCurrentUser ? this.currentUserId : this.userId
@@ -283,6 +252,13 @@ export default {
       await this.fetchOtherUserInfo() // Fetch another user's info via API
     }
     await this.fetchUserStatistics() // Fetch the statistics (common for both cases)
+
+    // 如果后端返回的是 ISO（带 T），初始化时裁成 'YYYY-MM-DD'，避免显示跨天
+    if (this.userInfo && this.userInfo.formattedBirthDate) {
+      this.userInfo.formattedBirthDate = normalizeDateString
+        ? normalizeDateString(this.userInfo.formattedBirthDate)
+        : (String(this.userInfo.formattedBirthDate).slice(0, 10))
+    }
   },
 }
 </script>

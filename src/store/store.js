@@ -3,6 +3,7 @@
 import { createStore } from 'vuex'
 import { apiClient } from '@/api' // Adjust the path to your api.js file
 import { startConnection, stopConnection } from '@/services/signalr-service'
+import { normalizeDateString, dateStrToIsoWithLocalOffset, dateStrToIsoZulu } from '@/utils/date'
 
 const store = createStore({
   state: {
@@ -274,37 +275,50 @@ const store = createStore({
       }
     },
     async updateUserInfo({ commit, state }, { formRef }) {
-      if (formRef.validate()) {
-        try {
-          const responseInfo = await apiClient.put(
-            '/users/UserInformation/Update',
-            {
-              selfIntroduction: state.userInfo.selfIntroduction,
-              gender: state.userInfo.gender,
-              birthDate: state.userInfo.formattedBirthDate,
-            }
-          )
+      if (!formRef || !formRef.validate?.()) return
 
-          let responseUserName
-          if (state.userInfo.userName !== state.userInfo.originalUsername) {
-            responseUserName = await apiClient.post(
-              '/users/UserInformation/ChangeUsername',
-              { newUsername: state.userInfo.userName }
-            )
-          }
+      try {
+        // 1) 规范化前端状态里的生日（确保是 'YYYY-MM-DD'）
+        const birthDateStr = normalizeDateString(state.userInfo.formattedBirthDate)
 
-          if (
-            responseInfo.status === 200 &&
-            (!responseUserName || responseUserName.status === 200)
-          ) {
-            alert('User information updated successfully')
-            commit('updateUserInfo', state.userInfo)
-            console.log('updated user info:', state.userInfo)
-          }
-        } catch (error) {
-          console.error('Error updating user info:', error)
-          // Handle the error appropriately
+        // 2) 生成提交给后端的 ISO —— 二选一：
+        //    (A) 推荐：带本地时区偏移（如 +09:00）
+        const birthDateIso = dateStrToIsoWithLocalOffset(birthDateStr)
+
+        //    (B) 如果后端必须 Z（UTC），改用：
+        // const birthDateIso = dateStrToIsoZulu(birthDateStr)
+
+        // 3) 组装 payload（注意把 birthDate 设置为 ISO）
+        const payload = {
+          selfIntroduction: state.userInfo.selfIntroduction,
+          gender: state.userInfo.gender,
+          birthDate: birthDateIso, // ← 后端要求 ISO（含时间）
         }
+
+        const responseInfo = await apiClient.put('/users/UserInformation/Update', payload)
+
+        let responseUserName
+        if (state.userInfo.userName !== state.userInfo.originalUsername) {
+          responseUserName = await apiClient.post(
+            '/users/UserInformation/ChangeUsername',
+            { newUsername: state.userInfo.userName }
+          )
+        }
+
+        if (responseInfo.status === 200 && (!responseUserName || responseUserName.status === 200)) {
+          alert('User information updated successfully')
+
+          // 4) 提交成功后，保持前端 state 里仍为 'YYYY-MM-DD'，不存 ISO，避免显示跨天
+          const newUserInfo = {
+            ...state.userInfo,
+            formattedBirthDate: birthDateStr,
+          }
+          commit('updateUserInfo', newUserInfo)
+          console.log('updated user info:', newUserInfo)
+        }
+      } catch (error) {
+        console.error('Error updating user info:', error)
+        // TODO: 你的错误提示
       }
     },
     async fetchAvatarUrl(_, userId) {

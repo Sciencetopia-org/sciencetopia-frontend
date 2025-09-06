@@ -2,13 +2,13 @@
   <div class="search-results-wrapper" ref="resultsWrapper">
     <div class="search-results">
       <v-tabs v-model="activeTab" grow>
-        <v-tab 
-          v-for="tab in tabs" 
-          :key="tab.value" 
+        <v-tab
+          v-for="tab in tabs"
+          :key="tab.value"
           :value="tab.value"
           :disabled="!results[tab.value]?.length"
         >
-          {{ tab.label }} ({{ results[tab.value]?.length || 0 }})
+          {{ $t(`search.tabs.${tab.value}`) }} ({{ results[tab.value]?.length || 0 }})
         </v-tab>
       </v-tabs>
 
@@ -26,11 +26,11 @@
               @click="$emit('result-click', result)"
             />
             <div class="pagination-controls">
-              <v-btn v-if="hasMore" @click="loadMore" text>Load More</v-btn>
+              <v-btn v-if="hasMore" @click="loadMore" text>{{ $t('search.loadMore') }}</v-btn>
             </div>
           </template>
           <div v-else class="no-results">
-            未找到匹配内容
+            {{ $t('search.noResults') }}
           </div>
         </v-window-item>
       </v-window>
@@ -51,7 +51,7 @@ export default {
       required: true,
       default: () => ({
         knowledge: [],
-        plan: [],
+        resources: [],
         group: []
       })
     },
@@ -67,9 +67,9 @@ export default {
     
     // 确保与 SearchBar.vue 中的类型一致
     const tabs = [
-      { value: 'knowledge', label: 'Knowledge Base' },
-      { value: 'plan', label: 'Study Plans' },
-      { value: 'group', label: 'Study Groups' }
+      { value: 'knowledge' },
+      { value: 'resources' },
+      { value: 'group' }
     ]
 
     const loadMore = () => {

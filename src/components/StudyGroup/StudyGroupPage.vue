@@ -33,7 +33,7 @@
                     @click="navigateToProfile(member.id)"
                   >
                     <v-avatar size="38">
-                      <img :src="member.avatarUrl" alt="用户头像" />
+                      <img :src="member.avatarUrl" :alt="$t('user.useravatar')" />
                     </v-avatar>
                   </v-btn>
                 </v-col>
@@ -365,7 +365,7 @@ export default {
     async confirmLeaveGroup() {
       // Validate the entered group name
       if (this.enteredGroupName !== this.group.name) {
-        this.$toast.error('小组名称不正确，请重新输入。')
+        this.$toast.error(this.$t('studygroup.errors.invalidGroupName'))
         return
       }
 
@@ -375,12 +375,12 @@ export default {
           userId: this.$store.state.currentUserID, // Replace with the actual user ID from the store
           groupId: this.groupId,
         })
-        this.$toast.success('已成功退出学习小组。')
+        this.$toast.success(this.$t('studygroup.success.leave'))
         this.leaveDialog = false // Close the dialog
         // Optionally redirect or update UI after leaving the group
       } catch (error) {
         console.error('Error leaving group:', error)
-        this.$toast.error('退出小组失败，请稍后再试。')
+        this.$toast.error(this.$t('studygroup.errors.leaveFailed'))
       }
     },
 
@@ -399,7 +399,7 @@ export default {
     async confirmDissolveGroup() {
       // Validate the entered group name
       if (this.enteredGroupName !== this.group.name) {
-        this.$toast.error('小组名称不正确，请重新输入。')
+        this.$toast.error(this.$t('studygroup.errors.invalidGroupName'))
         return
       }
 
@@ -409,12 +409,12 @@ export default {
           userId: this.$store.state.currentUserID, // Replace with the actual user ID from the store
           groupId: this.groupId,
         })
-        this.$toast.success('学习小组已成功解散。')
+        this.$toast.success(this.$t('studygroup.success.dissolved'))
         this.DissolveDialog = false // Close the dialog
         // Optionally redirect or update UI after dissolving the group
       } catch (error) {
         console.error('Error dissolving group:', error)
-        this.$toast.error('解散小组失败，请稍后再试。')
+        this.$toast.error(this.$t('studygroup.errors.dissolveFailed'))
       }
     },
 
