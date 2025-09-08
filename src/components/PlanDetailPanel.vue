@@ -97,7 +97,7 @@ export default {
     scope: { type: Object, default: () => ({ type: 'me' }) },
     allowEditControls: { type: Boolean, default: true },
   },
-  emits: ['select-lesson', 'open-share', 'updated-plan', 'open-progress'],
+  emits: ['select-lesson', 'open-share', 'updated-plan', 'open-progress', 'loaded'],
   data() {
     return {
       loading: false,
@@ -165,6 +165,7 @@ export default {
       } finally {
         // Ensure loading is cleared in error/empty-plan cases
         if (this.loading) this.loading = false
+        this.$emit('loaded')
       }
     },
     selectFirstUnfinishedLesson() {

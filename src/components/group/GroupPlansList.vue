@@ -46,7 +46,7 @@ import { apiClient } from '@/api'
 export default {
   name: 'GroupPlansList',
   props: { groupId: { type: [String, Number], required: true }, activePlanId: { type: [String, Number], default: null } },
-  emits: ['select'],
+  emits: ['select', 'loaded'],
   data() {
     return { items: [], loading: false, q: '' }
   },
@@ -69,7 +69,7 @@ export default {
         }))
       } catch (_) {
         this.items = []
-      } finally { this.loading = false }
+      } finally { this.loading = false; this.$emit('loaded') }
     },
   },
 }

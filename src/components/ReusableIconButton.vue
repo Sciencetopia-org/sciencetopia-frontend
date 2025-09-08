@@ -1,5 +1,5 @@
 <template>
-  <div class="icon-item" @click.prevent="handleClick" role="button" tabindex="0" @keydown.enter.prevent="handleClick"
+  <div class="icon-item" role="button" tabindex="0"
     :aria-label="computedLabel" :data-tooltip="computedLabel">
     <v-tooltip :text="computedLabel" location="right" open-delay="300">
       <template v-slot:activator="{ props }">
@@ -10,6 +10,8 @@
           variant="text"
           :disabled="disabled"
           :aria-label="computedLabel"
+          @click.stop="handleClick"
+          @keydown.enter.prevent="handleClick"
         >
           <v-icon :size="computedIconSize">{{ computedIcon }}</v-icon>
         </v-btn>
