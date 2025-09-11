@@ -1,9 +1,15 @@
 <template>
-  <div class="icon-item" role="button" tabindex="0" @keydown.enter.prevent="directMessages">
+  <div
+    class="icon-item message-alert-container"
+    :class="{ 'message-ring--active': messagesActive }"
+    role="button"
+    tabindex="0"
+    @keydown.enter.prevent="directMessages"
+  >
     <!-- 根据登录状态动态显示悬停提示 -->
     <v-tooltip v-if="!isAuthenticated" :text="$t('header.pleaselogin') + $t('header.toseemessage')" location="right" open-delay="300">
       <template v-slot:activator="{ props }">
-        <v-btn v-bind="props" class="icon-btn" variant="text">
+        <v-btn v-bind="props" class="icon-btn" variant="text" @click.stop="directMessages">
           <v-icon :size="iconSize">mdi-bell</v-icon>
           <div v-if="messageCount > 0" class="alert-badge">
             {{ messageCount > 99 ? '99+' : messageCount }}
@@ -28,7 +34,7 @@
       <template v-slot:activator="{ props: menuProps }">
         <v-tooltip location="right" open-delay="300" :text="$t('header.messages')">
           <template v-slot:activator="{ props: tooltipProps }">
-            <v-btn v-bind="{ ...tooltipProps, ...menuProps }" class="icon-btn" variant="text">
+            <v-btn v-bind="{ ...tooltipProps, ...menuProps }" class="icon-btn" variant="text" @click.stop="directMessages">
               <v-icon :size="iconSize">mdi-bell</v-icon>
               <div v-if="messageCount > 0" class="alert-badge">
                 {{ messageCount > 99 ? '99+' : messageCount }}
@@ -90,6 +96,10 @@ export default {
       return this.isSmallScreen !== null
         ? this.isSmallScreen
         : this.isSmallScreenLocal
+    },
+    messagesActive() {
+      const name = this.$route?.name
+      return name === 'directMessages' || name === 'notifications'
     },
   },
   watch: {
@@ -162,20 +172,53 @@ export default {
   aspect-ratio: 1 / 1;
 }
 
-.icon-btn:hover {
-  transform: scale(1.1);
-  background-color: #FAF6F0;
-}
+/* Ensure button scales when hovering container (including outer ring area) */
+.icon-btn:hover { transform: scale(1.1); }
+.message-alert-container:hover .icon-btn { transform: scale(1.1); }
 
 .icon-btn:active {
   transform: scale(0.95);
 }
 
-/* 选中高亮为浅色正圆 */
-.icon-btn--active {
-  background-color: #F1E9D7 !important;
-  border-radius: 50% !important;
+/* Outer ring halo outside the button */
+.message-alert-container {
+  position: relative;
+  /* Match ReusableIconButton outer ring diameter */
+  --outer-ring-size: 56px;
 }
+
+.message-alert-container .icon-btn { z-index: 1; }
+
+.message-alert-container::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--outer-ring-size);
+  height: var(--outer-ring-size);
+  transform: translate(-50%, -50%) scale(1);
+  border-radius: 50%;
+  background-color: transparent;
+  opacity: 0;
+  transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.message-alert-container:hover::before {
+  background-color: #FAF6F0;
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+.message-alert-container.message-ring--active::before { background-color: #F1E9D7; opacity: 1; }
+
+.message-alert-container :deep(.v-btn__overlay),
+.message-alert-container :deep(.v-btn__underlay) {
+  background-color: transparent !important;
+}
+
+/* 选中高亮为浅色正圆 */
+.icon-btn--active { background-color: transparent !important; }
 
 .icon-btn:disabled {
   cursor: not-allowed;
@@ -214,6 +257,7 @@ export default {
     width: 42px;
     height: 42px;
   }
+  .message-alert-container { --outer-ring-size: 50px; }
 }
 
 /* 小屏 */
@@ -222,5 +266,9 @@ export default {
     width: 36px;
     height: 36px;
   }
+  .message-alert-container { --outer-ring-size: 44px; }
 }
 </style>
+
+
+

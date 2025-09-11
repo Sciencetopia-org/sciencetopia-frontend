@@ -419,6 +419,7 @@
       "resource": "Knowledge Resource"
     },
     "nodetype_items": {
+      "Discipline": "Discipline",
       "Subject": "Subject",
       "Field": "Field",
       "Topic": "Topic",

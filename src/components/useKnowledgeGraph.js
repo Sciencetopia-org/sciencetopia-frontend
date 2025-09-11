@@ -52,6 +52,7 @@ export default function useKnowledgeGraph(endpoint) {
 
   function radiusFor(n) {
     const degree = isNaN(n.degree) ? 0 : n.degree
+    if (n.tagLevel === 'Discipline') return 16 + degree * 0.6
     if (n.tagLevel === 'Subject') return 12 + degree * 0.5
     if (n.tagLevel === 'Field') return 8 + degree * 0.4
     if (n.tagLevel === 'Topic') return 5 + degree * 0.2
@@ -281,6 +282,7 @@ export default function useKnowledgeGraph(endpoint) {
       .attr('stroke-width', strokeWidth)
       .attr('r', d => {
         const degree = isNaN(d.degree) ? 0 : d.degree
+        if (d.tagLevel === 'Discipline') return 16 + degree * 0.6
         if (d.tagLevel === 'Subject') return 12 + degree * 0.5
         if (d.tagLevel === 'Field') return 8 + degree * 0.4
         if (d.tagLevel === 'Topic') return 5 + degree * 0.2
@@ -301,9 +303,9 @@ export default function useKnowledgeGraph(endpoint) {
         // 变回鼠标
         d3.select(event.currentTarget).style('cursor', 'default')
         // 按缩放阈值隐藏标签（保留你原逻辑）
-        if (currentZoomLevel <= 0.6 && d.tagLevel !== 'Subject') {
+    if (currentZoomLevel <= 0.6 && !['Discipline','Subject'].includes(d.tagLevel)) {
           labels.filter(l => l.id === d.id).text('')
-        } else if (currentZoomLevel <= 1.5 && !['Subject', 'Field'].includes(d.tagLevel)) {
+        } else if (currentZoomLevel <= 1.5 && !['Discipline','Subject', 'Field'].includes(d.tagLevel)) {
           labels.filter(l => l.id === d.id).text('')
         } else if (currentZoomLevel <= 3.5 && d.tagLevel === 'Topic') {
           labels.filter(l => l.id === d.id).text('')
@@ -350,16 +352,16 @@ export default function useKnowledgeGraph(endpoint) {
     const keywordLabelThreshold = 3.5
 
     node.style('visibility', d => {
-      if (d.tagLevel === 'Subject') return 'visible'
+      if (d.tagLevel === 'Discipline' || d.tagLevel === 'Subject') return 'visible'
       else if (currentZoomLevel > fieldThreshold && d.tagLevel === 'Field') return 'visible'
       else if (currentZoomLevel > topicThreshold && d.tagLevel === 'Topic') return 'visible'
       return currentZoomLevel > keywordThreshold ? 'visible' : 'hidden'
     })
       .on('mouseout', function (event, d) {
         // 随缩放隐藏部分节点名称
-        if (currentZoomLevel <= fieldLabelThreshold && d.tagLevel !== 'Subject') {
+        if (currentZoomLevel <= fieldLabelThreshold && !['Discipline','Subject'].includes(d.tagLevel)) {
           labels.filter(l => l.id === d.id).text('')
-        } else if (currentZoomLevel <= topicLabelThreshold && !['Subject', 'Field'].includes(d.tagLevel)) {
+        } else if (currentZoomLevel <= topicLabelThreshold && !['Discipline','Subject', 'Field'].includes(d.tagLevel)) {
           labels.filter(l => l.id === d.id).text('')
         } else if (currentZoomLevel <= keywordLabelThreshold && d.tagLevel === 'Topic') {
           labels.filter(l => l.id === d.id).text('')
@@ -374,13 +376,13 @@ export default function useKnowledgeGraph(endpoint) {
       .style('stroke', labelStrokeColor)
       .style('stroke-width', 0.5 / currentZoomLevel)
       .text(d => {
-        if (d.tagLevel === 'Subject') return d.name
+        if (d.tagLevel === 'Discipline' || d.tagLevel === 'Subject') return d.name
         else if (currentZoomLevel > fieldLabelThreshold && d.tagLevel === 'Field') return d.name
         else if (currentZoomLevel > topicLabelThreshold && d.tagLevel === 'Topic') return d.name
         return currentZoomLevel > keywordLabelThreshold ? d.name : ''
       })
       .attr('alignment-baseline', 'ideographic')
-      .attr('dy', d => (d.tagLevel === 'Subject' || d.tagLevel === 'Field' || d.tagLevel === 'Topic') ? 0 : '-1.2em')
+      .attr('dy', d => (d.tagLevel === 'Discipline' || d.tagLevel === 'Subject' || d.tagLevel === 'Field' || d.tagLevel === 'Topic') ? 0 : '-1.2em')
 
     link.style('visibility', d => {
       // 注意：此处由于 simulation 会将 link.source 和 link.target 替换为节点对象，
@@ -388,11 +390,11 @@ export default function useKnowledgeGraph(endpoint) {
       if (!d.source || !d.target) return 'hidden'
       // 这里简单根据 zoom 级别调整链接显示，可按需调整
       if (currentZoomLevel <= fieldThreshold) {
-        return d.target.tagLevel === 'Subject' ? 'visible' : 'hidden'
+        return d.target.tagLevel === 'Discipline' ? 'visible' : 'hidden'
       } else if (currentZoomLevel <= topicThreshold) {
-        return ['Subject', 'Field'].includes(d.target.tagLevel) ? 'visible' : 'hidden'
+        return ['Discipline','Subject'].includes(d.target.tagLevel) ? 'visible' : 'hidden'
       } else if (currentZoomLevel <= keywordThreshold) {
-        return ['Subject', 'Field', 'Topic'].includes(d.target.tagLevel) ? 'visible' : 'hidden'
+        return ['Discipline','Subject', 'Field'].includes(d.target.tagLevel) ? 'visible' : 'hidden'
       } else {
         return 'visible'
       }
@@ -401,6 +403,7 @@ export default function useKnowledgeGraph(endpoint) {
 
   // 分配节点颜色，改为根据 d.tagLevel 判断
   const assignNodeColor = (d) => {
+    if (d.tagLevel === 'Discipline') return '#6D0E10'
     if (d.tagLevel === 'Subject') return '#AA1B1D'
     if (d.tagLevel === 'Field') return '#E75A2A'
     if (d.tagLevel === 'Topic') return '#DFCBA4'
@@ -576,7 +579,7 @@ export default function useKnowledgeGraph(endpoint) {
   }
 
   // ====== 配置 ======
-  const LEVELS = ['Subject', 'Field', 'Topic', 'Keyword']
+  const LEVELS = ['Discipline', 'Subject', 'Field', 'Topic', 'Keyword']
   const TARGET_LEVEL = 'Keyword'      // 预热到的最深层
   const MAX_CONCURRENCY = 2           // 同时跑几条请求
   const BATCH_SIZE = 25               // 每批带多少 parentId，避免一次太大
@@ -622,12 +625,13 @@ export default function useKnowledgeGraph(endpoint) {
   const loadedNodeIds = new Set()
   const loadedEdgeKeys = new Set()
   const loadedChildrenByParent = {
-    Subject: new Set(), Field: new Set(), Topic: new Set(), Keyword: new Set()
+    Discipline: new Set(), Subject: new Set(), Field: new Set(), Topic: new Set(), Keyword: new Set()
   }
   // —— 父子层级映射 ——（用来确定“下一层”与“合法父层”）
-  const NEXT_OF = { Subject: 'Field', Field: 'Topic', Topic: 'Keyword' }
+  const NEXT_OF = { Discipline: 'Subject', Subject: 'Field', Field: 'Topic', Topic: 'Keyword' }
   // 新增：允许的父层集合（可按需扩展）
   const ALLOWED_PARENTS = {
+    Subject: new Set(['Discipline']),
     Field: new Set(['Subject']),
     Topic: new Set(['Subject', 'Field']),
     Keyword: new Set(['Subject', 'Field', 'Topic']),   // ✅ 允许 Field 直接出发 Keyword
@@ -635,7 +639,7 @@ export default function useKnowledgeGraph(endpoint) {
 
   // —— 正在加载中的父节点（防止同父并发重复）——
   const loadingChildrenByParent = {
-    Subject: new Set(), Field: new Set(), Topic: new Set(), Keyword: new Set()
+    Discipline: new Set(), Subject: new Set(), Field: new Set(), Topic: new Set(), Keyword: new Set()
   }
 
   // —— 统一规范化边 —— 

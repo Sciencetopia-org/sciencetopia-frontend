@@ -165,3 +165,23 @@ if (useMocks) {
     return config
   })
 }
+
+// Attach current locale as `lang` query param to KnowledgeGraph GET requests
+apiClient.interceptors.request.use((config) => {
+  try {
+    const method = (config.method || 'get').toLowerCase()
+    if (method !== 'get') return config
+    const url = (config.url || '')
+    // Skip static mock files
+    if (url.startsWith('/mock/')) return config
+    // Apply to KnowledgeGraph-related endpoints
+    if (/^\/KnowledgeGraph(\/|$)/i.test(url)) {
+      let locale = 'zh'
+      try { locale = localStorage.getItem('locale') || 'zh' } catch (_) {}
+      config.params = { ...(config.params || {}), lang: locale }
+    }
+  } catch (_) {
+    // no-op
+  }
+  return config
+})

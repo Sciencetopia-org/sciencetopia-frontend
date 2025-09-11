@@ -81,8 +81,13 @@
                       prepend-icon="mdi-calendar" readonly :model-value="userInfo.formattedBirthDate || ''" />
                   </template>
 
-                  <v-date-picker v-model="userInfo.formattedBirthDate" :max="today" show-adjacent-months scrollable
-                    @update:modelValue="onPickBirthDate" />
+                  <v-date-picker
+                    :model-value="userInfo.formattedBirthDate ? new Date(userInfo.formattedBirthDate) : null"
+                    :max="new Date()"
+                    show-adjacent-months
+                    scrollable
+                    @update:modelValue="onPickBirthDate"
+                  />
                 </v-menu>
                 <v-textarea variant="outlined" :label="$t('userprofile.aboutme')"
                   v-model="userInfo.selfIntroduction"></v-textarea>

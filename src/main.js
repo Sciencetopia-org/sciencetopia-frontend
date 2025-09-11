@@ -21,7 +21,25 @@ import '@mdi/font/css/materialdesignicons.css'
 // Load shared panel styles after Vuetify to win specificity
 import './assets/css/panels.css'
 
+// Map vue-i18n locale to Vuetify's built-in locale keys
+// Vuetify expects locales like 'en' and 'zhHans'
+let initialI18nLocale = 'zh'
+try {
+  initialI18nLocale = (i18n.global?.locale?.value) || i18n.global?.locale || 'zh'
+} catch (_) {}
+
+// Lazily import Vuetify locale messages to avoid bundling issues
+// Note: keep imports below createApp to ensure tree-shaking works well
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { en, zhHans } from 'vuetify/locale'
+
+const initialVuetifyLocale = initialI18nLocale === 'zh' ? 'zhHans' : 'en'
+
 const vuetify = createVuetify({
+  locale: {
+    locale: initialVuetifyLocale,
+    messages: { en, zhHans },
+  },
   icons: {
     iconfont: 'mdi',
   },
@@ -88,10 +106,10 @@ app.use(store)
 app.use(vuetify)
 app.use(i18n)
 
-// Sync Vuetify locale with i18n on startup
-try {
-  const initial = (i18n.global?.locale?.value) || i18n.global?.locale || 'zh'
-  vuetify.locale.current = initial
-} catch (_) {}
+// Bridge for Options API code that accesses `this.$i18n`
+app.config.globalProperties.$i18n = i18n.global
+
+// If you later change i18n locale at runtime, also update Vuetify:
+// e.g., i18n.global.locale = 'en'; vuetify.locale.current = 'en'
 
 app.mount('#app')

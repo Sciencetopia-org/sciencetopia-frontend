@@ -279,7 +279,17 @@ const store = createStore({
 
       try {
         // 1) 规范化前端状态里的生日（确保是 'YYYY-MM-DD'）
-        const birthDateStr = normalizeDateString(state.userInfo.formattedBirthDate)
+        const birthDateStr = normalizeDateString(
+          state.userInfo.formattedBirthDate ||
+          state.userInfo.FormattedBirthDate ||
+          state.userInfo.birth ||
+          state.userInfo.Birth ||
+          null
+        )
+        if (!birthDateStr) {
+          alert('Please select a valid date of birth before saving.')
+          return
+        }
 
         // 2) 生成提交给后端的 ISO —— 二选一：
         //    (A) 推荐：带本地时区偏移（如 +09:00）

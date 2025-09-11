@@ -26,7 +26,7 @@
         <MessageAlert :is-small-screen="isSmallScreen" :icon-size="iconSize" />
 
         <!-- 明/暗模式切换 -->
-        <ReusableIconButton :icon="themeIcon" :label="themeLabel" :iconSize="iconSize" @click="toggleTheme" />
+        <!-- <ReusableIconButton :icon="themeIcon" :label="themeLabel" :iconSize="iconSize" @click="toggleTheme" /> -->
 
         <!-- 语言切换栏 -->
         <v-btn class="language-toggle" variant="text" @click="toggleLanguage" :aria-label="$t('header.languageSwitch')">
@@ -69,6 +69,7 @@ import { eventBus } from '@/eventBus'
 
 export default {
   name: 'HeaderBar',
+  emits: ['showStudyPlanDialog'],
   components: {
     MessageAlert,
     LogInPartial,
@@ -195,7 +196,9 @@ export default {
       const nextIndex = (currentIndex + 1) % this.languageOptions.length
       const next = this.languageOptions[nextIndex].value
       this.$i18n.locale = next
-      this.$vuetify.locale.current = next
+      // Map app locale to Vuetify built-in locale keys
+      const vLocale = next === 'zh' ? 'zhHans' : 'en'
+      try { this.$vuetify.locale.current = vLocale } catch (_) {}
       try { localStorage.setItem('locale', next) } catch (_) {}
     },
     measureLangTextWidth() {

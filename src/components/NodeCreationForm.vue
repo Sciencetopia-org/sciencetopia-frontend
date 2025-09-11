@@ -88,6 +88,7 @@ export default {
 
     // Define static node types
     const nodeTypes = [
+      { text: 'Discipline', value: 'Discipline' },
       { text: 'Subject', value: 'Subject' },
       { text: 'Field', value: 'Field' },
       { text: 'Topic', value: 'Topic' },

@@ -6,18 +6,31 @@ import configPrettier from 'eslint-config-prettier'
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
-  { files: ['**/*.{js,mjs,cjs,vue}'] },
-  { languageOptions: { globals: globals.browser } },
-  pluginJs.configs.recommended,
-  ...pluginVue.configs['flat/essential'],
   {
-    rules: {
-      ...pluginPrettier.configs.recommended.rules,
-      'prettier/prettier': 'error', // Ensure Prettier rules are enforced
+    files: ['**/*.{js,mjs,cjs,vue}'],
+    languageOptions: {
+      globals: globals.browser, // Ensures browser globals are available
     },
     plugins: {
-      prettier: pluginPrettier, // Use the plugin as an object
+      prettier: pluginPrettier, // Register Prettier plugin
+    },
+    extends: [
+      pluginJs.configs.recommended, // ESLint JS plugin recommended rules
+      ...pluginVue.configs['flat/essential'], // Vue plugin recommended rules
+      configPrettier, // Disable formatting-related ESLint rules that conflict with Prettier
+    ],
+    rules: {
+      'prettier/prettier': [
+        'error',
+        {
+          singleQuote: true,
+          semi: false,
+          trailingComma: 'es5',
+          tabWidth: 2,
+          useTabs: false,
+          printWidth: 80,
+        },
+      ], // Ensure Prettier formatting is enforced with your custom config
     },
   },
-  configPrettier,
 ]

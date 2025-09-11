@@ -472,6 +472,7 @@
       "resource": "知识资源"
     },
     "nodetype_items": {
+      "Discipline": "学科门类",
       "Subject": "学科",
       "Field": "领域",
       "Topic": "主题",

@@ -1,5 +1,8 @@
 <template>
-  <div class="avatar-container icon-item">
+  <div
+    class="avatar-container icon-item"
+    :class="{ 'avatar-ring--active': avatarActive || loginActive }"
+  >
     <!-- 已登录状态 -->
     <div v-if="isAuthenticated" class="icon-item">
       <v-menu
@@ -13,9 +16,14 @@
         :close-delay="150"
       >
         <template #activator="{ props }">
-          <v-btn v-bind="props" variant="text" class="icon-btn default-avatar avatar-hover"
+          <v-btn
+            v-bind="props"
+            variant="text"
+            class="icon-btn default-avatar avatar-hover"
             :class="{ 'icon-btn--active': avatarActive }"
-            :style="{ width: iconSize + 'px', height: iconSize + 'px' }" @click="personalcenter">
+            :style="{ width: (iconSize + 2) + 'px', height: (iconSize + 2) + 'px' }"
+            @click="personalcenter"
+          >
             <v-avatar :size="iconSize">
               <img :src="avatarUrl" :alt="$t('user.useravatar')" />
             </v-avatar>
@@ -53,8 +61,12 @@
       <v-tooltip :text="$t('header.login')" location="right" open-delay="300">
         <template v-slot:activator="slotProps">
           <!-- 默认头像按钮，点击跳转到登录 -->
-          <v-btn v-bind="slotProps.props" variant="text" class="icon-btn default-avatar avatar-container-fix"
-            @click="login">
+          <v-btn
+            v-bind="slotProps.props"
+            variant="text"
+            class="icon-btn default-avatar avatar-container-fix"
+            @click="login"
+          >
             <v-avatar :size="iconSize" class="avatar-circle">
               <img src="../assets/images/avatar.svg" alt="avatar" class="avatar-image" />
             </v-avatar>
@@ -95,6 +107,10 @@ export default {
     avatarActive() {
       const name = this.$route?.name
       return name === 'personalcenter' || name === 'accountcenter'
+    },
+    loginActive() {
+      const name = this.$route?.name
+      return name === 'login' || name === 'register'
     },
   },
   methods: {
@@ -162,25 +178,58 @@ export default {
 
 /* 统一头像按钮大小，并确保在鼠标悬浮时有类似放大效果 */
 .icon-btn {
-  width: 48px !important;
-  height: 48px !important;
-  min-width: 48px !important;
+  /* Make button 2px larger than v-avatar (iconSize) */
+  width: v-bind(iconSize + 2 + 'px') !important;
+  height: v-bind(iconSize + 2 + 'px') !important;
+  min-width: v-bind(iconSize + 2 + 'px') !important;
   border-radius: 50%;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: transparent;
+  position: relative;
+  z-index: 1;
 }
 
-.icon-btn:hover {
-  transform: scale(1.1);
-  background-color: #FAF6F0;
-}
+/* Ensure button scales when hovering container (including outer ring area) */
+.icon-btn:hover { transform: scale(1.1); }
+.avatar-container:hover .icon-btn { transform: scale(1.1); }
 
 .icon-btn:active {
   transform: scale(0.95);
 }
+
+/* Outer ring halo (larger than avatar/button) placed on container to be outside */
+.avatar-container {
+  position: relative;
+}
+
+.avatar-container::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--outer-ring-size, 48px);
+  height: var(--outer-ring-size, 48px);
+  transform: translate(-50%, -50%) scale(1);
+  border-radius: 50%;
+  background-color: transparent;
+  opacity: 0;
+  transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Hover ring color */
+.avatar-container:hover::before {
+  background-color: #FAF6F0;
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+/* Active (selected) ring color */
+.avatar-container.avatar-ring--active::before { background-color: #F1E9D7 !important; opacity: 1; }
 
 /* 悬浮弹出卡片样式 */
 .avatar-hover-container {
@@ -256,19 +305,20 @@ export default {
 
 /* 中屏 */
 @media (max-width: 1200px) {
-  .icon-btn {
-    width: 42px;
-    height: 42px;
+  .avatar-container {
+    --outer-ring-size: 42px;
   }
 }
 
 /* 小屏 */
 @media (max-width: 800px) {
-  .icon-btn {
-    width: 36px;
-    height: 36px;
+  .avatar-container {
+    --outer-ring-size: 36px;
   }
 }
+
+/* Default outer ring size to match other header buttons */
+.avatar-container { --outer-ring-size: 48px; }
 
 /* 确保头像为正圆形 */
 .avatar-circle {
@@ -309,13 +359,14 @@ export default {
 
 /* 专门修复未登录状态下头像椭圆形问题 */
 .avatar-container-fix {
-  width: v-bind(iconSize + 'px') !important;
-  height: v-bind(iconSize + 'px') !important;
+  /* Button container 2px larger than avatar */
+  width: v-bind(iconSize + 2 + 'px') !important;
+  height: v-bind(iconSize + 2 + 'px') !important;
   border-radius: 50% !important;
-  min-width: v-bind(iconSize + 'px') !important;
-  max-width: v-bind(iconSize + 'px') !important;
-  min-height: v-bind(iconSize + 'px') !important;
-  max-height: v-bind(iconSize + 'px') !important;
+  min-width: v-bind(iconSize + 2 + 'px') !important;
+  max-width: v-bind(iconSize + 2 + 'px') !important;
+  min-height: v-bind(iconSize + 2 + 'px') !important;
+  max-height: v-bind(iconSize + 2 + 'px') !important;
   padding: 0 !important;
   margin: 0 !important;
   overflow: hidden !important;
