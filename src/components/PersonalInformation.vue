@@ -3,54 +3,71 @@
     <!-- Display Mode -->
     <div v-if="!isEditMode">
       <v-container>
-        <div align="center">
-          <v-btn :disabled="true" icon="dots-vertical" class="default-avatar profile-avatar" size="200">
-            <v-avatar size="196">
-              <img :src="avatarUrl" alt="Avatar" />
-            </v-avatar>
-          </v-btn>
-        </div>
-        <v-card class="st-card profile-card">
-          <div>
-            <div class="profile-title">
-              <v-card-title class="username">{{
-                userInfo.userName
-              }}</v-card-title>
-              <!-- Show edit button only if it's the current user's profile -->
-              <v-btn v-if="isCurrentUser" icon variant="text" @click="enterEditMode">✏️</v-btn>
-              <slot v-if="!isCurrentUser"></slot>
-            </div>
-            <div class="profile-text">
-              <p>
-                {{ $t('userprofile.gender') }}{{ $t(':') }}{{ userInfo.gender }}
-              </p>
-              <p>
-                {{ $t('userprofile.dateofbirth') }}{{ $t(':')
-                }}{{ userInfo.formattedBirthDate }}
-              </p>
-              <p>
-                {{ $t('userprofile.aboutme') }}{{ $t(':')
-                }}{{ userInfo.selfIntroduction }}
-              </p>
-              <v-divider class="border-opacity-0"></v-divider>
-              <p>
-                {{
-                  $t('userprofile.completedStudyPlanCountmsg', {
-                    completedStudyPlanCount,
-                  })
-                }}
-              </p>
-              <p>
-                {{
-                  $t('userprofile.contributeNodemsg', {
-                    contributedNodeCount,
-                    contributedLinkCount,
-                  })
-                }}
-              </p>
-            </div>
+        <template v-if="loadingInfo">
+          <div align="center" class="mb-4">
+            <v-skeleton-loader type="image" style="width:196px; height:196px; border-radius: 50%" />
           </div>
-        </v-card>
+          <v-card class="st-card profile-card">
+            <div class="pa-2">
+              <v-skeleton-loader type="heading" class="mb-2" />
+              <v-skeleton-loader type="text" class="mb-1" />
+              <v-skeleton-loader type="text" class="mb-1" />
+              <v-skeleton-loader type="text" class="mb-4" />
+              <v-skeleton-loader type="text" class="mb-1" />
+              <v-skeleton-loader type="text" />
+            </div>
+          </v-card>
+        </template>
+        <template v-else>
+          <div align="center">
+            <v-btn :disabled="true" icon="dots-vertical" class="default-avatar profile-avatar" size="200">
+              <v-avatar size="196">
+                <img :src="avatarUrl" alt="Avatar" />
+              </v-avatar>
+            </v-btn>
+          </div>
+          <v-card class="st-card profile-card">
+            <div>
+              <div class="profile-title">
+                <v-card-title class="username">{{
+                  userInfo.userName
+                }}</v-card-title>
+                <!-- Show edit button only if it's the current user's profile -->
+                <v-btn v-if="isCurrentUser" icon variant="text" @click="enterEditMode">✏️</v-btn>
+                <slot v-if="!isCurrentUser"></slot>
+              </div>
+              <div class="profile-text">
+                <p>
+                  {{ $t('userprofile.gender') }}{{ $t(':') }}{{ userInfo.gender }}
+                </p>
+                <p>
+                  {{ $t('userprofile.dateofbirth') }}{{ $t(':')
+                  }}{{ userInfo.formattedBirthDate }}
+                </p>
+                <p>
+                  {{ $t('userprofile.aboutme') }}{{ $t(':')
+                  }}{{ userInfo.selfIntroduction }}
+                </p>
+                <v-divider class="border-opacity-0"></v-divider>
+                <p>
+                  {{
+                    $t('userprofile.completedStudyPlanCountmsg', {
+                      completedStudyPlanCount,
+                    })
+                  }}
+                </p>
+                <p>
+                  {{
+                    $t('userprofile.contributeNodemsg', {
+                      contributedNodeCount,
+                      contributedLinkCount,
+                    })
+                  }}
+                </p>
+              </div>
+            </div>
+          </v-card>
+        </template>
       </v-container>
     </div>
 
@@ -97,7 +114,10 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="primary" :disabled="!valid" @click="updateUserInfo({ formRef: $refs.form })">{{
+          <v-btn color="primary"
+                 :loading="saving"
+                 :disabled="!valid || saving"
+                 @click="onSaveClick">{{
             $t('save')
           }}</v-btn>
           <v-btn color="grey" @click="exitEditMode">{{ $t('cancel') }}</v-btn>
@@ -124,6 +144,8 @@ export default {
     return {
       valid: true,
       isEditMode: false,
+      loadingInfo: true,
+      saving: false,
       usernameRules: [
         (v) => !!v || 'Username is required',
         (v) =>
@@ -156,6 +178,22 @@ export default {
   },
   methods: {
     ...mapActions(['fetchUserInfo', 'updateUserInfo']),
+    async onSaveClick() {
+      if (this.saving) return
+      this.saving = true
+      try {
+        const result = await this.updateUserInfo({ formRef: this.$refs.form })
+        if (result && result.ok) {
+          alert('User information updated successfully')
+          // Refresh store and local snapshot, then exit edit mode
+          await this.fetchUserInfo()
+          this.userInfo = { ...this.currentUserInfo }
+          this.exitEditMode()
+        }
+      } finally {
+        this.saving = false
+      }
+    },
     onPickBirthDate(val) {
       // v-date-picker(v3) 通常已给 'YYYY-MM-DD'，这里再保险规整一下：
       this.userInfo.formattedBirthDate = normalizeDateString
@@ -250,19 +288,24 @@ export default {
     },
   },
   async mounted() {
-    if (this.isCurrentUser) {
-      await this.fetchUserInfo() // Use Vuex to fetch the current user's info
-      this.userInfo = this.currentUserInfo // Set the userInfo to the current user's info
-    } else {
-      await this.fetchOtherUserInfo() // Fetch another user's info via API
-    }
-    await this.fetchUserStatistics() // Fetch the statistics (common for both cases)
+    try {
+      this.loadingInfo = true
+      if (this.isCurrentUser) {
+        await this.fetchUserInfo() // Use Vuex to fetch the current user's info
+        this.userInfo = this.currentUserInfo // Set the userInfo to the current user's info
+      } else {
+        await this.fetchOtherUserInfo() // Fetch another user's info via API
+      }
+      await this.fetchUserStatistics() // Fetch the statistics (common for both cases)
 
-    // 如果后端返回的是 ISO（带 T），初始化时裁成 'YYYY-MM-DD'，避免显示跨天
-    if (this.userInfo && this.userInfo.formattedBirthDate) {
-      this.userInfo.formattedBirthDate = normalizeDateString
-        ? normalizeDateString(this.userInfo.formattedBirthDate)
-        : (String(this.userInfo.formattedBirthDate).slice(0, 10))
+      // 如果后端返回的是 ISO（带 T），初始化时裁成 'YYYY-MM-DD'，避免显示跨天
+      if (this.userInfo && this.userInfo.formattedBirthDate) {
+        this.userInfo.formattedBirthDate = normalizeDateString
+          ? normalizeDateString(this.userInfo.formattedBirthDate)
+          : (String(this.userInfo.formattedBirthDate).slice(0, 10))
+      }
+    } finally {
+      this.loadingInfo = false
     }
   },
 }

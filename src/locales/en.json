@@ -106,7 +106,10 @@
     "tags": "Tags",
     "tag": "Tag",
     "searchTagsPlaceholder": "Search tags…",
-    "filterSelectedAria": "Filter by selected tags"
+    "filterSelectedAria": "Filter by selected tags",
+    "emptyGraph": "No knowledge nodes found for the current filters. Try selecting other tags or tag structures.",
+    "emptyGraphStructure": "No knowledge nodes found under \"{name}\". Try another tag structure or add filters.",
+    "emptyGraphFilter": "No knowledge nodes match the selected tags. Try adjusting your filters."
   },
   "contactPage": {
     "title": "Contact Us",
@@ -287,7 +290,7 @@
     "groupinfo": "Group Info",
     "grouptrend": "Group Trend",
     "grouptrenddefault": "A space for group members to share their trending thoughts",
-    "studypath": "Study Path",
+    "studypath": "Study Path Shared by Group",
     "studypathdefault": "A space for group members to share their study path",
     "studygroupspace": "Group Space",
     "managerboard": "Manager Board",
@@ -396,6 +399,8 @@
     "reset": "Reset",
     "locateto": "Locate To",
     "fullscreen": "Fullscreen",
+    "showPanel": "Show node panel",
+    "hidePanel": "Hide node panel",
     "createnode": "Create Node",
     "createlink": "Create Link",
     "submitnode": "Submit Node Creation",

@@ -3,13 +3,43 @@
 import { createStore } from 'vuex'
 import { apiClient } from '@/api' // Adjust the path to your api.js file
 import { startConnection, stopConnection } from '@/services/signalr-service'
-import { normalizeDateString, dateStrToIsoWithLocalOffset, dateStrToIsoZulu } from '@/utils/date'
+import { normalizeDateString, dateStrToIsoWithLocalOffset } from '@/utils/date'
+
+function loadStoredUserId() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  try {
+    const stored = window.localStorage.getItem('currentUserID')
+    return stored && stored !== 'null' && stored !== 'undefined' ? stored : null
+  } catch (_) {
+    return null
+  }
+}
+
+function safeSetLocalStorage(key, value) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(key, value)
+  } catch (err) {
+    console.warn(`Failed to write ${key} to localStorage`, err)
+  }
+}
+
+function safeRemoveLocalStorage(key) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(key)
+  } catch (err) {
+    console.warn(`Failed to remove ${key} from localStorage`, err)
+  }
+}
 
 const store = createStore({
   state: {
     isAuthenticated: false,
     avatarUrl: '头像URL',
-    currentUserID: null,
+    currentUserID: loadStoredUserId(),
     userInfo: {
       userName: '',
       email: '',
@@ -86,10 +116,16 @@ const store = createStore({
       state.isAuthenticated = value
     },
     SET_CURRENT_USER_ID(state, userId) {
-      state.currentUserID = userId
+      state.currentUserID = userId ?? null
+      if (userId) {
+        safeSetLocalStorage('currentUserID', userId)
+      } else {
+        safeRemoveLocalStorage('currentUserID')
+      }
     },
     RESET_CURRENT_USER_ID(state) {
       state.currentUserID = null
+      safeRemoveLocalStorage('currentUserID')
     },
     SET_AVATAR_URL(state, value) {
       state.avatarUrl = value
@@ -268,7 +304,9 @@ const store = createStore({
         const response = await apiClient.get(
           '/users/UserInformation/GetUserInfo'
         )
-        commit('setUserInfo', response.data)
+        const data = response?.data || {}
+        // Preserve a baseline username for later comparison
+        commit('setUserInfo', { ...data, originalUsername: data.userName ?? '' })
       } catch (error) {
         console.error('Error fetching user info:', error)
         // Handle the error appropriately
@@ -308,27 +346,58 @@ const store = createStore({
         const responseInfo = await apiClient.put('/users/UserInformation/Update', payload)
 
         let responseUserName
-        if (state.userInfo.userName !== state.userInfo.originalUsername) {
-          responseUserName = await apiClient.post(
-            '/users/UserInformation/ChangeUsername',
-            { newUsername: state.userInfo.userName }
-          )
+        const desiredUserName = (state.userInfo.userName || '').trim()
+        const originalUserName = state.userInfo.originalUsername || ''
+
+        if (desiredUserName && desiredUserName !== originalUserName) {
+          try {
+            responseUserName = await apiClient.post(
+              '/users/UserInformation/ChangeUsername',
+              { newUsername: desiredUserName }
+            )
+          } catch (err) {
+            // Show server message (e.g., 90-day cooldown) while preserving other updates
+            const msg = err?.response?.data || err?.message || 'Failed to change username.'
+            alert(typeof msg === 'string' ? msg : 'Failed to change username.')
+
+            // Persist other profile updates and revert username field to original
+            const partialInfo = {
+              ...state.userInfo,
+              formattedBirthDate: birthDateStr,
+              userName: originalUserName,
+            }
+            commit('updateUserInfo', partialInfo)
+            return { ok: true, usernameChanged: false, message: msg }
+          }
         }
 
         if (responseInfo.status === 200 && (!responseUserName || responseUserName.status === 200)) {
-          alert('User information updated successfully')
-
           // 4) 提交成功后，保持前端 state 里仍为 'YYYY-MM-DD'，不存 ISO，避免显示跨天
           const newUserInfo = {
             ...state.userInfo,
             formattedBirthDate: birthDateStr,
           }
+          // 如果用户名修改成功，更新 originalUsername，避免后续重复触发改名请求
+          if (responseUserName?.status === 200) {
+            newUserInfo.originalUsername = desiredUserName
+          }
           commit('updateUserInfo', newUserInfo)
           console.log('updated user info:', newUserInfo)
+          return { ok: true, usernameChanged: !!responseUserName }
         }
       } catch (error) {
         console.error('Error updating user info:', error)
-        // TODO: 你的错误提示
+        const data = error?.response?.data
+        if (typeof data === 'string') {
+          alert(data)
+        } else if (Array.isArray(data)) {
+          // Identity errors array
+          const msg = data.map(e => e?.description || e).join('\n')
+          alert(msg || 'Failed to update user information.')
+        } else {
+          alert(error?.message || 'Failed to update user information.')
+        }
+        return { ok: false }
       }
     },
     async fetchAvatarUrl(_, userId) {

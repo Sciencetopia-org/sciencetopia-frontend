@@ -48,7 +48,12 @@
                     'mr-2': isMyMessage(message),
                   }"
                 >
-                  {{ message.content }}
+                  <template v-if="isImageMessage(message.content)">
+                    <img :src="imageSrc(message.content)" alt="image" class="msg-image" />
+                  </template>
+                  <template v-else>
+                    <div v-html="sanitize(message.content)"></div>
+                  </template>
                 </div>
                 <v-avatar
                   v-if="shouldShowAvatar(group.messages, index)"
@@ -119,6 +124,32 @@ export default {
 
     isMyMessage(message) {
       return message.sender.id === this.userId
+    },
+    isImageMessage(content) {
+      if (!content || typeof content !== 'string') return false
+      if (content.startsWith('data:image/')) return true
+      return /^(https?:)\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(content)
+    },
+    imageSrc(content) {
+      return String(content)
+    },
+    sanitize(html) {
+      if (!html) return ''
+      try {
+        const div = document.createElement('div')
+        div.innerHTML = String(html)
+        div.querySelectorAll('script,style,iframe,object,embed,link').forEach(n => n.remove())
+        div.querySelectorAll('*').forEach(el => {
+          ;[...el.attributes].forEach(attr => {
+            const name = attr.name.toLowerCase()
+            const value = String(attr.value || '')
+            if (name.startsWith('on') || value.replace(/\s/g,'').toLowerCase().startsWith('javascript:')) {
+              el.removeAttribute(attr.name)
+            }
+          })
+        })
+        return div.innerHTML
+      } catch (_) { return '' }
     },
     shouldShowAvatar(messages, index) {
       // 如果是第一条消息，始终显示头像
@@ -260,5 +291,12 @@ export default {
   color: gray;
   text-align: center;
   margin-top: 5px;
+}
+
+.msg-image {
+  max-width: 320px;
+  max-height: 280px;
+  border-radius: 8px;
+  display: block;
 }
 </style>

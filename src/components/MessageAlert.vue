@@ -113,17 +113,17 @@ export default {
     login() {
       this.$router.push({ name: 'login' })
     },
-    directMessages() {
-      if (!this.isAuthenticated) {
-        alert(this.$t('header.pleaselogin') + this.$t('header.toseemessage'))
-      } else {
-        const userId = this.$store.state.currentUserID
-        this.closeMenuForNavigation()
-        this.$router.push({ name: 'directMessages', params: { userId } })
-      }
+    async directMessages() {
+      const userId = await this.ensureUserId()
+      if (!userId) return
+
+      this.closeMenuForNavigation()
+      this.$router.push({ name: 'directMessages', params: { userId } })
     },
-    notifications() {
-      const userId = this.$store.state.currentUserID
+    async notifications() {
+      const userId = await this.ensureUserId()
+      if (!userId) return
+
       this.closeMenuForNavigation()
       this.$router.push({ name: 'notifications', params: { userId } })
     },
@@ -137,6 +137,26 @@ export default {
     },
     onMenuMouseEnter() { this.menuOpen = true },
     onMenuMouseLeave() { this.menuOpen = false },
+    async ensureUserId() {
+      let userId = this.$store.state.currentUserID
+
+      if (!userId) {
+        try {
+          await this.$store.dispatch('checkAuthenticationStatus')
+        } catch (err) {
+          console.error('Failed to refresh authentication status before navigation', err)
+        }
+        userId = this.$store.state.currentUserID
+      }
+
+      const isAuthenticated = this.$store.state.isAuthenticated
+      if (!isAuthenticated || !userId) {
+        alert(this.$t('header.pleaselogin') + this.$t('header.toseemessage'))
+        return null
+      }
+
+      return userId
+    },
   },
   mounted() {
     // 监听窗口大小变化
@@ -184,7 +204,7 @@ export default {
 .message-alert-container {
   position: relative;
   /* Match ReusableIconButton outer ring diameter */
-  --outer-ring-size: 56px;
+  --outer-ring-size: 48px;
 }
 
 .message-alert-container .icon-btn { z-index: 1; }
@@ -218,7 +238,7 @@ export default {
 }
 
 /* 选中高亮为浅色正圆 */
-.icon-btn--active { background-color: transparent !important; }
+.icon-btn--active { background-color: transparent !important; transform: scale(0.95); }
 
 .icon-btn:disabled {
   cursor: not-allowed;
@@ -269,6 +289,5 @@ export default {
   .message-alert-container { --outer-ring-size: 44px; }
 }
 </style>
-
 
 

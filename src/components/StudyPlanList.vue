@@ -11,24 +11,59 @@
 
     <v-row>
       <v-col
-        v-for="studyPlan in studyPlanDataList"
-        :key="studyPlan.studyPlan.id"
+        v-for="sp in plans"
+        :key="sp.studyPlan.id"
         cols="12"
       >
-        <v-card class="study-plan-summary" @click="goToPlanDetail(studyPlan.studyPlan.id)">
+        <v-card class="study-plan-summary" @click="goToPlanDetail(sp.studyPlan.id)">
           <v-row align="center">
             <v-col cols="9" class="d-flex align-center">
-              <v-card-title class="pr-2">{{ studyPlan.studyPlan.title }}</v-card-title>
-              <v-chip v-if="(studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole)" size="x-small" label>
-                {{ studyPlan.effectiveRole || studyPlan.studyPlan?.effectiveRole }}
+              <v-card-title class="pr-2">{{ sp.studyPlan.title }}</v-card-title>
+              <v-chip v-if="(sp.effectiveRole || sp.studyPlan?.effectiveRole)" size="x-small" label>
+                {{ sp.effectiveRole || sp.studyPlan?.effectiveRole }}
               </v-chip>
             </v-col>
             <v-col cols="3" class="d-flex justify-end">
-              <v-btn variant="plain" icon @click.stop="goToPlanDetail(studyPlan.studyPlan.id)">
+              <v-btn variant="plain" icon @click.stop="goToPlanDetail(sp.studyPlan.id)">
                 <div class="go-to-icon"></div>
               </v-btn>
             </v-col>
           </v-row>
+          <!-- Progress bars (match StudyPlanWorkspace left list) -->
+          <div class="px-2 pb-2">
+            <v-tooltip :text="`学习进度：${Math.round(sp.studyPlan.progress || 0)} %`" location="right" open-delay="300">
+              <template #activator="{ props }">
+                <template v-if="progressLoading[sp.studyPlan.id]">
+                  <v-skeleton-loader type="text" class="mt-2" style="height:6px" />
+                </template>
+                <v-progress-linear
+                  v-else-if="sp.studyPlan.progress !== undefined"
+                  v-bind="props"
+                  :model-value="sp.studyPlan.progress"
+                  height="6"
+                  color="primary"
+                  rounded
+                  class="mt-2"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip :text="`额外学习了${Math.round(sp.studyPlan.advancedProgress || 0)} %的进阶内容`" location="right" open-delay="300">
+              <template #activator="{ props }">
+                <template v-if="progressLoading[sp.studyPlan.id]">
+                  <v-skeleton-loader type="text" class="mt-1" style="height:6px" />
+                </template>
+                <v-progress-linear
+                  v-else-if="sp.studyPlan.advancedProgress > 0"
+                  v-bind="props"
+                  :model-value="sp.studyPlan.advancedProgress"
+                  height="6"
+                  color="accent"
+                  rounded
+                  class="mt-1"
+                />
+              </template>
+            </v-tooltip>
+          </div>
         </v-card>
       </v-col>
     </v-row>
@@ -45,23 +80,70 @@
 </template>
 
 <script>
+import { apiClient } from '@/api'
+
 export default {
   data() {
     return {
-      // simplified list view; progress/completion not shown in lightweight mode
+      plans: [],
+      progressLoading: {},
     }
   },
   props: {
     isCurrentUser: Boolean,
     studyPlanDataList: Array,
   },
-  computed: {},
+  watch: {
+    studyPlanDataList: {
+      immediate: true,
+      handler(list) {
+        const items = Array.isArray(list) ? list : []
+        // Deep-ish clone to allow local progress state without mutating parent
+        this.plans = items.map(item => ({
+          effectiveRole: item.effectiveRole || item.studyPlan?.effectiveRole || null,
+          studyPlan: {
+            id: item.studyPlan?.id || item.id,
+            title: item.studyPlan?.title || item.title,
+            introduction: item.studyPlan?.introduction || (item.description ? { description: item.description } : null),
+            progress: typeof item.studyPlan?.progress === 'number' ? item.studyPlan.progress : undefined,
+            advancedProgress: typeof item.studyPlan?.advancedProgress === 'number' ? item.studyPlan.advancedProgress : 0,
+          },
+        }))
+        // Kick off background progress fetch only for current user
+        if (this.isCurrentUser) this.fetchAllProgress()
+      },
+    },
+  },
   methods: {
     goToPlanDetail(planId) {
       this.$router.push({
         name: 'StudyPlanWorkspace',
         query: { planId },
       })
+    },
+    async fetchAllProgress() {
+      const tasks = (this.plans || []).map(p => this.refreshPlanProgress(p?.studyPlan?.id))
+      await Promise.allSettled(tasks)
+    },
+    async refreshPlanProgress(planId) {
+      try {
+        if (!planId) return
+        this.$set ? this.$set(this.progressLoading, planId, true) : (this.progressLoading[planId] = true)
+        const resp = await apiClient.get(`/studyPlans/${planId}/progress/me`)
+        const raw = resp?.data?.planProgress
+        const advRaw = resp?.data?.advancedTopicProgress
+        const value = typeof raw === 'number' ? (raw <= 1 ? raw * 100 : raw) : undefined
+        const advValue = typeof advRaw === 'number' ? (advRaw <= 1 ? advRaw * 100 : advRaw) : 0
+        const idx = this.plans.findIndex(sp => String(sp?.studyPlan?.id) === String(planId))
+        if (idx >= 0) {
+          this.plans[idx].studyPlan.progress = typeof value === 'number' ? Math.round(value) : undefined
+          this.plans[idx].studyPlan.advancedProgress = Math.round(advValue)
+        }
+      } catch (e) {
+        // optional: compute locally (skipped for personal center lightweight list)
+      } finally {
+        this.$set ? this.$set(this.progressLoading, planId, false) : (this.progressLoading[planId] = false)
+      }
     },
   },
 }

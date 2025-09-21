@@ -6,7 +6,10 @@
   </v-container>
   <v-card class="system-notifications">
     <v-card-text>
-      <v-accordion>
+      <div v-if="loading" class="d-flex justify-center align-center" style="height: 60vh">
+        <LoadingSpinner />
+      </div>
+      <v-accordion v-else>
         <v-accordion-item
           v-for="(groupedNotifications, type) in groupedNotificationsByType"
           :key="type"
@@ -45,12 +48,15 @@
 <script>
 import { apiClient } from '@/api'
 import { DateTime } from 'luxon'
+import LoadingSpinner from './LoadingSpinner.vue'
 
 export default {
+  components: { LoadingSpinner },
   data() {
     return {
       notifications: [],
       userId: this.$store.state.currentUserID, // Assuming the user ID is stored in Vuex state
+      loading: true,
     }
   },
   computed: {
@@ -77,7 +83,7 @@ export default {
         this.notifications = response.data
       } catch (error) {
         console.error('Error fetching notifications:', error)
-      }
+      } finally { this.loading = false }
     },
     setupSignalRListener() {
       const connection = this.$root.$signalRConnection

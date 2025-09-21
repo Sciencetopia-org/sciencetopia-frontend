@@ -68,6 +68,32 @@ export default {
 
         if (response.status === 200) {
           this.studyPlanData = response.data.StudyPlan
+          // Immediately request smart tag suggestions based on payload and apply to UI
+          try {
+            const suggest = await apiClient.post('/StudyPlanTags/SuggestFromPayload', { payload: { studyPlan: this.studyPlanData } })
+            const data = suggest?.data || {}
+            const planTags = Array.isArray(data.planTags) ? data.planTags : []
+            if (!Array.isArray(this.studyPlanData.tags)) this.studyPlanData.tags = []
+            // keep names for easy display
+            this.studyPlanData.tags = planTags.map(t => ({ id: t.id || t.Id, name: t.name || t.Name }))
+            // Map lesson suggestions back
+            const lessons = Array.isArray(data.lessons) ? data.lessons : []
+            const attach = (list, secName) => {
+              if (!Array.isArray(list)) return
+              list.forEach((lesson, idx) => {
+                const key = lesson?.id || `${secName}:${idx}:${lesson?.name}`
+                const found = lessons.find(x => (x.lessonId && x.lessonId === lesson?.id) || (x.key && x.key === key))
+                if (found) {
+                  const tags = Array.isArray(found.tags) ? found.tags : []
+                  lesson.tags = tags.map(t => ({ id: t.id || t.Id, name: t.name || t.Name }))
+                }
+              })
+            }
+            attach(this.studyPlanData.prerequisite, 'prerequisite')
+            attach(this.studyPlanData.mainCurriculum, 'mainCurriculum')
+            attach(this.studyPlanData.advancedTopics, 'advancedTopics')
+          } catch (_) { /* ignore suggest errors */ }
+
           this.showStudyPlan = true
           this.$emit('update:showStudyPlan', true)
           console.log('Study plan generated:', this.studyPlanData)

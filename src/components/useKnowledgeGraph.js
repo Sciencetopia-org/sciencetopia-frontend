@@ -38,11 +38,64 @@ export default function useKnowledgeGraph(endpoint) {
   const topicThreshold = 0.5
   const keywordThreshold = 1.2
 
+  const fieldLabelThreshold = 0.6
+  const topicLabelThreshold = 1.5
+  const keywordLabelThreshold = 3.5
+
+  const ALWAYS_VISIBLE_LEVELS = new Set(['Discipline', 'Subject'])
+
+  const canonicalId = (id) => {
+    if (id === null || id === undefined) return null
+    return typeof id === 'string' ? id : String(id)
+  }
+
+  function normalizeNode(raw) {
+    if (!raw) return null
+    const id = canonicalId(raw.id)
+    if (!id) return null
+    return {
+      ...raw,
+      id,
+      tagLevel: raw.tagLevel || '',
+    }
+  }
+
+  function shouldDisplayNode(level, zoom) {
+    if (ALWAYS_VISIBLE_LEVELS.has(level)) return true
+    if (level === 'Field') return zoom > fieldThreshold
+    if (level === 'Topic') return zoom > topicThreshold
+    return zoom > keywordThreshold
+  }
+
+  function shouldDisplayLabel(level, zoom) {
+    if (ALWAYS_VISIBLE_LEVELS.has(level)) return true
+    if (level === 'Field') return zoom > fieldLabelThreshold
+    if (level === 'Topic') return zoom > topicLabelThreshold
+    return zoom > keywordLabelThreshold
+  }
+
+  function updateLabelForNodeDatum(nodeDatum) {
+    if (!labels) return
+    labels
+      .filter(l => l.id === nodeDatum.id)
+      .text(l => (shouldDisplayLabel(l.tagLevel, currentZoomLevel) ? l.name : ''))
+  }
+
+  function getNodeDatum(nodeOrId) {
+    if (!nodeOrId) return null
+    if (typeof nodeOrId === 'object') return nodeOrId
+    const canon = canonicalId(nodeOrId)
+    return canon ? nodeById.get(canon) || null : null
+  }
+
   // Reactive width and height
   const width = ref(0)
   const height = ref(0)
 
   const { showLoading, hideLoading } = useGlobalLoading()
+  const hideLoadingSoon = () => requestAnimationFrame(() => hideLoading())
+  const beginLoading = () => showLoading()
+  const endLoading = () => hideLoadingSoon()
   const isEditing = computed(() => store.state.isEditing)
 
   // 省略号层 & 激活中的省略号集合
@@ -185,8 +238,6 @@ export default function useKnowledgeGraph(endpoint) {
 
   // 创建力导向图
   const createForceDirectedGraph = async () => {
-    showLoading()
-
     zoom = d3.zoom()
       .scaleExtent([0.2, 4])
       .on('zoom', handleZoom)
@@ -211,17 +262,25 @@ export default function useKnowledgeGraph(endpoint) {
 
     // 省略号层：放在 labels 之上更醒目（如需在文字下方，可插到 labels 之前）
     dotsLayer = svg.append('g').attr('class', 'kg-ellipsis-layer')
+  }
 
-    await fetchData()
-    console.log('Graph data fetched:', nodes.value, links.value)
-
-    // 设置初始缩放和平移
-    const initialTransform = d3.zoomIdentity
-      .translate(-width.value / 4, -height.value / 4)
-      .scale(1.5)
-    svg.call(zoom.transform, initialTransform)
-
-    hideLoading()
+  // Reload graph on language change
+  async function handleLangChanged(e) {
+    try {
+      // 先清空在飞与缓存，再清空图，最后显示 Loader 并重新获取
+      abortAllInflight()
+      resetPreloadCaches()
+      nodes.value = []
+      links.value = []
+      updateD3Graph(nodes.value, links.value)
+      showLoading()
+      await fetchData()
+      updateD3Graph(nodes.value, links.value)
+    } catch (err) {
+      console.error('Error reloading graph on lang change:', err)
+    } finally {
+      hideLoading()
+    }
   }
 
   // 更新图数据
@@ -302,14 +361,8 @@ export default function useKnowledgeGraph(endpoint) {
       .on('mouseout', (event, d) => {
         // 变回鼠标
         d3.select(event.currentTarget).style('cursor', 'default')
-        // 按缩放阈值隐藏标签（保留你原逻辑）
-    if (currentZoomLevel <= 0.6 && !['Discipline','Subject'].includes(d.tagLevel)) {
-          labels.filter(l => l.id === d.id).text('')
-        } else if (currentZoomLevel <= 1.5 && !['Discipline','Subject', 'Field'].includes(d.tagLevel)) {
-          labels.filter(l => l.id === d.id).text('')
-        } else if (currentZoomLevel <= 3.5 && d.tagLevel === 'Topic') {
-          labels.filter(l => l.id === d.id).text('')
-        }
+        // 恢复缩放级别对应的标签默认显示状态
+        updateLabelForNodeDatum(d)
         // // 退出悬停：取消定时器
         // cancelHoverLazyLoad(d)
       })
@@ -346,27 +399,8 @@ export default function useKnowledgeGraph(endpoint) {
 
   // 根据缩放级别更新节点、标签及链接的显示
   const updateVisibilityBasedOnZoom = () => {
-    // 阈值设置
-    const fieldLabelThreshold = 0.6
-    const topicLabelThreshold = 1.5
-    const keywordLabelThreshold = 3.5
-
-    node.style('visibility', d => {
-      if (d.tagLevel === 'Discipline' || d.tagLevel === 'Subject') return 'visible'
-      else if (currentZoomLevel > fieldThreshold && d.tagLevel === 'Field') return 'visible'
-      else if (currentZoomLevel > topicThreshold && d.tagLevel === 'Topic') return 'visible'
-      return currentZoomLevel > keywordThreshold ? 'visible' : 'hidden'
-    })
-      .on('mouseout', function (event, d) {
-        // 随缩放隐藏部分节点名称
-        if (currentZoomLevel <= fieldLabelThreshold && !['Discipline','Subject'].includes(d.tagLevel)) {
-          labels.filter(l => l.id === d.id).text('')
-        } else if (currentZoomLevel <= topicLabelThreshold && !['Discipline','Subject', 'Field'].includes(d.tagLevel)) {
-          labels.filter(l => l.id === d.id).text('')
-        } else if (currentZoomLevel <= keywordLabelThreshold && d.tagLevel === 'Topic') {
-          labels.filter(l => l.id === d.id).text('')
-        }
-      })
+    node
+      .style('visibility', d => shouldDisplayNode(d.tagLevel, currentZoomLevel) ? 'visible' : 'hidden')
 
     labels
       .style('font-size', 16 / currentZoomLevel)
@@ -375,29 +409,18 @@ export default function useKnowledgeGraph(endpoint) {
       .style('font-weight', 'bold')
       .style('stroke', labelStrokeColor)
       .style('stroke-width', 0.5 / currentZoomLevel)
-      .text(d => {
-        if (d.tagLevel === 'Discipline' || d.tagLevel === 'Subject') return d.name
-        else if (currentZoomLevel > fieldLabelThreshold && d.tagLevel === 'Field') return d.name
-        else if (currentZoomLevel > topicLabelThreshold && d.tagLevel === 'Topic') return d.name
-        return currentZoomLevel > keywordLabelThreshold ? d.name : ''
-      })
+      .text(d => (shouldDisplayLabel(d.tagLevel, currentZoomLevel) ? d.name : ''))
       .attr('alignment-baseline', 'ideographic')
       .attr('dy', d => (d.tagLevel === 'Discipline' || d.tagLevel === 'Subject' || d.tagLevel === 'Field' || d.tagLevel === 'Topic') ? 0 : '-1.2em')
 
     link.style('visibility', d => {
-      // 注意：此处由于 simulation 会将 link.source 和 link.target 替换为节点对象，
-      // 因此这里判断可以继续使用 d.source.id，但部分其它地方（例如在过滤函数中）需要使用 nodes.value
       if (!d.source || !d.target) return 'hidden'
-      // 这里简单根据 zoom 级别调整链接显示，可按需调整
-      if (currentZoomLevel <= fieldThreshold) {
-        return d.target.tagLevel === 'Discipline' ? 'visible' : 'hidden'
-      } else if (currentZoomLevel <= topicThreshold) {
-        return ['Discipline','Subject'].includes(d.target.tagLevel) ? 'visible' : 'hidden'
-      } else if (currentZoomLevel <= keywordThreshold) {
-        return ['Discipline','Subject', 'Field'].includes(d.target.tagLevel) ? 'visible' : 'hidden'
-      } else {
-        return 'visible'
-      }
+      const source = getNodeDatum(d.source)
+      const target = getNodeDatum(d.target)
+      if (!source || !target) return 'hidden'
+      const sourceVisible = shouldDisplayNode(source.tagLevel, currentZoomLevel)
+      const targetVisible = shouldDisplayNode(target.tagLevel, currentZoomLevel)
+      return sourceVisible && targetVisible ? 'visible' : 'hidden'
     })
   }
 
@@ -436,22 +459,22 @@ export default function useKnowledgeGraph(endpoint) {
   // 获取数据并更新图（兼容两种返回体，并种子去重缓存）
   // 获取数据并更新图（兼容 {nodes,links} 与 {data:{nodes,links}}，并把初始数据写入去重缓存）
   const fetchData = async () => {
+    showLoading()
     try {
       const res = await apiClient.get(endpoint)
       const body = (res && 'data' in res) ? res.data : res
       const payload = body?.data ? body.data : body
 
-      const newNodes = (payload?.nodes || []).map(n => ({
-        id: n.id,
-        name: n.name,
-        tagLevel: n.tagLevel || '',
-      }))
+      const newNodes = (payload?.nodes || [])
+        .map(normalizeNode)
+        .filter(Boolean)
 
       const newLinks = (payload?.links || [])
         .map(normalizeEdge)
         .filter(l => l.source && l.target)
 
       // 种子写入去重缓存（避免后台懒加载重复合入）
+      resetLoadedCaches()
       newNodes.forEach(n => loadedNodeIds.add(n.id))
       newLinks.forEach(l => loadedEdgeKeys.add(edgeKey(l)))
 
@@ -460,23 +483,32 @@ export default function useKnowledgeGraph(endpoint) {
       updateD3Graph(nodes.value, links.value)
     } catch (error) {
       console.error('Error fetching data:', error)
+    } finally {
+      hideLoadingSoon()
     }
   }
 
   const loadGraphData = (payload) => {
-    const newNodes = (payload?.nodes || []).map(n => ({
-      id: n.id,
-      name: n.name,
-      tagLevel: n.tagLevel || '',
-    }))
+    showLoading()
+    try {
+      const newNodes = (payload?.nodes || [])
+        .map(normalizeNode)
+        .filter(Boolean)
 
-    const newLinks = (payload?.links || [])
-      .map(normalizeEdge)
-      .filter(l => l.source && l.target)
+      const newLinks = (payload?.links || [])
+        .map(normalizeEdge)
+        .filter(l => l.source && l.target)
 
-    nodes.value = newNodes
-    links.value = newLinks
-    updateD3Graph(nodes.value, links.value)
+      resetLoadedCaches()
+      newNodes.forEach(n => loadedNodeIds.add(n.id))
+      newLinks.forEach(l => loadedEdgeKeys.add(edgeKey(l)))
+
+      nodes.value = newNodes
+      links.value = newLinks
+      updateD3Graph(nodes.value, links.value)
+    } finally {
+      hideLoadingSoon()
+    }
   }
 
   let clickTimeout = null
@@ -642,18 +674,25 @@ export default function useKnowledgeGraph(endpoint) {
     Discipline: new Set(), Subject: new Set(), Field: new Set(), Topic: new Set(), Keyword: new Set()
   }
 
+  function resetLoadedCaches() {
+    loadedNodeIds.clear()
+    loadedEdgeKeys.clear()
+    Object.keys(loadedChildrenByParent).forEach(level => loadedChildrenByParent[level].clear())
+    Object.keys(loadingChildrenByParent).forEach(level => loadingChildrenByParent[level].clear())
+  }
+
   // —— 统一规范化边 —— 
   function normalizeEdge(e) {
-    const s = typeof e.source === 'object' ? e.source?.id : e.source
-    const t = typeof e.target === 'object' ? e.target?.id : e.target
+    const s = canonicalId(typeof e.source === 'object' ? e.source?.id : e.source)
+    const t = canonicalId(typeof e.target === 'object' ? e.target?.id : e.target)
     const rel = e.relation || e.relationshipType || e.type || ''
     return { source: s, target: t, relationshipType: rel }
   }
 
   // —— 统一边 Key（与 D3 join key 保持一致最好）——
   function edgeKey(e) {
-    const s = typeof e.source === 'object' ? e.source?.id : e.source
-    const t = typeof e.target === 'object' ? e.target?.id : e.target
+    const s = canonicalId(typeof e.source === 'object' ? e.source?.id : e.source)
+    const t = canonicalId(typeof e.target === 'object' ? e.target?.id : e.target)
     const rel = e.relationshipType || e.relation || e.type || ''
     return `${s}~${t}~${rel}`
   }
@@ -697,7 +736,11 @@ export default function useKnowledgeGraph(endpoint) {
 
   function addPreloadTask(level, parentIds) {
     if (!level || !Array.isArray(parentIds) || parentIds.length === 0) return
-    preloadQueue.push({ gen: currentGen, sig: currentSig, level, parentIds })
+    const canonParents = parentIds
+      .map(canonicalId)
+      .filter(Boolean)
+    if (!canonParents.length) return
+    preloadQueue.push({ gen: currentGen, sig: currentSig, level, parentIds: canonParents })
     pump()
   }
 
@@ -756,7 +799,7 @@ export default function useKnowledgeGraph(endpoint) {
     const { gen, sig, level } = task
     if (gen !== currentGen || sig !== currentSig) { running--; pump(); return }
 
-    const uniqueParents = Array.from(new Set(task.parentIds || []))
+    const uniqueParents = Array.from(new Set((task.parentIds || []).map(canonicalId).filter(Boolean)))
 
     // 允许集合中的任意父层
     const id2level = new Map(nodes.value.map(n => [n.id, n.tagLevel]))
@@ -802,7 +845,9 @@ export default function useKnowledgeGraph(endpoint) {
           if (gen !== currentGen || sig !== currentSig) break
 
           // 节点去重（全局）
-          const incNodes = respNodes.filter(n => n && n.id && !loadedNodeIds.has(n.id))
+          const incNodes = respNodes
+            .map(normalizeNode)
+            .filter(n => n && n.id && !loadedNodeIds.has(n.id))
           incNodes.forEach(n => loadedNodeIds.add(n.id))
 
           // 边规范化 + 去重（全局）
@@ -901,56 +946,59 @@ export default function useKnowledgeGraph(endpoint) {
     hoverTimers.clear()
   })
 
-  const idOf = v => (typeof v === 'object' && v) ? v.id : v
+  const idOf = (v) => canonicalId((typeof v === 'object' && v) ? v.id : v)
 
   // 修改后的获取相邻、先决和后续节点（链接对象中 source 和 target 为节点 ID）
   const getAdjacentNodes = (nodeId) => {
+    const canon = canonicalId(nodeId)
     return links.value
-      .filter(link => link.source === nodeId || link.target === nodeId)
-      .map(link => link.source === nodeId ? link.target : link.source)
+      .filter(link => link.source === canon || link.target === canon)
+      .map(link => link.source === canon ? link.target : link.source)
   }
 
   const getPrerequisiteNodes = (nodeId) => {
+    const canon = canonicalId(nodeId)
     return links.value
-      .filter(link => link.target === nodeId)
+      .filter(link => link.target === canon)
       .map(link => link.source)
   }
 
   const getSubsequentNodes = (nodeId) => {
+    const canon = canonicalId(nodeId)
     return links.value
-      .filter(link => link.source === nodeId)
+      .filter(link => link.source === canon)
       .map(link => link.target)
   }
 
   const showAdjacentNodes = () => {
     const adjacentNodeIds = selectedNodes.value.flatMap(node =>
       getAdjacentNodes(node.id)
-    );
-    const uniqueAdjacentNodeIds = [...new Set(adjacentNodeIds)];
-    node.style('opacity', d => uniqueAdjacentNodeIds.includes(d.id) ? 1 : 0.1);
-    labels.style('opacity', d => uniqueAdjacentNodeIds.includes(d.id) ? 1 : 0.1);
-    link.style('opacity', d => (uniqueAdjacentNodeIds.includes(d.source.id) ||
-      uniqueAdjacentNodeIds.includes(d.target.id)) ? 1 : 0.1);
+    ).map(canonicalId);
+    const uniqueAdjacentNodeIds = new Set(adjacentNodeIds);
+    node.style('opacity', d => uniqueAdjacentNodeIds.has(d.id) ? 1 : 0.1);
+    labels.style('opacity', d => uniqueAdjacentNodeIds.has(d.id) ? 1 : 0.1);
+    link.style('opacity', d => (uniqueAdjacentNodeIds.has(idOf(d.source)) ||
+      uniqueAdjacentNodeIds.has(idOf(d.target))) ? 1 : 0.1);
   }
 
   const showPrerequisiteNodes = () => {
     const prerequisiteNodeIds = selectedNodes.value.flatMap(node =>
       getPrerequisiteNodes(node.id)
-    );
-    const uniquePrerequisiteNodeIds = [...new Set(prerequisiteNodeIds)];
-    node.style('opacity', d => uniquePrerequisiteNodeIds.includes(d.id) ? 1 : 0.1);
-    labels.style('opacity', d => uniquePrerequisiteNodeIds.includes(d.id) ? 1 : 0.1);
-    link.style('opacity', d => uniquePrerequisiteNodeIds.includes(d.source.id) ? 1 : 0.1);
+    ).map(canonicalId);
+    const uniquePrerequisiteNodeIds = new Set(prerequisiteNodeIds);
+    node.style('opacity', d => uniquePrerequisiteNodeIds.has(d.id) ? 1 : 0.1);
+    labels.style('opacity', d => uniquePrerequisiteNodeIds.has(d.id) ? 1 : 0.1);
+    link.style('opacity', d => uniquePrerequisiteNodeIds.has(idOf(d.source)) ? 1 : 0.1);
   }
 
   const showSubsequentNodes = () => {
     const subsequentNodeIds = selectedNodes.value.flatMap(node =>
       getSubsequentNodes(node.id)
-    );
-    const uniqueSubsequentNodeIds = [...new Set(subsequentNodeIds)];
-    node.style('opacity', d => uniqueSubsequentNodeIds.includes(d.id) ? 1 : 0.1);
-    labels.style('opacity', d => uniqueSubsequentNodeIds.includes(d.id) ? 1 : 0.1);
-    link.style('opacity', d => uniqueSubsequentNodeIds.includes(d.target.id) ? 1 : 0.1);
+    ).map(canonicalId);
+    const uniqueSubsequentNodeIds = new Set(subsequentNodeIds);
+    node.style('opacity', d => uniqueSubsequentNodeIds.has(d.id) ? 1 : 0.1);
+    labels.style('opacity', d => uniqueSubsequentNodeIds.has(d.id) ? 1 : 0.1);
+    link.style('opacity', d => uniqueSubsequentNodeIds.has(idOf(d.target)) ? 1 : 0.1);
   }
 
   const resetView = () => {
@@ -971,7 +1019,8 @@ export default function useKnowledgeGraph(endpoint) {
     const containerHeight = svgElement.clientHeight
     const zoomLevel = 1 // 可根据需求调整
     const transitionDuration = 750
-    const nodeData = node.data().find(n => n.id === nodeId)
+    const normalized = nodeId != null ? nodeId : null
+    const nodeData = getNodeDatum(normalized)
     if (!nodeData) {
       console.error('Node not found:', nodeId)
       return
@@ -991,7 +1040,15 @@ export default function useKnowledgeGraph(endpoint) {
     if (!searchQuery.trim()) return null
     try {
       const response = await apiClient.get('/KnowledgeGraph/Search', { params: { query: searchQuery } })
-      return response.data.identity
+      const payload = response?.data?.data ?? response?.data
+      const candidates = Array.isArray(payload) ? payload : [payload]
+      for (const item of candidates) {
+        if (!item) continue
+        const nodeLike = item.node || item.result || item
+        const id = nodeLike?.identity ?? nodeLike?.id ?? nodeLike?.nodeId ?? item?.identity ?? item?.id ?? null
+        if (id != null) return id
+      }
+      return null
     } catch (error) {
       console.error('Error during search:', error)
       return null
@@ -1017,17 +1074,30 @@ export default function useKnowledgeGraph(endpoint) {
   }
 
   const showFavoritedNodes = async () => {
+    const userId = store.state.currentUserID || store.state.userInfo?.id
+    if (!userId) {
+      console.warn('Cannot load favorites: user is not authenticated')
+      return
+    }
     try {
       const response = await apiClient.get('/KnowledgeGraph/Favorites/MyFavorites')
-      const favoriteData = response.data
-      const favoritedNodeIds = new Set(favoriteData.map(node => node.identity))
+      const favoriteData = Array.isArray(response?.data) ? response.data : []
+      const favoritedNodeIds = new Set(
+        favoriteData
+          .map(node => canonicalId(node?.properties?.id ?? node?.identity))
+          .filter(Boolean)
+      )
       node.style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
       labels.style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
       link.style('opacity', d =>
         favoritedNodeIds.has(idOf(d.source)) && favoritedNodeIds.has(idOf(d.target)) ? 1 : 0.1
       )
     } catch (error) {
-      console.error('Error fetching favorite nodes:', error)
+      if (error?.response?.status === 400) {
+        console.warn('Failed to load favorites (400 Bad Request)', error?.response?.data)
+      } else {
+        console.error('Error fetching favorite nodes:', error)
+      }
     }
   }
 
@@ -1082,5 +1152,7 @@ export default function useKnowledgeGraph(endpoint) {
     hideContextMenu,
     showContextMenu,
     showFavoritedNodes,
+    beginLoading,
+    endLoading,
   }
 }

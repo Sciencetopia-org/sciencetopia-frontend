@@ -137,7 +137,7 @@ const routes = [
   },
   {
     path: '/:catchAll(.*)',
-    redirect: '/messages/directMessages',
+    redirect: '/',
   },
   {
     path: '/403',

@@ -135,7 +135,14 @@ export default {
       const name = this.$route?.name
       if (name === 'StudyPlanWorkspace' || name === 'PlanPage' || name === 'StudyPlanDetail') {
         this.activeKey = 'studyplan'
-      } else if (name === 'studyGroupList' || name === 'studyGroupPage' || name === 'GroupPlanWorkspace') {
+      } else if (
+        name === 'studyGroupList' ||
+        name === 'studyGroupPage' ||
+        name === 'GroupPlanWorkspace' ||
+        name === 'createStudyGroup' ||
+        name === 'managePanel' ||
+        name === 'studyGroupSpace'
+      ) {
         this.activeKey = 'studygroup'
       } else if (name === 'allFeeds') {
         this.activeKey = 'trend'
@@ -180,14 +187,12 @@ export default {
       this.activeKey = 'studygroup'
       this.$router.push({ name: 'studyGroupList' })
     },
-    handleStudyPlan() {
-      if (!this.isAuthenticated) {
-        alert(this.$t('header.pleaseLoginToViewStudyPlan'))
-      } else {
-        const userId = this.$store.state.currentUserID
-        this.activeKey = 'studyplan'
-        this.$router.push({ name: 'StudyPlanWorkspace', params: { userId } })
-      }
+    async handleStudyPlan() {
+      const userId = await this.ensureUserId()
+      if (!userId) return
+
+      this.activeKey = 'studyplan'
+      this.$router.push({ name: 'StudyPlanWorkspace', params: { userId } })
     },
     toggleLanguage() {
       const currentIndex = this.languageOptions.findIndex(
@@ -200,6 +205,8 @@ export default {
       const vLocale = next === 'zh' ? 'zhHans' : 'en'
       try { this.$vuetify.locale.current = vLocale } catch (_) {}
       try { localStorage.setItem('locale', next) } catch (_) {}
+      // Notify app parts (e.g., KnowledgeGraph) to refresh with new lang
+      try { window.dispatchEvent(new CustomEvent('app:lang-changed', { detail: next })) } catch (_) {}
     },
     measureLangTextWidth() {
       const tempSpan = document.createElement('span')
@@ -215,6 +222,26 @@ export default {
       document.body.appendChild(tempSpan)
       this.langTextWidth = tempSpan.offsetWidth
       document.body.removeChild(tempSpan)
+    },
+    async ensureUserId() {
+      let userId = this.$store.state.currentUserID
+
+      if (!userId) {
+        try {
+          await this.$store.dispatch('checkAuthenticationStatus')
+        } catch (err) {
+          console.error('Failed to refresh authentication status before navigation', err)
+        }
+        userId = this.$store.state.currentUserID
+      }
+
+      const isAuthenticated = this.$store.state.isAuthenticated
+      if (!isAuthenticated || !userId) {
+        alert(this.$t('header.pleaseLoginToViewStudyPlan'))
+        return null
+      }
+
+      return userId
     },
   },
   created() {

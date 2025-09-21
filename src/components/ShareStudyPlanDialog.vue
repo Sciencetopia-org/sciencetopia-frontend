@@ -23,7 +23,7 @@
                       :class="{ 'bg-grey-lighten-3': (selectedGroupId === (g.id || g.groupId)) }">
                       <v-list-item-title>{{ g.name || g.title || (g.id || g.groupId) }}</v-list-item-title>
                       <v-list-item-subtitle>
-                        {{ g.description || g.visibility || 'group' }}
+                        {{ stripHtml(g.description) || g.visibility || 'group' }}
                       </v-list-item-subtitle>
                     </v-list-item>
                   </v-list>
@@ -80,6 +80,7 @@
 
 <script>
 import { apiClient } from '@/api'
+import { stripHtml } from '@/utils/text'
 
 export default {
   name: 'ShareStudyPlanDialog',
@@ -135,6 +136,7 @@ export default {
     },
   },
   methods: {
+    stripHtml,
     close() {
       this.internal = false
     },

@@ -12,21 +12,23 @@
             </div>
             <div>
               <v-btn class="mr-2" variant="text" @click="cancelEdit">{{ $t('cancel') }}</v-btn>
-              <v-btn size="small" variant="text" color="blue" @click="saveFromHeader">{{ $t('save') }}{{ $t('wordbreaker') }}{{ $t('header.studyplan') }}</v-btn>
+              <v-btn size="small" variant="text" color="blue" @click="saveFromHeader" :disabled="saving" :loading="saving">{{ $t('save') }}{{ $t('wordbreaker') }}{{ $t('header.studyplan') }}</v-btn>
             </div>
           </div>
-          <EditStudyPlanForm ref="editForm" :studyPlan="editDraft" :showTopSave="false" @save="saveStudyPlan"
+          <EditStudyPlanForm ref="editForm" :studyPlan="editDraft" :showTopSave="false" :saving="saving" @save="saveStudyPlan"
             @dirty="editDirty = true" />
         </div>
         <div v-else>
           <div class="plan-header d-flex align-start justify-space-between">
-            <div>
-              <h2 class="plan-title">{{ plan.title }}</h2>
+            <div class="d-flex align-center">
+              <h2 class="plan-title mr-2">{{ plan.title }}</h2>
+              <TagChips v-if="planTags.length" :items="planTags" />
             </div>
             <div class="d-flex align-center">
               <v-chip v-if="roleLabel" size="x-small" label class="mr-2">{{ roleLabel }}</v-chip>
-              <v-chip v-if="myProgress !== null" size="x-small" label class="mr-2" color="primary">{{
-                $t('studyplan.myProgress', { percent: myProgress }) }}</v-chip>
+              <v-skeleton-loader v-if="myProgressLoading" type="chip" class="mr-2" style="width:90px; height:26px" />
+              <v-chip v-else-if="myProgress !== null" size="x-small" label class="mr-2" color="primary">{{
+                $t('studyplan.myProgress', { percent: (typeof myProgress === 'number' ? myProgress.toFixed(2) : myProgress) }) }}</v-chip>
               <template v-if="allowEditControls">
                 <v-btn v-if="isOwnerComputed" class="mr-1" variant="text" @click="$emit('open-share')">{{ $t('studyplan.share') }}</v-btn>
                 <v-btn v-if="canEditComputed" icon="mdi-pencil" variant="text" @click="startEdit()"
@@ -47,7 +49,8 @@
                   <v-list-item v-for="(lesson, idx) in plan.prerequisite" :key="'pre-' + idx" @click="select(lesson)"
                     :class="{ 'selected-lesson': selectedLesson && selectedLesson.name === lesson.name }">
                     <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                    <v-progress-linear v-if="lesson._personalProgressLoaded && typeof lesson.progressPercentage === 'number'" :model-value="lesson.progressPercentage" height="6" color="primary" />
+                    <v-skeleton-loader v-if="lesson._personalProgressLoaded === false" type="text" class="mt-1" style="height:6px" />
+                    <v-progress-linear v-else-if="typeof lesson.progressPercentage === 'number'" :model-value="lesson.progressPercentage" height="6" color="primary" />
                   </v-list-item>
                 </v-list>
               </v-expansion-panel-text>
@@ -59,7 +62,8 @@
                   <v-list-item v-for="(lesson, idx) in plan.mainCurriculum" :key="'main-' + idx" @click="select(lesson)"
                     :class="{ 'selected-lesson': selectedLesson && selectedLesson.name === lesson.name }">
                     <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                    <v-progress-linear v-if="lesson._personalProgressLoaded && typeof lesson.progressPercentage === 'number'" :model-value="lesson.progressPercentage" height="6" color="primary" />
+                    <v-skeleton-loader v-if="lesson._personalProgressLoaded === false" type="text" class="mt-1" style="height:6px" />
+                    <v-progress-linear v-else-if="typeof lesson.progressPercentage === 'number'" :model-value="lesson.progressPercentage" height="6" color="primary" />
                   </v-list-item>
                 </v-list>
               </v-expansion-panel-text>
@@ -71,7 +75,8 @@
                   <v-list-item v-for="(lesson, idx) in plan.advancedTopics" :key="'adv-' + idx" @click="select(lesson)"
                     :class="{ 'selected-lesson': selectedLesson && selectedLesson.name === lesson.name }">
                     <v-list-item-title>{{ lesson.name }}</v-list-item-title>
-                    <v-progress-linear v-if="lesson._personalProgressLoaded && typeof lesson.progressPercentage === 'number'" :model-value="lesson.progressPercentage" height="6" color="accent" />
+                    <v-skeleton-loader v-if="lesson._personalProgressLoaded === false" type="text" class="mt-1" style="height:6px" />
+                    <v-progress-linear v-else-if="typeof lesson.progressPercentage === 'number'" :model-value="lesson.progressPercentage" height="6" color="accent" />
                   </v-list-item>
                 </v-list>
               </v-expansion-panel-text>
@@ -87,11 +92,12 @@
 <script>
 import { apiClient } from '@/api'
 import EditStudyPlanForm from '@/components/EditStudyPlanForm.vue'
+import TagChips from '@/components/common/TagChips.vue'
 import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit } from '@/services/studyplan-permissions'
 
 export default {
   name: 'PlanDetailPanel',
-  components: { EditStudyPlanForm },
+  components: { EditStudyPlanForm, TagChips },
   props: {
     planId: { type: [String, Number], required: true },
     scope: { type: Object, default: () => ({ type: 'me' }) },
@@ -103,12 +109,15 @@ export default {
       loading: false,
       plan: null,
       myProgress: null,
+      myProgressLoading: false,
       selectedLesson: null,
       openSections: [0, 1, 2],
       editDirty: false,
       isEditing: false,
       editDraft: null,
       roleLabel: null,
+      planTags: [],
+      saving: false,
     }
   },
   computed: {
@@ -133,6 +142,19 @@ export default {
     },
   },
   methods: {
+    setLessonLoading(lessonId) {
+      if (!this.plan || !lessonId) return
+      const secs = ['prerequisite', 'mainCurriculum', 'advancedTopics']
+      for (const sec of secs) {
+        const list = Array.isArray(this.plan[sec]) ? this.plan[sec] : []
+        list.forEach(l => {
+          const lid = l?.id || l?.lessonId || l?.name
+          if (String(lid) === String(lessonId)) {
+            l._personalProgressLoaded = false
+          }
+        })
+      }
+    },
     async loadPlan() {
       this.loading = true
       try {
@@ -147,6 +169,12 @@ export default {
             if (Array.isArray(list)) list.forEach(l => { l._personalProgressLoaded = false })
           })
           this.plan = plan
+          // Fetch plan tags (read-only chips)
+          try {
+            const t = await apiClient.get(`/StudyPlanTags/${this.planId}/Tags`)
+            const list = Array.isArray(t?.data) ? t.data : []
+            this.planTags = list.map(x => ({ id: x.id || x.Id, name: x.name || x.Name })).filter(x => x.name)
+          } catch (_) { this.planTags = [] }
           // Immediately render plan details without waiting for progress APIs
           this.loading = false
           // Fire-and-forget progress fetches; update UI when they resolve
@@ -198,7 +226,7 @@ export default {
               .then((res) => {
                 const val = res?.data?.lessonProgress ?? res?.data?.progress ?? res?.data?.percentage ?? res?.data?.progressPercentage ?? res?.data
                 if (typeof val === 'number') {
-                  lesson.progressPercentage = val
+                  lesson.progressPercentage = val * 100
                   lesson._personalProgressLoaded = true
                 }
               })
@@ -211,11 +239,14 @@ export default {
     },
     async fetchMyProgress() {
       try {
+        this.myProgressLoading = true
         const res = await apiClient.get(`StudyPlans/${this.planId}/Progress/Me`)
         const p = res?.data?.planProgress
         this.myProgress = typeof p === 'number' ? p : null
       } catch (_) {
         this.myProgress = null
+      } finally {
+        this.myProgressLoading = false
       }
     },
     refreshRole: async function () {
@@ -264,13 +295,56 @@ export default {
     },
     async saveStudyPlan(plan) {
       try {
-        if (plan.id) await apiClient.post('/StudyPlan/UpdateStudyPlan', { studyPlan: plan })
-        else await apiClient.post('/StudyPlan/SaveStudyPlan', { studyPlan: plan })
+        this.saving = true
+        // Extract tag payload and strip from plan for save
+        const tagPayload = plan && plan.__tags ? plan.__tags : null
+        const studyPlan = { ...plan }
+        if (studyPlan.__tags) delete studyPlan.__tags
+
+        let planId = studyPlan?.id
+        if (planId) {
+          await apiClient.post('/StudyPlan/UpdateStudyPlan', { studyPlan })
+        } else {
+          const resp = await apiClient.post('/StudyPlan/SaveStudyPlan', { studyPlan })
+          planId = resp?.data?.studyPlanId || planId
+        }
+
+        // Attach tags if provided
+        if (planId && tagPayload) {
+          try {
+            const planNames = Array.isArray(tagPayload.planTagNames) ? tagPayload.planTagNames : []
+            if (planNames.length) await apiClient.post(`/StudyPlanTags/${planId}/Tags`, { newTagNames: planNames })
+
+            // Map lesson keys to actual lesson ids
+            const detail = await apiClient.get('/StudyPlan/GetStudyPlanById', { params: { studyPlanId: planId } })
+            const sp = detail?.data?.studyPlan || detail?.data
+            if (sp) {
+              const keyToId = {}
+              const secs = ['prerequisite', 'mainCurriculum', 'advancedTopics']
+              secs.forEach(sec => {
+                const list = Array.isArray(sp[sec]) ? sp[sec] : []
+                list.forEach((l, idx) => {
+                  const key1 = l?.id || `${sec}:${idx}:${l?.name}`
+                  if (key1) keyToId[key1] = l?.id
+                })
+              })
+              const lessons = tagPayload.lessonTagNames || {}
+              for (const key in lessons) {
+                const names = lessons[key]
+                const lid = keyToId[key]
+                if (!lid || !Array.isArray(names) || !names.length) continue
+                await apiClient.post(`/StudyPlanTags/${planId}/Lessons/${encodeURIComponent(lid)}/Tags`, { newTagNames: names })
+              }
+            }
+          } catch (_) { /* ignore tag errors */ }
+        }
+
         this.editDirty = false
         this.isEditing = false
         await this.loadPlan()
         this.$emit('updated-plan', this.plan)
-      } catch (e) { }
+      } catch (e) { /* no-op */ }
+      finally { this.saving = false }
     },
   },
 }

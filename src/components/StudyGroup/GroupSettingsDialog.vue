@@ -7,7 +7,7 @@
       </v-card-title>
       <v-divider />
       <v-card-text>
-        <div v-if="loading"><v-skeleton-loader type="list-item" v-for="n in 4" :key="n" /></div>
+        <div v-if="loading"><LoadingSpinner /></div>
         <template v-else>
           <v-alert v-if="error" type="error" class="mb-3">{{ error }}</v-alert>
 
@@ -189,9 +189,11 @@
 
 <script>
 import { apiClient } from '@/api'
+import LoadingSpinner from '../LoadingSpinner.vue'
 
 export default {
   name: 'GroupSettingsDialog',
+  components: { LoadingSpinner },
   props: {
     modelValue: { type: Boolean, default: false },
     groupId: { type: [String, Number], required: true },

@@ -112,6 +112,10 @@ function matchMockPath(config) {
   if (/^\/StudyGroups$/i.test(url)) {
     return '/mock/studygroups/list.json'
   }
+  // 9b) Study groups paged list
+  if (/^\/StudyGroup\/List$/i.test(url)) {
+    return '/mock/studygroups/list.json'
+  }
 
   // 10) Study group details and related
   cap = m(/^\/StudyGroup\/GetStudyGroupById\/([^/]+)$/i)

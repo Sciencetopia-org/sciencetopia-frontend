@@ -64,18 +64,13 @@
                     />
                   </div>
                 </div>
-                <v-progress-linear
-                  v-if="plan.studyPlan.progress !== undefined"
-                  :model-value="plan.studyPlan.progress"
-                  height="6"
-                  color="primary"
-                  rounded
-                  class="mt-2"
-                >
-                  <template #default>
-                    <span class="text-caption">{{ Math.round(plan.studyPlan.progress) }}%</span>
-                  </template>
-                </v-progress-linear>
+                <PlanProgressBars
+                  :loading="progressLoading[plan.studyPlan.id]"
+                  :primaryProgress="plan.studyPlan.progress"
+                  :advancedProgress="plan.studyPlan.advancedProgress"
+                  :primaryTooltip="`学习进度：${Math.round(plan.studyPlan.progress || 0)} %`"
+                  :advancedTooltip="`额外学习了${Math.round(plan.studyPlan.advancedProgress || 0)} %的进阶内容`"
+                />
               </v-list-item>
             </v-list>
           </template>
@@ -100,16 +95,16 @@
         <v-col :cols="collapsed ? 6 : 5" class="center-panel">
           <PlanContextBar v-if="currentPlan?.id" :scope="scope" :groups="affiliations" @change="onScopeChange"
             @open-group="(gid) => $router.push({ name: 'GroupPlanWorkspace', params: { groupId: gid, planId: currentPlan.id } })" />
-          <PlanDetailPanel v-if="currentPlan?.id" :planId="currentPlan.id" :scope="scope" :allowEditControls="true"
+          <PlanDetailPanel ref="centerPanel" v-if="currentPlan?.id" :planId="currentPlan.id" :scope="scope" :allowEditControls="true"
             @select-lesson="selectLessonById" @open-share="openShareDialog" @open-progress="showProgressPage = true"
-            @updated-plan="(p) => (currentPlan = p)" />
+            @updated-plan="onCenterUpdated" />
           <!-- 未选择计划时不显示占位条 -->
           <template v-else></template>
         </v-col>
 
         <!-- Right: Lesson detail panel -->
         <v-col :cols="collapsed ? 5 : 4" class="right-panel">
-          <LessonDetailPanel
+          <LessonDetailPanel ref="rightPanel"
             v-if="currentLesson || currentLessonId"
             :planId="currentPlan?.id"
             :lesson="currentLesson"
@@ -150,7 +145,7 @@
         <v-card-title class="text-h6">{{ $t(editPlan && editPlan.id ? 'studyplan.dialogs.editTitle' : 'studyplan.dialogs.createTitle') }}</v-card-title>
         <v-card-text>
           <!-- 子组件在任一输入变化时 $emit('dirty') -->
-          <EditStudyPlanForm :studyPlan="editPlan" @save="saveStudyPlan" @dirty="editDirty = true" />
+          <EditStudyPlanForm :studyPlan="editPlan" :saving="saving" @save="saveStudyPlan" @dirty="editDirty = true" />
         </v-card-text>
         <v-card-actions class="justify-end">
           <v-btn variant="text" @click="attemptClose('edit')">{{ $t('close') }}</v-btn>
@@ -173,6 +168,7 @@
 
 <script>
 import { apiClient } from '@/api'
+import PlanProgressBars from '@/components/common/PlanProgressBars.vue'
 import LearningPlanner from '@/components/LearningPlanner.vue'
 import PlanDetailPanel from '@/components/PlanDetailPanel.vue'
 import LessonDetailPanel from '@/components/LessonDetailPanel.vue'
@@ -182,10 +178,11 @@ import EditStudyPlanForm from '@/components/EditStudyPlanForm.vue'
 import { eventBus } from '@/eventBus'
 import { connection } from '@/services/signalr-service'
 import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit, roleAllowsComment } from '@/services/studyplan-permissions'
+import confetti from 'canvas-confetti'
 
 export default {
   name: 'StudyPlanWorkspace',
-  components: { LearningPlanner, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage, EditStudyPlanForm },
+  components: { LearningPlanner, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage, EditStudyPlanForm, PlanProgressBars },
   data() {
     return {
       studyPlans: [],
@@ -216,6 +213,9 @@ export default {
       unsubscribers: [],
       affiliations: [],
       showProgressPage: false,
+      saving: false,
+      // per-plan loading flag for progress bars
+      progressLoading: {},
     }
   },
   computed: {
@@ -307,7 +307,19 @@ export default {
             title: item.title,
             // keep shape consistent; introduction used in center panel
             introduction: item.description ? { description: item.description } : null,
-            progress: typeof item.progress === 'number' ? item.progress : undefined,
+            // normalize to 0-100 if provided by list endpoint
+            progress: typeof item.progress === 'number'
+              ? (item.progress <= 1 ? item.progress * 100 : item.progress)
+              : undefined,
+            // try pick advanced topic progress from list if available
+            advancedProgress: (() => {
+              const val =
+                (typeof item.advancedTopicProgressPercentage === 'number' ? item.advancedTopicProgressPercentage : undefined) ??
+                (typeof item.advancedProgress === 'number' ? item.advancedProgress : undefined) ??
+                (typeof item.extraProgress === 'number' ? item.extraProgress : undefined)
+              if (typeof val !== 'number') return 0
+              return val <= 1 ? val * 100 : val
+            })(),
           },
         }))
         // Prime role map from list if role provided; otherwise, leave to permission service on demand
@@ -316,21 +328,7 @@ export default {
         })
 
         // Fetch per-plan progress for current user; non-blocking best-effort
-        const progressFetches = this.studyPlans.map(async (p) => {
-          try {
-            const pid = p?.studyPlan?.id
-            if (!pid) return
-            // Skip if list already provided progress
-            if (p.studyPlan.progress !== undefined) { return }
-            const resp = await apiClient.get(`/studyPlans/${pid}/progress/me`)
-            const prog = resp?.data?.planProgress
-            if (typeof prog === 'number') {
-              p.studyPlan.progress = prog
-            }
-          } catch (_) {
-            // ignore errors for individual progress requests
-          }
-        })
+        const progressFetches = this.studyPlans.map((p) => this.refreshPlanProgress(p?.studyPlan?.id, { silent: true }))
         // Allow progress requests to run in background without delaying list rendering
         Promise.allSettled(progressFetches)
           .catch(() => { /* no-op */ })
@@ -338,6 +336,98 @@ export default {
         console.error('Error fetching study plans:', e)
       } finally {
         this.listLoading = false
+      }
+    },
+    async refreshPlanProgress(planId, { silent } = { silent: false }) {
+      // Preferred: use backend endpoint; Fallback: local compute if unavailable
+      try {
+        if (!planId) return
+        this.$set ? this.$set(this.progressLoading, planId, true) : (this.progressLoading[planId] = true)
+        const resp = await apiClient.get(`/StudyPlans/${planId}/Progress/Me`)
+        const raw = resp?.data?.planProgress
+        const advRaw = resp?.data?.advancedTopicProgress
+        if (typeof raw !== 'number') throw new Error('invalid planProgress')
+        const value = raw <= 1 ? raw * 100 : raw
+        const advValue = typeof advRaw === 'number' ? (advRaw <= 1 ? advRaw * 100 : advRaw) : 0
+        const idx = this.studyPlans.findIndex(sp => String(sp?.studyPlan?.id) === String(planId))
+        if (idx >= 0) {
+          this.studyPlans[idx].studyPlan.progress = Math.round(value)
+          this.studyPlans[idx].studyPlan.advancedProgress = Math.round(advValue)
+        }
+        if (this.currentPlan && String(this.currentPlan.id) === String(planId)) {
+          this.currentPlan.progress = Math.round(value)
+        }
+      } catch (e) {
+        if (!silent) console.warn('Falling back to local compute for plan progress', e)
+        await this.computePlanProgress(planId, { silent: true })
+      } finally {
+        this.$set ? this.$set(this.progressLoading, planId, false) : (this.progressLoading[planId] = false)
+      }
+    },
+    async computePlanProgress(planId, { silent } = { silent: false }) {
+      try {
+        if (!planId) return
+        this.$set ? this.$set(this.progressLoading, planId, true) : (this.progressLoading[planId] = true)
+        // Fetch plan details to aggregate resources
+        const res = await apiClient.get('/StudyPlan/GetStudyPlanById', { params: { studyPlanId: planId } })
+        const plan = res?.data?.studyPlan || res?.data
+        if (!plan) return
+
+        const sectionsBasic = ['prerequisite', 'mainCurriculum']
+        const sectionAdv = ['advancedTopics']
+
+        const collectIds = (secs) => {
+          const ids = []
+          secs.forEach(sec => {
+            const list = Array.isArray(plan[sec]) ? plan[sec] : []
+            list.forEach(lesson => {
+              const resources = Array.isArray(lesson?.resources) ? lesson.resources : []
+              resources.forEach(r => {
+                const id = r?.id || r?.resourceId
+                if (id) ids.push(id)
+              })
+            })
+          })
+          return ids
+        }
+
+        const basicIds = collectIds(sectionsBasic)
+        const advIds = collectIds(sectionAdv)
+
+        async function fetchCompleted(ids) {
+          if (!ids || ids.length === 0) return { total: 0, completed: 0 }
+          // chunk to avoid payload too large
+          const chunkSize = 200
+          let completed = 0
+          for (let i = 0; i < ids.length; i += chunkSize) {
+            const slice = ids.slice(i, i + chunkSize)
+            try {
+              const r = await apiClient.post('/resources/completedStatus', { resourceIds: slice })
+              const arr = Array.isArray(r?.data) ? r.data : []
+              completed += arr.reduce((acc, x) => acc + (x?.completed ? 1 : 0), 0)
+            } catch (_) {
+              // ignore individual chunk errors
+            }
+          }
+          return { total: ids.length, completed }
+        }
+
+        const [basic, adv] = await Promise.all([fetchCompleted(basicIds), fetchCompleted(advIds)])
+        const basicPct = basic.total > 0 ? (basic.completed / basic.total) * 100 : 0
+        const advPct = adv.total > 0 ? (adv.completed / adv.total) * 100 : 0
+
+        const idx = this.studyPlans.findIndex(sp => String(sp?.studyPlan?.id) === String(planId))
+        if (idx >= 0) {
+          this.studyPlans[idx].studyPlan.progress = Math.round(basicPct)
+          this.studyPlans[idx].studyPlan.advancedProgress = Math.round(advPct)
+        }
+        if (this.currentPlan && String(this.currentPlan.id) === String(planId)) {
+          this.currentPlan.progress = Math.round(basicPct)
+        }
+      } catch (e) {
+        if (!silent) console.error('Failed to compute plan progress', e)
+      } finally {
+        this.$set ? this.$set(this.progressLoading, planId, false) : (this.progressLoading[planId] = false)
       }
     },
     async fetchPlanDetailsById(planId) {
@@ -461,29 +551,75 @@ export default {
     },
     async saveStudyPlan(plan) {
       try {
-        if (plan.id) {
-          await apiClient.post('/StudyPlan/UpdateStudyPlan', {
-            studyPlan: plan,
-          })
+        this.saving = true
+        let createdId = null
+        const tagPayload = plan.__tags || null
+        const studyPlan = { ...plan }
+        delete studyPlan.__tags
+        if (studyPlan.id) {
+          await apiClient.post('/StudyPlan/UpdateStudyPlan', { studyPlan })
         } else {
-          await apiClient.post('/StudyPlan/SaveStudyPlan', { studyPlan: plan })
+          const resp = await apiClient.post('/StudyPlan/SaveStudyPlan', { studyPlan })
+          createdId = resp?.data?.studyPlanId
+          if (createdId) studyPlan.id = createdId
         }
         this.editDirty = false
         this.editDialog = false
         this.isEditing = false
         await this.fetchPlans()
         // Re-select the saved/updated plan in the list
-        const id = plan.id
+        const id = studyPlan.id || createdId
         if (id) {
           const selected = this.studyPlans.find(
             (p) => String(p.studyPlan.id) === String(id)
           )
           if (selected) this.selectPlan(selected.studyPlan)
           await this.refreshEffectiveRole(id)
+          // Update tags if provided
+          if (tagPayload) {
+            try {
+              const planNames = Array.isArray(tagPayload.planTagNames) ? tagPayload.planTagNames : []
+              if (planNames.length) await apiClient.post(`/StudyPlanTags/${id}/Tags`, { newTagNames: planNames })
+              // Map lesson keys to Ids after fetching full plan detail
+              const detail = await apiClient.get('/StudyPlan/GetStudyPlanById', { params: { studyPlanId: id } })
+              const sp = detail?.data?.studyPlan || detail?.data
+              if (sp) {
+                const map = {}
+                const secs = ['prerequisite', 'mainCurriculum', 'advancedTopics']
+                secs.forEach(sec => {
+                  const list = Array.isArray(sp[sec]) ? sp[sec] : []
+                  list.forEach((l, idx) => {
+                    const key1 = l?.id || `${sec}:${idx}:${l?.name}`
+                    map[key1] = l?.id
+                  })
+                })
+                const lessons = tagPayload.lessonTagNames || {}
+                for (const key in lessons) {
+                  const names = lessons[key]
+                  const lid = map[key]
+                  if (!lid || !Array.isArray(names) || !names.length) continue
+                  await apiClient.post(`/StudyPlanTags/${id}/Lessons/${encodeURIComponent(lid)}/Tags`, { newTagNames: names })
+                }
+              }
+            } catch (e) { /* ignore tag errors */ }
+          }
+          // Refresh center and right panels to reflect new tags without page reload
+          this.$nextTick(() => {
+            try { this.$refs.centerPanel && this.$refs.centerPanel.loadPlan && this.$refs.centerPanel.loadPlan() } catch (_) {}
+            try { this.$refs.rightPanel && this.$refs.rightPanel.fetchLessonById && this.$refs.rightPanel.fetchLessonById() } catch (_) {}
+          })
         }
       } catch (e) {
         console.error('Error saving study plan:', e)
-      }
+      } finally { this.saving = false }
+    },
+    onCenterUpdated(p) {
+      if (p) this.currentPlan = p
+      // Ensure tags are refreshed in UI immediately
+      this.$nextTick(() => {
+        try { this.$refs.centerPanel && this.$refs.centerPanel.loadPlan && this.$refs.centerPanel.loadPlan() } catch (_) {}
+        try { this.$refs.rightPanel && this.$refs.rightPanel.fetchLessonById && this.$refs.rightPanel.fetchLessonById() } catch (_) {}
+      })
     },
     async editPlanById(planId) {
       // Ensure user has edit rights and load full details before editing
@@ -521,13 +657,43 @@ export default {
         resource.learned = wasLearned
       }
     },
-    onResourceUpdated({ completed, resource }) {
+    onResourceUpdated({ completed, resource, planProgress, lessonProgress, phase }) {
       // keep local model in sync
       resource.learned = completed
-      // refresh my overall progress
-      if (this.currentPlan?.id) {
-        this.fetchMyProgress(this.currentPlan.id)
+      const planId = this.currentPlan?.id
+      const panel = this.$refs && this.$refs.centerPanel
+      if (!planId) return
+
+      if (phase === 'optimistic') {
+        // Show skeletons only; defer network fetch to confirmed event
+        if (panel && typeof panel.setLessonLoading === 'function' && this.currentLessonId) {
+          panel.setLessonLoading(this.currentLessonId)
+        }
+        this.$set ? this.$set(this.progressLoading, planId, true) : (this.progressLoading[planId] = true)
+        if (completed) this.launchConfetti()
+        return
       }
+
+      // Confirmed phase: apply fast-path value then do a single backend refresh
+      if (typeof planProgress === 'number') {
+        if (panel) panel.myProgress = Math.round((planProgress <= 1 ? planProgress * 100 : planProgress) * 100) / 100
+        const idx = this.studyPlans.findIndex(sp => String(sp?.studyPlan?.id) === String(planId))
+        if (idx >= 0) this.studyPlans[idx].studyPlan.progress = Math.round((planProgress <= 1 ? planProgress * 100 : planProgress))
+      } else if (panel && typeof panel.fetchMyProgress === 'function') {
+        panel.fetchMyProgress()
+      }
+      // Refresh left list (also updates advanced progress) and lesson bars
+      this.refreshPlanProgress(planId, { silent: true })
+      if (panel && typeof panel.fetchLessonsProgress === 'function') panel.fetchLessonsProgress()
+    },
+    launchConfetti() {
+      const end = Date.now() + 5 * 1000 // 5 seconds
+      const colors = ['#EC0017', '#E2B43C', '#00FFF7']
+      ;(function frame() {
+        confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 }, colors })
+        confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 }, colors })
+        if (Date.now() < end) requestAnimationFrame(frame)
+      })()
     },
     onAiDialogChange(val) {
       if (!val) {

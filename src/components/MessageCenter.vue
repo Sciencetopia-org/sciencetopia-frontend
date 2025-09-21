@@ -10,11 +10,11 @@
       <v-row>
         <v-col cols="auto" class="sidebar">
           <div style="height: 100%">
-            <!-- <v-list variant="plain"> -->
             <v-list-item
+              v-if="userId"
               variant="plain"
               class="sidebar-item"
-              :to="{ name: 'directMessages', params: { userId: userId } }"
+              :to="buildTabRoute('directMessages')"
               exact
               :class="{ active: activeTab === 'directMessages' }"
             >
@@ -25,11 +25,12 @@
                 {{ messageCount > 99 ? '99+' : messageCount }}
               </div>
             </v-list-item>
-            <div style="height: 1vh"></div>
+            <div v-if="userId" style="height: 1vh"></div>
             <v-list-item
+              v-if="userId"
               variant="plain"
               class="sidebar-item"
-              :to="{ name: 'notifications', params: { userId: userId } }"
+              :to="buildTabRoute('notifications')"
               exact
               :class="{ active: activeTab === 'notifications' }"
             >
@@ -40,7 +41,6 @@
                 {{ notificationCount > 99 ? '99+' : notificationCount }}
               </div>
             </v-list-item>
-            <!-- </v-list> -->
           </div>
         </v-col>
         <v-col cols="auto" style="width: 94%">
@@ -48,7 +48,10 @@
             <v-card-text>
               <v-row>
                 <v-col cols="auto" style="width: 20%">
-                  <v-list class="direct-message-list" dense>
+                  <div v-if="loadingConversations" class="pa-4 d-flex justify-center align-center" style="height: 84vh">
+                    <LoadingSpinner />
+                  </div>
+                  <v-list v-else class="direct-message-list" dense>
                     <v-list-item
                       class="message-item"
                       v-for="conversation in conversations"
@@ -99,45 +102,54 @@
                   </v-list>
                 </v-col>
                 <!-- <v-divider vertical color="text" opacity="0.6"></v-divider> -->
-                <v-col
-                  cols="auto"
-                  style="width: 74%; height: 86vh"
-                  v-if="selectedConversation"
-                >
-                  <v-card
-                    class="d-flex align-center justify-center partner-card"
-                  >
-                    <v-card-title>{{
-                      selectedConversation.partnerName
-                    }}</v-card-title>
-                  </v-card>
-                  <MessageList
-                    ref="messageList"
-                    :messages="selectedConversation.messages"
-                    :userId="userId"
-                    :userAvatarUrl="userAvatarUrl"
-                  />
-
-                  <v-textarea
-                    class="textarea"
-                    variant="solo-filled"
-                    v-model="selectedConversation.newMessage"
-                    :label="$t('message.editing')"
-                    outlined
-                    dense
-                  ></v-textarea>
-                  <v-card-actions class="justify-end">
-                    <button
-                      class="send"
-                      @click="sendMessage(selectedConversation)"
-                    >
-                      <div class="send-text">{{ $t('message.send') }}</div>
-                    </button>
-                  </v-card-actions>
+                <v-col cols="auto" style="width: 74%; height: 86vh">
+                  <template v-if="loadingConversation">
+                    <div class="pa-4 d-flex justify-center align-center" style="height: 86vh">
+                      <LoadingSpinner />
+                    </div>
+                  </template>
+                  <template v-else-if="selectedConversation">
+                    <v-card class="d-flex align-center justify-center partner-card">
+                      <v-card-title>{{ selectedConversation.partnerName }}</v-card-title>
+                    </v-card>
+                    <MessageList
+                      ref="messageList"
+                      :messages="selectedConversation.messages"
+                      :userId="userId"
+                      :userAvatarUrl="userAvatarUrl"
+                    />
+                    <v-textarea
+                      class="textarea"
+                      variant="solo-filled"
+                      v-model="selectedConversation.newMessage"
+                      :label="$t('message.editing')"
+                      outlined
+                      dense
+                      @dragenter.prevent
+                      @dragover.prevent
+                      @drop.prevent="onFileDrop"
+                    ></v-textarea>
+                    <v-card-actions class="justify-end">
+                      <input ref="imageInput" type="file" accept="image/*" style="display:none" @change="onImageSelected" />
+                      <button
+                        class="send"
+                        type="button"
+                        :disabled="isSendDisabled"
+                        @click="sendMessage(selectedConversation)"
+                      >
+                        <div class="send-text">{{ $t('message.send') }}</div>
+                      </button>
+                    </v-card-actions>
+                  </template>
                 </v-col>
                 <v-col cols="auto" style="width: 6%">
                   <div class="picker-container">
-                    <button class="image-picker-btn">
+                    <button
+                      class="image-picker-btn"
+                      type="button"
+                      :disabled="sendingImage"
+                      @click="triggerImagePicker"
+                    >
                       <img
                         width="36"
                         height="36"
@@ -172,12 +184,13 @@ import { apiClient } from '@/api'
 import { connection } from '@/services/signalr-service'
 import MessageList from '@/components/MessageList.vue'
 import SystemNotifications from '@/components/SystemNotifications.vue' // Import the new component
+import LoadingSpinner from './LoadingSpinner.vue'
 import { mapState } from 'vuex'
 import { DateTime } from 'luxon'
 import 'emoji-picker-element'
 
 export default {
-  components: { MessageList, SystemNotifications }, // Include the new component
+  components: { MessageList, SystemNotifications, LoadingSpinner }, // Include the new component
   data() {
     return {
       activeTab: 'directMessages',
@@ -186,6 +199,10 @@ export default {
       userId: null,
       userAvatarUrl: null,
       showEmojiPicker: false, // Controls the visibility of the emoji picker
+      loadingConversations: true,
+      loadingConversation: true,
+      sendingImage: false,
+      sendingText: false,
     }
   },
   computed: {
@@ -194,8 +211,28 @@ export default {
       'conversationMessageCount',
       'notificationCount',
     ]),
+    isSendDisabled() {
+      if (!this.selectedConversation) return true
+      const message = this.selectedConversation.newMessage
+      const emptyMessage = typeof message !== 'string' || message.trim() === ''
+      return this.sendingText || this.sendingImage || emptyMessage
+    },
   },
   watch: {
+    '$route.params.userId': {
+      immediate: true,
+      handler(newUserId) {
+        if (newUserId) {
+          const hasChanged = newUserId !== this.userId
+          this.userId = newUserId
+          if (hasChanged || !this.conversations.length) {
+            this.fetchConversations()
+          }
+        } else if (!this.userId) {
+          this.syncUserContext()
+        }
+      },
+    },
     $route(to) {
       if (to.name === 'directMessages') {
         this.activeTab = 'directMessages'
@@ -224,11 +261,43 @@ export default {
     },
   },
   created() {
-    this.fetchConversations()
+    this.syncUserContext()
     this.updateActiveTab()
     this.setupSignalREvents()
   },
   methods: {
+    buildTabRoute(name) {
+      if (!this.userId) return undefined
+      return { name, params: { userId: this.userId } }
+    },
+    async syncUserContext() {
+      const routeUserId = this.$route?.params?.userId
+      const storeUserId = this.$store.state.currentUserID
+      this.userId = routeUserId || storeUserId
+
+      if (!this.userId) {
+        try {
+          await this.$store.dispatch('checkAuthenticationStatus')
+        } catch (err) {
+          console.error('Unable to refresh authentication status for MessageCenter', err)
+        }
+        this.userId = this.$route?.params?.userId || this.$store.state.currentUserID
+      }
+
+      if (!this.userId) {
+        return
+      }
+
+      if (!routeUserId) {
+        this.$router.replace({
+          name: this.$route.name || 'directMessages',
+          params: { ...this.$route.params, userId: this.userId },
+          query: this.$route.query,
+        })
+      }
+
+      this.fetchConversations()
+    },
     setupSignalREvents() {
       const connection = this.$root.$signalRConnection
       if (connection) {
@@ -248,17 +317,23 @@ export default {
       }
     },
     async fetchConversations() {
-      const userId = this.$store.state.currentUserID
-      const response = await apiClient.get(
-        `Message/GetGroupedMessagesByUser/${userId}`
-      )
-      this.conversations = response.data
-      this.selectedConversation = this.conversations[0]
-      this.userId = userId
-      this.userAvatarUrl = this.$store.state.avatarUrl
+      const userId = this.userId || this.$store.state.currentUserID
+      if (!userId) return
+      try {
+        this.loadingConversations = true
+        const response = await apiClient.get(`Message/GetGroupedMessagesByUser/${userId}`)
+        this.conversations = response.data
+        this.selectedConversation = this.conversations[0]
+      } finally {
+        this.loadingConversations = false
+        this.userId = userId
+        this.userAvatarUrl = this.$store.state.avatarUrl
+        this.loadingConversation = false
+      }
     },
     async loadConversation(conversationId, partnerId = null, partnerName = '') {
       try {
+        this.loadingConversation = true
         // Fetch the full conversation details from the backend
         const response = await apiClient.get(
           `/Message/GetConversation/${conversationId}`
@@ -284,10 +359,13 @@ export default {
           partnerId: partnerId,
           partnerName: partnerName,
         }
-      }
+      } finally { this.loadingConversation = false }
     },
     selectConversation(conversation) {
       this.selectedConversation = conversation
+      if (this.selectedConversation && typeof this.selectedConversation.newMessage !== 'string') {
+        this.selectedConversation.newMessage = ''
+      }
     },
     isSelectedConversation(conversation) {
       return (
@@ -334,35 +412,110 @@ export default {
       }
       connection.invoke('MarkMessagesAsRead', conversationId, this.userId)
     },
-    sendMessage(conversation) {
-      if (conversation.newMessage.trim() === '') return
+    async sendMessage(conversation) {
+      if (!conversation || typeof conversation.newMessage !== 'string') return
+      if (conversation.newMessage.trim() === '' || this.sendingText) return
 
       const receiverId = conversation.partnerId
-      connection
-        .invoke(
+      const messageBody = conversation.newMessage
+
+      this.sendingText = true
+
+      try {
+        await connection.invoke(
           'SendMessage',
           conversation.conversationId,
           this.userId,
           receiverId,
-          conversation.newMessage
+          messageBody
         )
-        .then(() => {
-          const newMessage = {
-            id: Date.now().toString(),
-            senderName: 'You',
-            content: conversation.newMessage,
-            sentTime: DateTime.utc().toISO(),
-            sender: {
-              id: this.userId,
-              avatarUrl: this.userAvatarUrl,
-            },
+
+        const newMessage = {
+          id: Date.now().toString(),
+          senderName: 'You',
+          content: messageBody,
+          sentTime: DateTime.utc().toISO(),
+          sender: {
+            id: this.userId,
+            avatarUrl: this.userAvatarUrl,
+          },
+        }
+        conversation.messages.push(newMessage)
+        conversation.newMessage = ''
+        this.$refs.messageList.scrollToBottom()
+        this.sortConversations(conversation.conversationId)
+      } catch (err) {
+        console.error('Error sending message:', err)
+      } finally {
+        this.sendingText = false
+      }
+    },
+    triggerImagePicker() {
+      const el = this.$refs.imageInput
+      if (el && el.click) el.click()
+    },
+    async onImageSelected(e) {
+      const file = e?.target?.files?.[0]
+      try {
+        await this.uploadAndSendImage(file)
+      } finally {
+        if (e?.target) {
+          try {
+            e.target.value = ''
+          } catch (err) {
+            console.warn('Failed to reset file input after upload', err)
           }
-          conversation.messages.push(newMessage)
-          conversation.newMessage = ''
-          this.$refs.messageList.scrollToBottom()
-          this.sortConversations(conversation.conversationId)
+        }
+      }
+    },
+    async onFileDrop(event) {
+      const file = event?.dataTransfer?.files?.[0]
+      await this.uploadAndSendImage(file)
+    },
+    async uploadAndSendImage(file) {
+      if (!file || !this.selectedConversation) return
+      if (!file.type?.startsWith('image/')) {
+        console.warn('Dropped file is not an image, ignoring.')
+        return
+      }
+
+      if (this.sendingImage) return
+
+      try {
+        this.sendingImage = true
+        const form = new FormData()
+        form.append('file', file)
+        const resp = await apiClient.post('/Message/UploadAttachment', form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         })
-        .catch((err) => console.error('Error sending message:', err))
+        const url = resp?.data?.url
+        if (!url) throw new Error('No URL returned')
+        const receiverId = this.selectedConversation.partnerId
+        await connection.invoke(
+          'SendMessage',
+          this.selectedConversation.conversationId,
+          this.userId,
+          receiverId,
+          String(url)
+        )
+        const newMessage = {
+          id: Date.now().toString(),
+          senderName: 'You',
+          content: String(url),
+          sentTime: DateTime.utc().toISO(),
+          sender: {
+            id: this.userId,
+            avatarUrl: this.userAvatarUrl,
+          },
+        }
+        this.selectedConversation.messages.push(newMessage)
+        this.$refs.messageList.scrollToBottom()
+        this.sortConversations(this.selectedConversation.conversationId)
+      } catch (err) {
+        console.error('Error uploading/sending image:', err)
+      } finally {
+        this.sendingImage = false
+      }
     },
     sortConversations(conversationId) {
       const conversationIndex = this.conversations.findIndex(
@@ -601,6 +754,11 @@ export default {
   right: 5vw;
   z-index: 10;
 
+  &[disabled],
+  &[disabled]:hover {
+    cursor: not-allowed;
+  }
+
   &::after {
     content: '';
     position: absolute;
@@ -627,6 +785,12 @@ export default {
     pointer-events: none;
     /* Disable click events */
   }
+
+}
+
+.image-picker-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .send-text {

@@ -106,7 +106,10 @@
     "tags": "标签",
     "tag": "标签",
     "searchTagsPlaceholder": "搜索标签...",
-    "filterSelectedAria": "按所选标签筛选"
+    "filterSelectedAria": "按所选标签筛选",
+    "emptyGraph": "当前筛选没有找到知识节点，请尝试其他标签结构或重新选择标签。",
+    "emptyGraphStructure": "标签结构“{name}”暂时没有知识节点，请尝试选择其他结构或添加标签筛选。",
+    "emptyGraphFilter": "当前标签组合没有匹配的知识节点，请调整筛选条件后重试。"
   },
   "contactPage": {
     "title": "联系我们",
@@ -340,7 +343,7 @@
     "groupinfo": "小组信息",
     "grouptrend": "小组动态",
     "grouptrenddefault": "学习小组的动态空间。",
-    "studypath": "学习计划",
+    "studypath": "组共享的学习计划",
     "studypathdefault": "学习小组共享的学习计划。",
     "studygroupspace": "小组空间",
     "managerboard": "管理面板",
@@ -449,6 +452,8 @@
     "reset": "重置",
     "locateto": "定位到",
     "fullscreen": "全屏",
+    "showPanel": "展开节点面板",
+    "hidePanel": "收起节点面板",
     "createnode": "创建节点",
     "createlink": "创建边",
     "submitnode": "创建新节点",

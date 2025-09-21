@@ -2,6 +2,10 @@
   <v-card class="member-management">
     <v-card-title>{{ $t('memberMgmt.title') }}</v-card-title>
     <v-card-text>
+      <div v-if="loading">
+        <LoadingSpinner />
+      </div>
+      <template v-else>
       <v-simple-table class="full-width-table">
         <thead>
           <tr>
@@ -32,6 +36,7 @@
                   <v-btn
                     icon
                     v-bind="props"
+                    :disabled="actioningId===member.id"
                     @click="promoteToManager(member.id)"
                     >👨‍🎓</v-btn
                   >
@@ -40,7 +45,7 @@
 
               <v-tooltip :text="$t('studygroup.demote')" location="bottom">
                 <template v-slot:activator="{ props }">
-                  <v-btn icon v-bind="props" @click="demoteToMember(member.id)"
+                  <v-btn icon v-bind="props" :disabled="actioningId===member.id" @click="demoteToMember(member.id)"
                     >🧑</v-btn
                   >
                 </template>
@@ -48,7 +53,7 @@
 
               <v-tooltip :text="$t('memberMgmt.remove')" location="bottom">
                 <template v-slot:activator="{ props }">
-                  <v-btn icon v-bind="props" @click="removeMember(member.id)"
+                  <v-btn icon v-bind="props" :disabled="actioningId===member.id" @click="removeMember(member.id)"
                     >❎</v-btn
                   >
                 </template>
@@ -59,8 +64,9 @@
       </v-simple-table>
 
       <v-card-actions>
-        <v-btn color="primary" @click="inviteMember">{{ $t('memberMgmt.invite') }}</v-btn>
+        <v-btn color="primary" :disabled="inviting" :loading="inviting" @click="inviteMember">{{ $t('memberMgmt.invite') }}</v-btn>
       </v-card-actions>
+      </template>
     </v-card-text>
   </v-card>
 </template>
@@ -69,12 +75,16 @@
 import { apiClient } from '@/api'
 
 export default {
+  components: { LoadingSpinner: require('../LoadingSpinner.vue').default },
   props: {
     groupId: String,
   },
   data() {
     return {
       members: [],
+      loading: true,
+      actioningId: null,
+      inviting: false,
     }
   },
   async mounted() {
@@ -82,32 +92,53 @@ export default {
   },
   methods: {
     async promoteToManager(memberId) {
-      await apiClient.post(
-        `/StudyGroupManage/PromoteToManager/${this.groupId}`,
-        { memberId }
-      )
-      this.fetchMembers()
+      this.actioningId = memberId
+      try {
+        await apiClient.post(
+          `/StudyGroupManage/PromoteToManager/${this.groupId}`,
+          { memberId }
+        )
+        await this.fetchMembers()
+      } finally {
+        this.actioningId = null
+      }
     },
     async demoteToMember(memberId) {
-      await apiClient.post(`/StudyGroupManage/DemoteToMember/${this.groupId}`, {
-        memberId,
-      })
-      this.fetchMembers()
+      this.actioningId = memberId
+      try {
+        await apiClient.post(`/StudyGroupManage/DemoteToMember/${this.groupId}`, {
+          memberId,
+        })
+        await this.fetchMembers()
+      } finally {
+        this.actioningId = null
+      }
     },
     async removeMember(memberId) {
-      await apiClient.post(`/StudyGroupManage/RemoveMember/${this.groupId}`, {
-        memberId,
-      })
-      this.fetchMembers()
+      this.actioningId = memberId
+      try {
+        await apiClient.post(`/StudyGroupManage/RemoveMember/${this.groupId}`, {
+          memberId,
+        })
+        await this.fetchMembers()
+      } finally {
+        this.actioningId = null
+      }
     },
     async fetchMembers() {
-      const response = await apiClient.get(
-        `/StudyGroup/GetStudyGroupMembers/${this.groupId}`
-      )
-      this.members = response.data
+      this.loading = true
+      try {
+        const response = await apiClient.get(
+          `/StudyGroup/GetStudyGroupMembers/${this.groupId}`
+        )
+        this.members = response.data
+      } finally {
+        this.loading = false
+      }
     },
     inviteMember() {
-      // Logic to invite member
+      this.inviting = true
+      setTimeout(() => { this.inviting = false }, 800)
     },
   },
 }

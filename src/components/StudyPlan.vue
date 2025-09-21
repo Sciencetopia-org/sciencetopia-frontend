@@ -51,7 +51,10 @@
           ></v-progress-linear></template
       ></v-tooltip>
       <v-spacer style="height: 20px"></v-spacer>
-      <h2>{{ studyPlan.title }}</h2>
+      <div class="d-flex align-center mb-1">
+        <h2 class="mr-2">{{ studyPlan.title }}</h2>
+        <TagChips v-if="Array.isArray(studyPlan.tags) && studyPlan.tags.length" :items="studyPlan.tags" />
+      </div>
       <p>{{ studyPlan.introduction.description }}</p>
 
       <h2>{{ $t('studyplan.prerequisites') }}</h2>
@@ -69,7 +72,10 @@
             height="10"
             striped
           ></v-progress-linear>
-          <div class="title">{{ lesson.name }}</div>
+          <div class="title d-flex align-center">
+            <span>{{ lesson.name }}</span>
+          </div>
+          <TagChips v-if="Array.isArray(lesson.tags) && lesson.tags.length" :items="lesson.tags" class="mb-2" />
           <div v-if="detailsVisible.prerequisite[key]" class="description">
             {{ lesson.description }}
             <!-- Resource Link Previews for Prerequisite Lessons -->
@@ -124,7 +130,10 @@
               height="10"
               striped
             ></v-progress-linear>
-            <div class="title">{{ lesson.name }}</div>
+            <div class="title d-flex align-center">
+              <span>{{ lesson.name }}</span>
+            </div>
+            <TagChips v-if="Array.isArray(lesson.tags) && lesson.tags.length" :items="lesson.tags" class="mb-2" />
             <div v-if="detailsVisible.mainCurriculum[key]" class="description">
               {{ lesson.description }}
               <!-- Flex container for link previews -->
@@ -181,7 +190,10 @@
             height="10"
             striped
           ></v-progress-linear>
-          <div class="title">{{ lesson.name }}</div>
+          <div class="title d-flex align-center">
+            <span>{{ lesson.name }}</span>
+          </div>
+          <TagChips v-if="Array.isArray(lesson.tags) && lesson.tags.length" :items="lesson.tags" class="mb-2" />
           <div v-if="detailsVisible.advancedTopics[key]" class="description">
             {{ lesson.description }}
             <!-- Flex container for link previews -->
@@ -226,6 +238,7 @@ import confetti from 'canvas-confetti'
 import rightArrow from '@/assets/images/right-arrow-next.svg'
 import { apiClient } from '@/api'
 import LinkPreview from '@/components/LinkPreview.vue' // Assuming you have a LinkPreview component
+import TagChips from '@/components/common/TagChips.vue'
 import EditStudyPlanForm from './EditStudyPlanForm.vue'
 
 export default {
@@ -242,6 +255,7 @@ export default {
   components: {
     LinkPreview,
     EditStudyPlanForm,
+    TagChips,
   },
   computed: {
     isOwner() {

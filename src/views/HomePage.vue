@@ -34,10 +34,13 @@
         <v-card rounded="xl" elevation="2" class="kgp-card card-stack panel-card panel-card--beige">
           <v-card-title class="text-body-1 py-3">{{ $t('home.tagsStructure') }}</v-card-title>
           <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
-          <v-card-text class="pt-3">
+          <v-card-text class="pt-3" style="position: relative;">
+            <v-progress-linear v-show="filterTagStructureLoading" indeterminate absolute color="primary" height="2"
+              class="card-top-loader" />
             <v-list class="kgp-filter-group plan-list" nav>
-              <v-list-item class="group-plan-item plan-card kgp-list-item" v-for="(sys, i) in tagSystems" :key="sys" :title="sys" :active="activeTagSystem === i"
-                @click="activeTagSystem = i"/>
+              <v-list-item class="group-plan-item plan-card kgp-list-item" v-for="(sys, i) in tagSystems" :key="sys" :title="sys"
+                :active="activeTagSystem === i" :disabled="filterTagStructureLoading && loadingTagSystemIndex === i"
+                @click="selectTagSystem(i)" />
             </v-list>
           </v-card-text>
         </v-card>
@@ -50,36 +53,15 @@
             <span class="text-subtitle-1 font-weight-medium">{{ $t('home.knowledgeNetwork') }}</span>
             <div class="d-flex align-center ga-0">
               <template v-if="selectedNodes.length > 0">
-                <v-tooltip :text="$t('knowledgeGraph.adjacentnodes')" location="top">
-                  <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showAdjacentNodes">
-                      <i class="fas fa-circle-nodes" />
-                    </v-btn>
-                  </template>
-                </v-tooltip>
-
-                <v-tooltip :text="$t('knowledgeGraph.frontnodes')" location="top">
-                  <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showPrerequisiteNodes">
-
-                      <i class="fas fa-share-nodes" />
-                    </v-btn>
-                  </template>
-                </v-tooltip>
-
-                <v-tooltip :text="$t('knowledgeGraph.backnodes')" location="top">
-                  <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showSubsequentNodes">
-                      <i class="fas fa-share-nodes" />
-                    </v-btn>
-                  </template>
-                </v-tooltip>
-
                 <v-tooltip v-if="!isEditing"
                   :text="isFavorited ? $t('knowledgeGraph.removenode') : $t('knowledgeGraph.savenode')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="toggleFavorites">
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="toggleFavorites"
+                      :disabled="graphActionPending || isFavoritedLoading" :loading="isFavoritedLoading">
                       <i :class="isFavorited ? 'fas fa-heart-circle-minus' : 'fas fa-heart-circle-plus'" />
+                      <!-- <span class="ml-1">
+                        {{ isFavorited ? $t('knowledgeGraph.removenode') : $t('knowledgeGraph.savenode') }}
+                      </span> -->
                     </v-btn>
                   </template>
                 </v-tooltip>
@@ -87,7 +69,8 @@
 
               <v-tooltip :text="$t('knowledgeGraph.saved')" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showFavoritedNodes">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showFavoritedNodes"
+                    :disabled="graphActionPending">
                     <i class="fas fa-star" />
                   </v-btn>
                 </template>
@@ -95,7 +78,8 @@
 
               <v-tooltip :text="$t('knowledgeGraph.reset')" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="resetGraphView">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="resetGraphView"
+                    :disabled="graphActionPending">
                     <i class="fas fa-arrows-rotate" />
                   </v-btn>
                 </template>
@@ -103,7 +87,8 @@
 
               <v-tooltip :text="$t('edit')" location="top" v-if="!isEditing">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="startGraphEditing">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="startGraphEditing"
+                    :disabled="graphActionPending">
                     <i class="fas fa-pen" />
                   </v-btn>
                 </template>
@@ -111,14 +96,29 @@
 
               <v-tooltip :text="$t('canceledit')" location="top" v-if="isEditing">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="submitGraphEditing">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="submitGraphEditing"
+                    :disabled="graphActionPending">
                     <i class="fa-solid fa-right-from-bracket highlight-icon" />
                   </v-btn>
                 </template>
               </v-tooltip>
+              <v-tooltip :text="$t('knowledgeGraph.locateto')" location="top">
+                <template v-slot:activator="{ props }">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="openGraphSearch"
+                    :disabled="graphActionPending">
+                    <v-icon>mdi-map-search</v-icon>
+                  </v-btn>
+                </template>
+              </v-tooltip>
 
-              <v-btn size="small" variant="tonal" @click="refreshGraph">刷新</v-btn>
-              <v-btn size="small" variant="text" icon="mdi-fullscreen" @click="enterFullscreen" />
+              <v-tooltip :text="isFullScreen ? $t('exitfullscreen') : $t('knowledgeGraph.fullscreen')" location="top">
+                <template v-slot:activator="{ props }">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="enterFullscreen"
+                    :disabled="graphActionPending">
+                    <i :class="isFullScreen ? 'fas fa-compress' : 'fas fa-expand'" />
+                  </v-btn>
+                </template>
+              </v-tooltip>
             </div>
           </v-card-title>
 
@@ -126,16 +126,44 @@
 
           <v-card-text class="kgp-center-body">
             <!-- ✅ 单一容器：既是 ref 又是 knowledgegraph-container -->
-            <div ref="graphWrap" class="kgp-graph-wrap knowledgegraph-container">
+            <div ref="graphWrap"
+              :class="['kgp-graph-wrap knowledgegraph-container', { 'kgp-graph-wrap--fullscreen': isFullScreen }]">
               <!-- ✅ 不再传 :height / :width / :key，由组件内部的 RO 负责 -->
               <KnowledgeNetwork ref="graph" class="kgp-graph" :zoom-level="zoomLevel" @ready="onGraphReady" />
+              <div v-if="isFullScreen" class="kgp-fullscreen-panel"
+                @mousedown.stop @touchstart.stop @wheel.stop
+                :class="{ 'kgp-fullscreen-panel--collapsed': fullscreenPanelCollapsed }">
+                <button type="button" class="kgp-fullscreen-panel__toggle" @click.stop="toggleFullscreenPanel"
+                  :aria-label="fullscreenPanelCollapsed ? $t('knowledgeGraph.showPanel') : $t('knowledgeGraph.hidePanel')">
+                  <i :class="fullscreenPanelCollapsed ? 'fas fa-chevron-left' : 'fas fa-chevron-right'" />
+                </button>
+                <transition name="fade">
+                  <div v-if="!fullscreenPanelCollapsed" class="kgp-fullscreen-panel__content">
+                    <div class="kgp-fullscreen-panel__header">
+                      <span>{{ $t('home.nodePanel') }}</span>
+                      <button type="button" class="kgp-fullscreen-panel__close" @click.stop="toggleFullscreenPanel">
+                        <i class="fas fa-times" />
+                      </button>
+                    </div>
+                    <div class="kgp-fullscreen-panel__body">
+                      <NodeCreationForm v-if="$store.state.displayNodeCreationForm" @submitted="afterEditOrCreate" />
+                      <LinkCreationForm v-else-if="$store.state.displayLinkCreationForm" @submitted="afterEditOrCreate" />
+                      <NodeInfo v-else @edited="afterEditOrCreate" />
+                    </div>
+                  </div>
+                </transition>
+              </div>
+              <div v-if="graphEmptyMessage" class="kgp-empty-overlay">
+                <i class="fas fa-circle-info kgp-empty-icon"></i>
+                <span>{{ graphEmptyMessage }}</span>
+              </div>
             </div>
           </v-card-text>
         </v-card>
       </v-col>
 
       <!-- 右列：节点详情 / 创建表单 / 关系创建 -->
-      <v-col class="kgp-col kgp-right" :cols="12" :md="4" :lg="4" :xl="4">
+      <v-col v-if="!isFullScreen" class="kgp-col kgp-right" :cols="12" :md="4" :lg="4" :xl="4">
         <v-card class="kgp-card panel-card panel-card--beige" elevation="2" rounded="xl">
           <v-card-title class="text-subtitle-1 font-weight-medium">{{ $t('home.nodePanel') }}</v-card-title>
           <v-card-text class="pt-0">
@@ -188,9 +216,11 @@ import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { eventBus } from '@/eventBus'
 import { apiClient } from '@/api'
+import { useI18n } from 'vue-i18n'
 
 const store = useStore()
 const router = useRouter()
+const { t } = useI18n()
 
 // 左列控件
 const acKey = ref(0)
@@ -203,6 +233,7 @@ const selectedTags = ref([])
 const tagSystems = ref([])
 const activeTagSystem = ref()
 const selectedTagSystem = ref('')
+const loadingTagSystemIndex = ref(null)
 const zoomLevel = ref('Field')
 const leftDrawer = ref(false)
 const rightDrawer = ref(false)
@@ -215,15 +246,12 @@ const graph = ref(null)
 function callGraphMethod(name) {
   const fn = graph.value?.[name]
   if (typeof fn === 'function') {
-    fn()
+    return fn()
   } else {
     console.warn(`KnowledgeNetwork method ${name} is not available`, graph.value)
   }
 }
 
-const showAdjacentNodes = () => callGraphMethod('showAdjacentNodes')
-const showPrerequisiteNodes = () => callGraphMethod('showPrerequisiteNodes')
-const showSubsequentNodes = () => callGraphMethod('showSubsequentNodes')
 const toggleFavorites = () => callGraphMethod('toggleFavorites')
 const showFavoritedNodes = () => callGraphMethod('showFavoritedNodes')
 const resetGraphView = () => callGraphMethod('resetView')
@@ -234,12 +262,28 @@ const submitGraphEditing = () => callGraphMethod('submitEditing')
 const selectedNodes = computed(() => store.state.selectedNodes)
 const isEditing = computed(() => store.state.isEditing)
 const isFavorited = computed(() => graph.value?.isFavorited?.value || false)
+const isFavoritedLoading = computed(() => graph.value?.isFavoritedLoading?.value || false)
+const graphActionPending = computed(() => graph.value?.actionPending?.value || false)
 const graphHeight = ref(480)
 const graphWidth = ref(800)
 const graphKey = ref(0)
 
-const filterLoading = ref(false)     // ← 新增：仅用于“筛选”加载态
+const filterLoading = ref(false)     // ← 标签筛选（搜索）加载态
+const filterTagStructureLoading = ref(false) // ← 标签结构切换加载态
 const MIN_SPIN = 300                 // 可选：最少展示 300ms，避免闪一下
+const graphEmptyMessage = ref('')
+const isFullScreen = computed(() => graph.value?.isFullScreen?.value || false)
+const fullscreenPanelCollapsed = ref(false)
+
+watch(isFullScreen, (val) => {
+  if (!val) {
+    fullscreenPanelCollapsed.value = false
+  }
+})
+
+function toggleFullscreenPanel() {
+  fullscreenPanelCollapsed.value = !fullscreenPanelCollapsed.value
+}
 
 function onTagMenuChange(open) {
   // 打开且没有输入时，不展示旧下拉
@@ -285,66 +329,99 @@ function removeTag(t) {
   selectedTags.value = selectedTags.value.filter(tag => tag !== t)
 }
 
-async function filterByTags() {
-  // ① 没选标签就不要打请求（很多后端会 400）
-  if (!selectedTags.value || selectedTags.value.length === 0) {
-    // 可选：初次加载/清空时走你的默认加载逻辑
-    if (graph.value?.reload) {
-      graph.value.reload({ zoomLevel: zoomLevel.value, tags: [] })
-    }
-    return
+function applyGraphData(data, { emptyMessageKey = 'home.emptyGraph', emptyMessageParams } = {}) {
+  const payload = data || { nodes: [], links: [] }
+  if (graph.value && typeof graph.value.loadData === 'function') {
+    graph.value.loadData(payload)
   }
 
-  filterLoading.value = true;
-  const start = Date.now();
+  const nodes = Array.isArray(payload?.nodes) ? payload.nodes : []
+  const links = Array.isArray(payload?.links) ? payload.links : []
+  graphEmptyMessage.value = (nodes.length > 0 || links.length > 0)
+    ? ''
+    : t(emptyMessageKey, emptyMessageParams)
+}
 
-  // axios v1: 用 paramsSerializer.indexes=null 生成 tags=a&tags=b（无 []）
-  const base = {
-    tagSystem: selectedTagSystem.value || '',
-    tags: selectedTags.value
+async function loadGraphBySystem() {
+  const tagSystemParam = selectedTagSystem.value || ''
+  const displayName = tagSystemParam || t('home.tagsStructure')
+  graphEmptyMessage.value = ''
+  await nextTick()
+  graph.value?.beginLoading?.()
+
+  try {
+    const res = await apiClient.get('/KnowledgeGraph/GetNodeInView', {
+      params: { tagSystem: tagSystemParam }
+    })
+    const data = res?.data?.data ?? res?.data
+    applyGraphData(data, {
+      emptyMessageKey: 'home.emptyGraphStructure',
+      emptyMessageParams: { name: displayName }
+    })
+    return data
+  } catch (error) {
+    console.error('GetNodeInView failed:', error?.response?.status, error?.response?.data || error)
+    graphEmptyMessage.value = t('operationfailedmsg3')
+    throw error
+  } finally {
+    graph.value?.endLoading?.()
+  }
+}
+
+async function fetchGraphByTags(tags) {
+  const endpoint = '/KnowledgeGraph/FilterByTags'
+  const tagSystemParam = selectedTagSystem.value || ''
+
+  const attempt = async (params, extraConfig = {}) => {
+    const res = await apiClient.get(endpoint, {
+      params: { tagSystem: tagSystemParam, ...params },
+      ...extraConfig
+    })
+    return res?.data?.data ?? res?.data
   }
 
   try {
-    const res = await apiClient.get('/KnowledgeGraph/FilterByTags', {
-      params: base,
-      paramsSerializer: { indexes: null }  // ✅ 关键：数组不带方括号
-    })
-    const data = res?.data?.data ?? res?.data
-    graph.value?.loadData(data)
-  } catch (e1) {
-    // ② 回退1：后端可能期望 CSV：tags=a,b
-    if (e1?.response?.status === 400) {
-      try {
-        const res2 = await apiClient.get('/KnowledgeGraph/FilterByTags', {
-          params: {
-            tagSystem: selectedTagSystem.value || '',
-            tags: selectedTags.value.join(',')   // ✅ CSV 形式
-          }
-        })
-        const data2 = res2?.data?.data ?? res2?.data
-        graph.value?.loadData(data2)
-        return
-      } catch (e2) {
-        // ③ 回退2：有些接口参数名叫 tagNames
-        try {
-          const res3 = await apiClient.get('/KnowledgeGraph/FilterByTags', {
-            params: { tagSystem: selectedTagSystem.value || '', tagNames: selectedTags.value },
-            paramsSerializer: { indexes: null }
-          })
-          const data3 = res3?.data?.data ?? res3?.data
-          graph.value?.loadData(data3)
-          return
-        } catch (e3) {
-          console.error('FilterByTags failed (fallbacks exhausted):',
-            e3?.response?.status, e3?.response?.data || e3)
-        }
-      }
-    } else {
-      console.error('FilterByTags failed:', e1?.response?.status, e1?.response?.data || e1)
+    return await attempt({ tags }, { paramsSerializer: { indexes: null } })
+  } catch (error) {
+    if (error?.response?.status !== 400) throw error
+    try {
+      return await attempt({ tags: tags.join(',') })
+    } catch (errorCsv) {
+      if (errorCsv?.response?.status !== 400) throw errorCsv
+      return await attempt({ tagNames: tags }, { paramsSerializer: { indexes: null } })
     }
+  }
+}
+
+async function filterByTags() {
+  const tags = (selectedTags.value || []).filter(Boolean)
+  if (!selectedTagSystem.value && tags.length === 0) {
+    graphEmptyMessage.value = ''
+    return null
+  }
+
+  if (tags.length === 0) {
+    return loadGraphBySystem()
+  }
+
+  await nextTick()
+  graph.value?.beginLoading?.()
+  filterLoading.value = true
+  const start = Date.now()
+  graphEmptyMessage.value = ''
+
+  try {
+    const data = await fetchGraphByTags(tags)
+    applyGraphData(data, { emptyMessageKey: 'home.emptyGraphFilter' })
+    return data
+  } catch (error) {
+    console.error('FilterByTags failed:', error?.response?.status, error?.response?.data || error)
+    graphEmptyMessage.value = t('operationfailedmsg3')
+    throw error
   } finally {
     const elapsed = Date.now() - start
     setTimeout(() => { filterLoading.value = false }, Math.max(0, MIN_SPIN - elapsed))
+    graph.value?.endLoading?.()
   }
 }
 
@@ -355,20 +432,46 @@ async function fetchTagSystems() {
     const payload = body?.data ? body.data : body
     tagSystems.value = payload
     if (payload && payload.length > 0) {
-      activeTagSystem.value = 0
-      selectedTagSystem.value = payload[0]
+      await applyTagSystem(0, { initial: true })
     }
   } catch (e) {
     console.error(e)
   }
 }
 
-watch(activeTagSystem, (idx) => {
-  if (tagSystems.value[idx]) {
-    selectedTagSystem.value = tagSystems.value[idx]
-    filterByTags()
+async function applyTagSystem(idx, { initial = false } = {}) {
+  const target = tagSystems.value[idx]
+  if (!target) return
+  if (!initial && filterTagStructureLoading.value && loadingTagSystemIndex.value === idx) return
+
+  activeTagSystem.value = idx
+  selectedTagSystem.value = target
+
+  const start = Date.now()
+
+  if (!initial) {
+    filterTagStructureLoading.value = true
+    loadingTagSystemIndex.value = idx
   }
-})
+
+  try {
+    await filterByTags()
+  } finally {
+    if (!initial) {
+      const elapsed = Date.now() - start
+      setTimeout(() => {
+        if (loadingTagSystemIndex.value === idx) {
+          loadingTagSystemIndex.value = null
+        }
+        filterTagStructureLoading.value = false
+      }, Math.max(0, MIN_SPIN - elapsed))
+    }
+  }
+}
+
+function selectTagSystem(idx) {
+  applyTagSystem(idx).catch(err => console.error(err))
+}
 
 let rafId = 0
 function scheduleMeasure() {
@@ -410,11 +513,7 @@ function onWindowResize() {
 }
 
 function refreshGraph() {
-  if (graph.value && typeof graph.value.reload === 'function') {
-    graph.value.reload({ zoomLevel: zoomLevel.value, tags: selectedTags.value })
-  } else {
-    graphKey.value += 1
-  }
+  filterByTags().catch(err => console.error(err))
 }
 
 function onGraphReady() {
@@ -422,7 +521,17 @@ function onGraphReady() {
 }
 
 function enterFullscreen() {
-  // 如果你的图支持全屏 API，可在这里实现
+  const fn = graph.value?.toggleFullScreen
+  if (typeof fn === 'function') {
+    fn()
+  }
+}
+
+function openGraphSearch() {
+  const fn = graph.value?.openSearchPanel
+  if (typeof fn === 'function') {
+    fn()
+  }
 }
 
 
@@ -436,9 +545,7 @@ function showFeed() {
 
 onMounted(() => {
   eventBus.on('show-feed-section', showFeed)
-  fetchTagSystems().then(() => {
-    filterByTags()
-  })
+  fetchTagSystems()
   // 初次与延迟测量：避免 0×0
   scheduleMeasure()
   setTimeout(scheduleMeasure, 60)
@@ -511,6 +618,10 @@ onBeforeUnmount(() => {
   /* 关键 */
 }
 
+.kgp-graph-wrap--fullscreen {
+  overflow: visible;
+}
+
 .kgp-graph {
   width: 100%;
   height: 100%;
@@ -523,6 +634,119 @@ onBeforeUnmount(() => {
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+.kgp-fullscreen-panel {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  max-width: min(360px, 42vw);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  z-index: 1200;
+  pointer-events: auto;
+}
+
+.kgp-fullscreen-panel--collapsed .kgp-fullscreen-panel__content {
+  display: none;
+}
+
+.kgp-fullscreen-panel__toggle {
+  border: none;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s ease;
+}
+
+.kgp-fullscreen-panel__toggle:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.kgp-fullscreen-panel__content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(6px);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  padding: 16px;
+  width: 100%;
+  max-height: min(80vh, 720px);
+  overflow-y: auto;
+}
+
+.kgp-fullscreen-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.kgp-fullscreen-panel__close {
+  border: none;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.kgp-fullscreen-panel__close:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.kgp-fullscreen-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.kgp-empty-overlay {
+  position: absolute;
+  inset: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 18px 22px;
+  border-radius: 16px;
+  border: 1px dashed rgba(0, 0, 0, 0.12);
+  background-color: rgba(255, 255, 255, 0.88);
+  color: #4f4f4f;
+  font-size: 15px;
+  line-height: 1.5;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+}
+
+.kgp-empty-icon {
+  margin-right: 8px;
+  font-size: 20px;
+  color: #6c6c6c;
 }
 
 /* 左列表单小间距 */

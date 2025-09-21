@@ -2,29 +2,17 @@
   <GlobalLoader />
   <div ref="svgRef" id="cy" :class="{ 'fullscreen-mode': isFullScreen }"
     :style="{ width: width + 'px', height: height + 'px' }">
-    <!-- Bottom Right Actions -->
-    <div class="bottom-right-actions">
-      <div class="map-actions">
-        <div @mouseover="(showInput(), (overContainer = true))"
-          @mouseleave="() => { overContainer = false; hideInput(); }" class="action-container">
-          <button @click="handleSearch" class="locator-btn">
-            <svg-icon type="mdi" :path="path"></svg-icon>
-          </button>
-          <input v-if="inputVisible" v-model="searchQuery" type="text" :placeholder="$t('knowledgeGraph.locateto')"
-            @input="handleInput" ref="searchInput" class="search-input" />
-        </div>
-      </div>
-
-      <v-tooltip :text="isFullScreen
-          ? $t('exitfullscreen')
-          : $t('knowledgeGraph.fullscreen')
-        " location="top">
-        <template v-slot:activator="{ props }">
-          <button class="fullscreen-button" v-bind="props" @click="toggleFullScreen">
-            <i :class="isFullScreen ? 'fas fa-compress' : 'fas fa-expand'"></i>
-          </button>
-        </template>
-      </v-tooltip>
+    <div v-if="inputVisible" class="search-flyin" @keydown.esc.stop.prevent="closeSearchPanel"
+      @mousedown.stop @touchstart.stop @wheel.stop @click.stop="focusSearchInput">
+      <svg-icon type="mdi" :path="path" class="search-flyin__icon" />
+      <input ref="searchInput" v-model="searchQuery" type="text" :placeholder="$t('knowledgeGraph.locateto')"
+        class="search-flyin__input" @keyup.enter.stop.prevent="handleSearch" @blur="handleBlur" />
+      <button type="button" class="search-flyin__btn" @mousedown.stop @click.stop.prevent="handleSearch">
+        <i class="fas fa-arrow-right" />
+      </button>
+      <button type="button" class="search-flyin__close" @mousedown.stop @click.stop.prevent="closeSearchPanel">
+        <i class="fas fa-times" />
+      </button>
     </div>
 
     <slot v-if="isFullScreen"></slot>
@@ -38,7 +26,7 @@
 import useKnowledgeGraph from './useKnowledgeGraph'
 import EditGuideDialog from './EditGuideDialog.vue'
 import ContextMenu from './ContextMenu.vue'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { apiClient } from '@/api'
 import { useStore } from 'vuex'
 import SvgIcon from '@jamescoyle/vue-icon'
@@ -57,11 +45,22 @@ export default {
     const store = useStore()
     const searchQuery = ref('')
     const inputVisible = ref(false)
-    const inputContent = ref(false)
-    const overContainer = ref(false)
+    const searchInput = ref(null)
     const path = ref(mdiMapSearch)
 
     const dialogVisible = ref(false)
+
+    const isFavoritedLoading = ref(false)
+    const actionPending = ref(false)
+
+    const withActionPending = async (fn, ...args) => {
+      actionPending.value = true
+      try {
+        return await fn(...args)
+      } finally {
+        actionPending.value = false
+      }
+    }
 
 
     const {
@@ -82,61 +81,101 @@ export default {
       contextMenuState,
       hideContextMenu,
       showFavoritedNodes,
+      beginLoading,
+      endLoading,
     } = useKnowledgeGraph('/KnowledgeGraph/GetNodeInView')
 
     const isFavorited = ref(false)
 
-    const toggleFavorites = async () => {
+    const fetchFavoriteStatus = async (nodeId) => {
+      if (!nodeId) return
       try {
-        // Assuming the first node in selectedNodes is the target
-        const nodeId = selectedNodes.value[0].id
-        const response = await apiClient.post(
-          `/KnowledgeGraph/Favorites/${nodeId}`
-        )
+        isFavoritedLoading.value = true
+        const response = await apiClient.get(`/KnowledgeGraph/Favorites/Status/${nodeId}`)
+        const favorited = response?.data?.favorited
+        isFavorited.value = typeof favorited === 'boolean' ? favorited : false
+      }
+      catch (error) {
+        isFavorited.value = false
+        const status = error?.response?.status
+        if (status !== 400 && status !== 404) {
+          console.error('Error fetching favorite status:', error)
+        }
+      } finally {
+        isFavoritedLoading.value = false
+      }
+    }
 
-        if (response.data.success) {
-          // Update isFavorited based on the toggled status from the response
+    const toggleFavorites = async () => {
+      if (!selectedNodes.value.length) return
+      const nodeId = selectedNodes.value[0]?.id
+      if (!nodeId) return
+      isFavoritedLoading.value = true
+      actionPending.value = true
+      try {
+        const response = await apiClient.post(`/KnowledgeGraph/Favorites/${nodeId}`)
+        if (response?.data?.success === true && typeof response.data.favorited === 'boolean') {
           isFavorited.value = response.data.favorited
-
-          // Show different alert messages based on the new favorite status
-          if (isFavorited.value) {
-            alert(this.$t('knowledgeGraph.favoriteAdded') || 'Node added to favorites successfully!')
-          } else {
-            alert(this.$t('knowledgeGraph.favoriteRemoved') || 'Node removed from favorites successfully!')
-          }
         } else {
-          alert(this.$t('knowledgeGraph.favoriteToggleFailed') || 'Failed to toggle favorite status.')
+          await fetchFavoriteStatus(nodeId)
         }
       } catch (error) {
         console.error('Error toggling favorite status:', error)
+        await fetchFavoriteStatus(nodeId)
+      } finally {
+        isFavoritedLoading.value = false
+        actionPending.value = false
       }
     }
 
     // Fetch favorite status when a node is selected
     watch(selectedNodes, async (newVal) => {
       if (newVal && newVal.length > 0) {
-        try {
-          const nodeId = newVal[0].id
-          console.log(newVal[0].id)
-          const response = await apiClient.get(
-            `/KnowledgeGraph/Favorites/Status/${nodeId}`
-          )
-          isFavorited.value = response.data.favorited
-          console.log(isFavorited)
-        } catch (error) {
-          console.error('Error fetching favorite status:', error)
-        }
+        const nodeId = newVal[0]?.id
+        await fetchFavoriteStatus(nodeId)
+      } else {
+        isFavorited.value = false
+        isFavoritedLoading.value = false
       }
     })
 
+    const closeSearchPanel = () => {
+      inputVisible.value = false
+      searchQuery.value = ''
+    }
+
     const handleSearch = async () => {
-      const foundNodeId = await searchNode(searchQuery.value)
-      if (foundNodeId) {
-        // `svgRef.value` should be the SVG element
-        highlightAndCenterNode(foundNodeId, svgRef.value)
-      } else {
-        console.log('Node not found')
+      const query = searchQuery.value?.trim()
+      if (!query) {
+        closeSearchPanel()
+        return
       }
+
+      const foundNodeId = await searchNode(query)
+      if (foundNodeId) {
+        highlightAndCenterNode(foundNodeId, svgRef.value)
+        closeSearchPanel()
+      } else {
+        console.warn('Node not found:', query)
+        focusSearchInput()
+      }
+    }
+
+    const handleBlur = () => {
+      if (!searchQuery.value) {
+        inputVisible.value = false
+      }
+    }
+
+    const focusSearchInput = () => {
+      nextTick(() => {
+        searchInput.value?.focus()
+      })
+    }
+
+    const openSearchPanel = () => {
+      inputVisible.value = true
+      focusSearchInput()
     }
 
     // Access Vuex state
@@ -172,11 +211,20 @@ export default {
       toggleFavorites,
       startEditing,
       submitEditing,
-      showFavoritedNodes,
+      showFavoritedNodes: () => withActionPending(showFavoritedNodes),
       selectedNodes,
       isFavorited,
+      isFavoritedLoading,
+      actionPending,
       isEditing,
       loadData: loadGraphData,
+      toggleFullScreen,
+      isFullScreen,
+      openSearchPanel,
+      closeSearchPanel,
+      focusSearchInput,
+      beginLoading,
+      endLoading,
     })
 
     return {
@@ -186,8 +234,7 @@ export default {
       handleSearch,
       searchQuery,
       inputVisible,
-      inputContent,
-      overContainer,
+      searchInput,
       path,
       width,
       height,
@@ -203,34 +250,25 @@ export default {
       isFavorited,
       toggleFullScreen,
       isFullScreen,
+      openSearchPanel,
+      closeSearchPanel,
+      handleBlur,
+      focusSearchInput,
+      isFavoritedLoading,
+      actionPending,
+      beginLoading,
+      endLoading,
     }
-  },
-
-  methods: {
-    showInput() {
-      this.inputVisible = true
-    },
-    hideInput() {
-      if (!this.overContainer && this.searchQuery.length === 0) {
-        this.inputVisible = false
-      }
-    },
-    handleInput() {
-      this.inputContent = this.searchQuery.length > 0
-      // 如果输入栏为空，并且鼠标不在按钮或输入栏上，隐藏输入栏
-      if (
-        this.searchQuery.length === 0 &&
-        !this.overButton &&
-        !this.overInput
-      ) {
-        this.inputVisible = false
-      }
-    },
   },
 }
 </script>
 
 <style scoped>
+#cy {
+  position: relative;
+  overflow: visible;
+}
+
 #cy, #cy * {
   user-select: none;
   -webkit-user-drag: none;
@@ -318,82 +356,62 @@ export default {
   margin: 10px;
 }
 
-/* Bottom Right Actions */
-.bottom-right-actions {
+/* Search Fly-in */
+.search-flyin {
   position: absolute;
-  bottom: 5vh;
-  /* 修改右侧定位，考虑侧边栏宽度 */
-  right: 40px;
+  top: 18px;
+  right: 18px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  z-index: 1000;
+  gap: 8px;
+  padding: 6px 10px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 18px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  z-index: 1100;
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
 }
 
-/* Map Actions */
-.map-actions {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.search-flyin__icon {
+  width: 18px;
+  height: 18px;
+  color: #757575;
 }
 
-/* Action Container */
-.action-container {
-  display: flex;
-  align-items: center;
-}
-
-/* Locator Button */
-.locator-btn {
-  padding: 10px 15px;
-  color: black;
+.search-flyin__input {
   border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
-}
-
-.locator-btn:hover,
-.fullscreen-button:hover {
-  color: #ff8080;
-}
-
-.locator-btn:active,
-.fullscreen-button:active {
-  color: #ff4d4d;
-}
-
-/* Fullscreen Button */
-.fullscreen-button {
-  padding: 10px 15px;
-  color: black;
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
-}
-
-/* Search Input */
-.search-input {
-  margin-left: 10px;
-  padding: 5px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
   outline: none;
-  width: 150px;
-  transition: width 0.3s ease;
+  background: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  min-width: 180px;
+  font-size: 14px;
+  user-select: text;
 }
 
-.search-input:focus {
-  border-color: #666;
+.search-flyin__input:focus {
+  border-bottom-color: #ff8080;
+}
+
+.search-flyin__btn,
+.search-flyin__close {
+  border: none;
+  background: transparent;
+  color: #555;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.search-flyin__btn:hover,
+.search-flyin__close:hover {
+  background-color: rgba(0, 0, 0, 0.08);
 }
 
 /* Action Buttons */

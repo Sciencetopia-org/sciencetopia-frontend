@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid>
+  <v-container fluid class="study-plan-workspace">
     <v-row>
       <!-- Left: Plans list -->
       <v-col :cols="3" class="pa-0">
@@ -16,7 +16,7 @@
       </v-col>
 
       <!-- Middle: Plan details -->
-      <v-col :cols="5">
+      <v-col :cols="5" class="center-panel">
         <template v-if="!centerLoaded">
           <v-card class="panel-card panel-card--cream" rounded="xl" elevation="2">
             <div class="pa-4">
@@ -28,7 +28,7 @@
       </v-col>
 
       <!-- Right: Lesson details -->
-      <v-col :cols="4">
+      <v-col :cols="4" class="right-panel">
         <LessonDetailPanel :planId="planId" :lessonId="lessonId" :scope="{ type: 'group', groupId, shareMode }" :canInteract="canInteractInGroup" />
       </v-col>
     </v-row>
@@ -65,4 +65,13 @@ export default {
 </script>
 
 <style scoped>
+.study-plan-workspace {
+  height: calc(100vh - 64px);
+  overflow: hidden;
+}
+
+/* Make the row fill the container's height */
+.study-plan-workspace>.v-row {
+  height: 100%;
+}
 </style>

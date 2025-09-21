@@ -174,6 +174,8 @@ export default {
       this.$i18n.locale = val
       this.$vuetify.locale.current = val
       try { localStorage.setItem('locale', val) } catch (_) {}
+      // Notify app parts (e.g., KnowledgeGraph) to refresh with new lang
+      try { window.dispatchEvent(new CustomEvent('app:lang-changed', { detail: val })) } catch (_) {}
       this.$nextTick(() => {
         this.measureLangTextWidth()
       })

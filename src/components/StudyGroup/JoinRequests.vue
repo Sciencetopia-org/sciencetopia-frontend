@@ -2,6 +2,10 @@
   <v-card class="join-requests">
     <v-card-title>{{ $t('studygroup.joinrequest') }}</v-card-title>
     <v-card-text>
+      <div v-if="loading">
+        <LoadingSpinner />
+      </div>
+      <template v-else>
       <v-simple-table class="full-width-table">
         <thead>
           <tr>
@@ -31,12 +35,16 @@
               <v-btn
                 variant="text"
                 color="primary"
+                :disabled="actioningId===request.id"
+                :loading="actioningId===request.id && actioningType==='approve'"
                 @click="approveRequest(request.id)"
                 >{{ $t('approve') }}</v-btn
               >
               <v-btn
                 variant="text"
                 color="secondary"
+                :disabled="actioningId===request.id"
+                :loading="actioningId===request.id && actioningType==='reject'"
                 @click="rejectRequest(request.id)"
                 >{{ $t('reject') }}</v-btn
               >
@@ -44,6 +52,7 @@
           </tr>
         </tbody>
       </v-simple-table>
+      </template>
     </v-card-text>
   </v-card>
 </template>
@@ -53,42 +62,52 @@ import { apiClient } from '@/api'
 import { mapActions } from 'vuex'
 
 export default {
+  components: { LoadingSpinner: require('../LoadingSpinner.vue').default },
   props: {
     groupId: String,
   },
   data() {
     return {
       requests: [],
+      loading: true,
+      actioningId: null,
+      actioningType: null,
     }
   },
   async mounted() {
-    const response = await apiClient.get(
-      `/StudyGroup/GetJoinRequests/${this.groupId}`
-    )
-    this.requests = response.data
+    await this.fetchRequests()
   },
   methods: {
     ...mapActions(['goToProfile']), // Map the Vuex action
 
     async approveRequest(requestId) {
-      await apiClient.post(
-        `/StudyGroupManage/ApproveJoinRequest/${this.groupId}`,
-        { requestId }
-      )
-      this.fetchRequests()
+      this.actioningId = requestId; this.actioningType = 'approve'
+      try {
+        await apiClient.post(
+          `/StudyGroupManage/ApproveJoinRequest/${this.groupId}`,
+          { requestId }
+        )
+        await this.fetchRequests()
+      } finally { this.actioningId = null; this.actioningType = null }
     },
     async rejectRequest(requestId) {
-      await apiClient.post(
-        `/StudyGroupManage/RejectJoinRequest/${this.groupId}`,
-        { requestId }
-      )
-      this.fetchRequests()
+      this.actioningId = requestId; this.actioningType = 'reject'
+      try {
+        await apiClient.post(
+          `/StudyGroupManage/RejectJoinRequest/${this.groupId}`,
+          { requestId }
+        )
+        await this.fetchRequests()
+      } finally { this.actioningId = null; this.actioningType = null }
     },
     async fetchRequests() {
-      const response = await apiClient.get(
-        `/StudyGroup/GetJoinRequests/${this.groupId}`
-      )
-      this.requests = response.data
+      this.loading = true
+      try {
+        const response = await apiClient.get(
+          `/StudyGroup/GetJoinRequests/${this.groupId}`
+        )
+        this.requests = response.data
+      } finally { this.loading = false }
     },
     async navigateToProfile(userId) {
       this.goToProfile({ userId, router: this.$router }) // Dispatch the action

@@ -74,14 +74,14 @@
                 <v-card-subtitle v-html="group.description"></v-card-subtitle>
                 <v-card-text>
                   <v-chip
-                    class="group-chip ml-auto"
-                    color="text"
+                    class="ma-1"
+                    size="small"
                     variant="outlined"
                     label
-                    >{{ group.role }}</v-chip
-                  >
+                  >{{ group.role }}</v-chip>
                   <v-chip
-                    class="group-chip ml-auto"
+                    class="ma-1"
+                    size="small"
                     variant="outlined"
                     v-if="group.status === 'pending_approval'"
                     color="red"
@@ -272,8 +272,6 @@ export default {
 }
 
 .group-chip {
-  font-size: 12px !important;
-  border-radius: 16px;
-  margin-right: 2px;
+  /* deprecated: replaced by standard chip style (ma-1, size=small, outlined) */
 }
 </style>

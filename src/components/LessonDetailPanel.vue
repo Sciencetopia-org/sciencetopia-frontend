@@ -6,6 +6,23 @@
     <div v-else>
       <h3 class="mb-2">{{ displayName }}</h3>
       <p class="text-body-2 mb-3">{{ displayDescription }}</p>
+      <!-- Lesson tags chips -->
+      <TagChips v-if="Array.isArray(current?.tags) && current.tags.length" :items="current.tags" class="mb-3" />
+      <!-- Associated Knowledge Nodes -->
+      <div v-if="Array.isArray(current?.associatedKnowledgeNodes) && current.associatedKnowledgeNodes.length" class="mb-4">
+        <div class="text-subtitle-2 mb-1">相关知识点</div>
+        <div class="d-flex flex-wrap">
+          <v-chip
+            v-for="(n, idx) in current.associatedKnowledgeNodes"
+            :key="n?.properties?.id || n?.elementId || idx"
+            class="ma-1"
+            label
+            size="small"
+          >
+            {{ nodeTitle(n) }}
+          </v-chip>
+        </div>
+      </div>
       <!-- Loading skeletons for resource list while fetching -->
       <div v-if="loadingLesson">
         <v-skeleton-loader type="list-item-two-line" class="mb-2" />
@@ -35,10 +52,11 @@
 <script>
 import { apiClient } from '@/api'
 import LinkPreview from '@/components/LinkPreview.vue'
+import TagChips from '@/components/common/TagChips.vue'
 
 export default {
   name: 'LessonDetailPanel',
-  components: { LinkPreview },
+  components: { LinkPreview, TagChips },
   props: {
     planId: { type: [String, Number], required: false },
     lessonId: { type: [String, Number, String], default: null },
@@ -66,7 +84,10 @@ export default {
         }
         this.current = lesson
         this.resourcesLoaded = true
-        if (lesson) this.fetchLessonCompletedStatus(lesson)
+        if (lesson) {
+          this.fetchLessonCompletedStatus(lesson)
+          this.fetchLessonTags()
+        }
       },
     },
     lessonId: {
@@ -95,9 +116,27 @@ export default {
         if (lesson) {
           this.current = lesson
           await this.fetchLessonCompletedStatus(lesson)
+          await this.fetchLessonTags()
         }
       } catch (_) { /* ignore */ }
       finally { this.loadingLesson = false; this.resourcesLoaded = true }
+    },
+    nodeTitle(n) {
+      if (!n) return ''
+      const p = n.properties || {}
+      return p.name || p.Id || p.id || p.link || ''
+    },
+    async fetchLessonTags() {
+      try {
+        const pid = this.planId
+        const lid = this.current?.id || this.lessonId
+        if (!pid || !lid) return
+        const res = await apiClient.get(`/StudyPlanTags/${pid}/Lessons/${encodeURIComponent(lid)}/Tags`)
+        const list = Array.isArray(res?.data) ? res.data : []
+        const tags = list.map(t => ({ id: t.id || t.Id, name: t.name || t.Name })).filter(x => x.name)
+        if (!this.current) this.current = {}
+        this.current.tags = tags
+      } catch (_) { /* ignore */ }
     },
     mergeLessons(lessons) {
       if (!Array.isArray(lessons)) return []
@@ -134,18 +173,45 @@ export default {
         const next = !resource.learned
         // optimistic update
         resource.learned = next
-        this.$emit('resource-updated', { completed: next, resource })
+        this.$emit('resource-updated', { completed: next, resource, phase: 'optimistic' })
         const id = resource.id || resource.resourceId
         if (id) {
           if (next) {
-            await apiClient.post(`/resources/${id}/complete`, {
+            const resp = await apiClient.post(`/resources/${id}/complete`, {
               planId: this.planId,
               lessonId: this.current?.id,
               source: 'checkbox',
               device: 'web',
             })
+            // emit updated progress details when available
+            const planProgress = resp?.data?.planProgress
+            const lessonProgress = resp?.data?.lessonProgress
+            const lessonCompleted = resp?.data?.lessonCompletedCount
+            const lessonTotal = resp?.data?.lessonTotalResources
+            this.$emit('resource-updated', {
+              completed: next,
+              resource,
+              planProgress,
+              lessonProgress,
+              lessonCompleted,
+              lessonTotal,
+              phase: 'confirmed',
+            })
           } else {
-            await apiClient.delete(`/resources/${id}/complete`, { params: { planId: this.planId } })
+            const resp = await apiClient.delete(`/resources/${id}/complete`, { params: { planId: this.planId, lessonId: this.current?.id } })
+            const planProgress = resp?.data?.planProgress
+            const lessonProgress = resp?.data?.lessonProgress
+            const lessonCompleted = resp?.data?.lessonCompletedCount
+            const lessonTotal = resp?.data?.lessonTotalResources
+            this.$emit('resource-updated', {
+              completed: next,
+              resource,
+              planProgress,
+              lessonProgress,
+              lessonCompleted,
+              lessonTotal,
+              phase: 'confirmed',
+            })
           }
         } else {
           await apiClient.post('/StudyPlan/LearningLessons/ToggleFinishedLearning', {

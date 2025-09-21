@@ -2,7 +2,10 @@
   <v-card class="activity-logs">
   <v-card-title>{{ $t('studygroup.activitylog') }}</v-card-title>
     <v-card-text>
-      <v-list>
+      <div v-if="loading">
+        <LoadingSpinner />
+      </div>
+      <v-list v-else>
         <v-list-item v-for="log in logs" :key="log.id">
           <v-list-item-content>
             <v-list-item-title>{{ log.message }}</v-list-item-title>
@@ -18,19 +21,25 @@
 import { apiClient } from '@/api'
 
 export default {
+  components: { LoadingSpinner: require('../LoadingSpinner.vue').default },
   props: {
     groupId: String,
   },
   data() {
     return {
       logs: [],
+      loading: true,
     }
   },
   async mounted() {
-    const response = await apiClient.get(
-      `/StudyGroup/GetActivityLogs/${this.groupId}`
-    )
-    this.logs = response.data
+    try {
+      const response = await apiClient.get(
+        `/StudyGroup/GetActivityLogs/${this.groupId}`
+      )
+      this.logs = response.data
+    } finally {
+      this.loading = false
+    }
   },
 }
 </script>

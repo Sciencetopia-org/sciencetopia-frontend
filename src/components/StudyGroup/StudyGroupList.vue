@@ -78,7 +78,7 @@
             </button>
           </v-card-title>
           <v-card-text class="group-description">
-            {{ group.description }}
+            {{ stripHtml(group.description) }}
           </v-card-text>
           <v-card-text class="group-members">
             {{ $t('studygroup.groupmember') }}{{ $t(':') }}
@@ -100,6 +100,8 @@
           </v-card-actions>
         </v-card>
       </div>
+      <div ref="infiniteSentinel" style="height: 1px;"></div>
+      <div v-if="loadingMore" class="infinite-loading"><LoadingSpinner /></div>
     </div>
   </v-container>
 </template>
@@ -109,9 +111,11 @@ import { mapActions } from 'vuex'
 import { apiClient } from '@/api'
 import Masonry from 'masonry-layout'
 import imagesLoaded from 'imagesloaded'
+import LoadingSpinner from '../LoadingSpinner.vue'
 
 export default {
   name: 'StudyGroupList',
+  components: { LoadingSpinner },
   setup() {
     const { isLoading, showLoading, hideLoading } = useGlobalLoading()
     return { isLoading, showLoading, hideLoading }
@@ -126,6 +130,10 @@ export default {
       searchTerm: '',
       showSuggestions: false,
       loadingGroups: true,
+      page: 1,
+      pageSize: 20,
+      hasMore: true,
+      loadingMore: false,
     }
   },
   computed: {
@@ -156,6 +164,15 @@ export default {
   },
   methods: {
     ...mapActions(['goToProfile']),
+    stripHtml(html) {
+      try { return (require('@/utils/text.js').stripHtml)(html) } catch (_) {
+        try {
+          const div = document.createElement('div')
+          div.innerHTML = String(html || '')
+          return (div.textContent || div.innerText || '').trim()
+        } catch { return String(html || '') }
+      }
+    },
 
     setActiveNav(value) {
       this.activeNav = value
@@ -198,13 +215,14 @@ export default {
       this.masonryInstance.layout()
     },
 
-    async fetchGroups() {
+    async fetchGroups(reset = false) {
       try {
-        this.loadingGroups = true
-        const res = await apiClient.get('/StudyGroup/GetAllStudyGroups')
+        if (reset) { this.page = 1; this.hasMore = true; this.groups = [] }
+        const isFirst = this.page === 1
+        if (isFirst) this.loadingGroups = true; else this.loadingMore = true
+        const res = await apiClient.get('/StudyGroup/List', { params: { page: this.page, pageSize: this.pageSize } })
         const list = Array.isArray(res?.data) ? res.data : res?.data?.items || []
-        // normalize fields used by UI
-        this.groups = list.map(g => ({
+        const mapped = list.map(g => ({
           id: g.id,
           name: g.name,
           description: g.description,
@@ -212,21 +230,44 @@ export default {
           members: g.members || g.memberIds || [],
           isMember: !!g.isMember,
         }))
-      } catch (_) {
-        this.groups = []
+        this.groups = [...this.groups, ...mapped]
+        if (list.length < this.pageSize) this.hasMore = false; else this.page += 1
+      } catch (e) {
+        // keep already loaded groups in case of paging errors
+        console.warn('fetchGroups failed', e)
+        if (reset) this.groups = []
+        this.hasMore = false
       } finally {
         this.loadingGroups = false
+        this.loadingMore = false
       }
       // ensure masonry initializes after DOM updates
       this.$nextTick(() => this.initMasonry())
     },
+    setupInfiniteScroll() {
+      const sentinel = this.$refs.infiniteSentinel
+      if (!sentinel) return
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting && this.hasMore && !this.loadingMore && !this.loadingGroups) {
+            this.fetchGroups()
+          }
+        })
+      }, { root: null, rootMargin: '200px', threshold: 0 })
+      io.observe(sentinel)
+      this._io = io
+    },
 
-    toCreateGroupPage() {
-      // 检查用户是否已登录（假设有 userId 存在于 localStorage 或 vuex）
-      const userId = this.$store?.state?.user?.id || localStorage.getItem('userId')
+    async toCreateGroupPage() {
+      // 使用 Vuex 中的 currentUserID 判断是否登录
+      let userId = this.$store?.state?.currentUserID
+      if (!userId) {
+        try { await this.$store.dispatch('checkAuthenticationStatus') } catch (_) {}
+        userId = this.$store?.state?.currentUserID
+      }
       if (!userId) {
         this.$toast?.warning?.(this.$t('studygroup.loginToCreate')) || alert(this.$t('studygroup.loginToCreate'))
-        // this.$router.push('/login')
+        // 可选：跳转到登录页：this.$router.push('/login')
         return
       }
       this.$router.push('/createstudygroup')
@@ -249,12 +290,14 @@ export default {
     },
   },
   async mounted() {
-    await this.fetchGroups()
+    await this.fetchGroups(true)
     // initMasonry is called in fetchGroups nextTick; keep a safety call
     this.$nextTick(() => this.initMasonry())
+    this.$nextTick(() => this.setupInfiniteScroll())
   },
   beforeUnmount() {
     if (this.masonryInstance) this.masonryInstance.destroy()
+    try { this._io && this._io.disconnect() } catch (_) {}
   },
 }
 </script>

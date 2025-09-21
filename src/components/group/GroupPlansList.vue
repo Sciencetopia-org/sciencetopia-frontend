@@ -1,51 +1,129 @@
 <template>
-  <v-card class="left-panel panel-card panel-card--beige" rounded="xl" elevation="2">
-    <div class="plan-list-header d-flex align-center px-4 py-2">
-      <span class="text-subtitle-1">组共享的计划</span>
+  <template v-if="bare">
+    <div class="d-flex align-center px-3 pb-2 gap-2">
+      <v-text-field
+        v-model="q"
+        :label="$t('common.search')"
+        density="compact"
+        hide-details
+        clearable
+        class="flex-grow-1"
+        append-inner-icon="mdi-magnify"
+        @click:append-inner="fetchList"
+        @keyup.enter="fetchList"
+        @click:clear="fetchList"
+      />
     </div>
-    <template v-if="$route.name !== 'studyGroupPage'">
-      <v-btn class="ma-2" color="primary" variant="text"
-        @click="$router.push({ name: 'studyGroupPage', params: { id: groupId } })" prepend-icon="mdi-arrow-left">
-        返回学习小组
-      </v-btn>
-    </template>
-    <v-divider />
-    <v-card-text class="pa-0">
-      <div class="d-flex align-center px-3 pb-2 gap-2">
-        <v-text-field v-model="q" :label="$t('common.search')" density="compact" hide-details clearable
-          class="flex-grow-1" append-inner-icon="mdi-magnify" @click:append-inner="fetchList" @keyup.enter="fetchList"
-          @click:clear="fetchList" />
-      </div>
-      <div v-if="loading">
-        <v-skeleton-loader type="list-item" v-for="n in 4" :key="n" />
-      </div>
-      <v-list v-else density="compact" class="plan-list">
-        <v-list-item v-for="p in items" :key="p.studyPlanId" :active="String(p.studyPlanId) === String(activePlanId)"
-          @click="$emit('select', p.studyPlanId)" class="group-plan-item plan-card">
-          <div class="d-flex align-center justify-space-between">
-            <v-list-item-title class="text-truncate mr-2">{{ p.planTitle }}</v-list-item-title>
-            <div class="d-flex align-center">
-              <v-chip v-if="p.enrollMode" size="x-small" label class="mr-2">{{ p.enrollMode }}</v-chip>
-              <v-chip v-if="p.pinnedVersionId" size="x-small" label class="mr-2">v{{ p.pinnedVersionId }}</v-chip>
-              <v-chip v-if="p.role" size="x-small" label color="primary">{{ p.role }}</v-chip>
-            </div>
+    <div v-if="loading">
+      <v-skeleton-loader type="list-item" v-for="n in 4" :key="n" />
+    </div>
+    <v-list v-else density="compact" class="plan-list">
+      <v-list-item
+        v-for="p in items"
+        :key="p.studyPlanId"
+        :active="String(p.studyPlanId) === String(activePlanId)"
+        @click="$emit('select', p.studyPlanId)"
+        class="group-plan-item plan-card"
+      >
+        <div class="d-flex align-center justify-space-between">
+          <v-list-item-title class="text-truncate mr-2">{{ p.planTitle }}</v-list-item-title>
+          <div class="d-flex align-center">
+            <v-chip v-if="p.enrollMode" size="x-small" label class="mr-2">{{ p.enrollMode }}</v-chip>
+            <v-chip v-if="p.pinnedVersionId" size="x-small" label class="mr-2">v{{ p.pinnedVersionId }}</v-chip>
+            <v-chip v-if="p.role" size="x-small" label color="primary">{{ p.role }}</v-chip>
           </div>
-          <v-progress-linear v-if="typeof p.avgProgress === 'number'" :model-value="p.avgProgress" height="6"
-            color="primary" rounded class="mt-1" />
-          <div v-if="p.memberCount" class="text-caption mt-1">{{ p.memberCount }} 人参与</div>
-        </v-list-item>
-        <div v-if="!items.length" class="text-caption text-medium-emphasis">暂无共享计划</div>
-      </v-list>
-    </v-card-text>
-  </v-card>
-
+        </div>
+        <PlanProgressBars
+          :loading="false"
+          :primaryProgress="normalizePct(p.avgProgress)"
+          :advancedProgress="normalizePct(p.advancedAvgProgress)"
+          :primaryTooltip="`小组平均学习进度：${Math.round(normalizePct(p.avgProgress) || 0)} %`"
+          :advancedTooltip="`小组平均额外学习了${Math.round(normalizePct(p.advancedAvgProgress) || 0)} %的进阶内容`"
+          :showAdvancedSkeleton="false"
+        />
+        <div v-if="p.memberCount" class="text-caption mt-1">{{ p.memberCount }} 人参与</div>
+      </v-list-item>
+      <div v-if="!items.length" class="text-caption text-medium-emphasis">暂无共享计划</div>
+    </v-list>
+  </template>
+  <template v-else>
+    <v-card class="left-panel panel-card panel-card--beige" rounded="xl" elevation="2">
+      <div class="plan-list-header d-flex align-center px-4 py-2">
+        <span class="text-subtitle-1">组共享的计划</span>
+      </div>
+      <template v-if="$route.name !== 'studyGroupPage'">
+        <v-btn
+          class="ma-2"
+          color="primary"
+          variant="text"
+          @click="$router.push({ name: 'studyGroupPage', params: { id: groupId } })"
+          prepend-icon="mdi-arrow-left"
+        >
+          返回学习小组
+        </v-btn>
+      </template>
+      <v-divider />
+      <v-card-text class="pa-0">
+        <div class="d-flex align-center px-3 pb-2 gap-2">
+          <v-text-field
+            v-model="q"
+            :label="$t('common.search')"
+            density="compact"
+            hide-details
+            clearable
+            class="flex-grow-1"
+            append-inner-icon="mdi-magnify"
+            @click:append-inner="fetchList"
+            @keyup.enter="fetchList"
+            @click:clear="fetchList"
+          />
+        </div>
+        <div v-if="loading">
+          <v-skeleton-loader type="list-item" v-for="n in 4" :key="n" />
+        </div>
+        <v-list v-else density="compact" class="plan-list">
+          <v-list-item
+            v-for="p in items"
+            :key="p.studyPlanId"
+            :active="String(p.studyPlanId) === String(activePlanId)"
+            @click="$emit('select', p.studyPlanId)"
+            class="group-plan-item plan-card"
+          >
+            <div class="d-flex align-center justify-space-between">
+              <v-list-item-title class="text-truncate mr-2">{{ p.planTitle }}</v-list-item-title>
+              <div class="d-flex align-center">
+                <v-chip v-if="p.enrollMode" size="x-small" label class="mr-2">{{ p.enrollMode }}</v-chip>
+                <v-chip v-if="p.pinnedVersionId" size="x-small" label class="mr-2">v{{ p.pinnedVersionId }}</v-chip>
+                <v-chip v-if="p.role" size="x-small" label color="primary">{{ p.role }}</v-chip>
+              </div>
+            </div>
+            <v-progress-linear
+              v-if="typeof p.avgProgress === 'number'"
+              :model-value="p.avgProgress"
+              height="6"
+              color="primary"
+              rounded
+              class="mt-1"
+            />
+            <div v-if="p.memberCount" class="text-caption mt-1">{{ p.memberCount }} 人参与</div>
+          </v-list-item>
+          <div v-if="!items.length" class="text-caption text-medium-emphasis">暂无共享计划</div>
+        </v-list>
+      </v-card-text>
+    </v-card>
+  </template>
 </template>
 
 <script>
 import { apiClient } from '@/api'
+import PlanProgressBars from '@/components/common/PlanProgressBars.vue'
 export default {
   name: 'GroupPlansList',
-  props: { groupId: { type: [String, Number], required: true }, activePlanId: { type: [String, Number], default: null } },
+  props: {
+    groupId: { type: [String, Number], required: true },
+    activePlanId: { type: [String, Number], default: null },
+    bare: { type: Boolean, default: false },
+  },
   emits: ['select', 'loaded'],
   data() {
     return { items: [], loading: false, q: '' }
@@ -53,12 +131,28 @@ export default {
   watch: {
     groupId: { immediate: true, handler() { this.fetchList() } },
   },
+  components: { PlanProgressBars },
   methods: {
+    normalizePct(v) {
+      if (typeof v !== 'number') return undefined
+      return v <= 1 ? v * 100 : v
+    },
     async fetchList() {
       this.loading = true
       try {
         const res = await apiClient.get(`/Groups/${this.groupId}/CohortPlans`)
-        this.items = res.data
+        this.items = Array.isArray(res.data) ? res.data : []
+
+        // Enrich with cohort summary (avgProgress, memberCount) when available
+        await Promise.all(this.items.map(async (p) => {
+          try {
+            const sum = await apiClient.get(`/Cohorts/${p.id}/Stats/Summary`)
+            const avg = sum?.data?.avgProgress
+            const members = sum?.data?.memberCount
+            if (typeof avg === 'number') p.avgProgress = avg
+            if (typeof members === 'number' && !p.memberCount) p.memberCount = members
+          } catch (_) { /* ignore per-item summary errors */ }
+        }))
 
         // fetch roles for each plan
         await Promise.all(this.items.map(async (p) => {

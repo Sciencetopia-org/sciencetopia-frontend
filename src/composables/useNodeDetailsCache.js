@@ -99,5 +99,22 @@ function primeNode(id, data, etag) {
 }
 
 export function useNodeDetailsCache() {
-  return { getNodeDetail, invalidateNode, primeNode, _state: state }
+  return { getNodeDetail, invalidateNode, primeNode, clearAll: clearAllCaches, _state: state }
 }
+
+// Clear all caches (used on language change to avoid stale localized text)
+function clearAllCaches() {
+  try {
+    state.cache.clear()
+    state.inflightPromises.clear()
+  } catch (_) {}
+}
+
+// Listen for global app language change and clear caches
+try {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('app:lang-changed', () => {
+      clearAllCaches()
+    })
+  }
+} catch (_) {}

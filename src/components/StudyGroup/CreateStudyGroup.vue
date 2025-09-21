@@ -10,10 +10,18 @@
             type="text"
             class="custom-input"
           />
+          <!-- Tag selector: up to 10 existing tags -->
+          <TagSelector
+            v-model="selectedTags"
+            :label="$t('tags')"
+            :placeholder="$t('searchTagsPlaceholder')"
+            :max="10"
+            return-mode="mixed"
+          />
           <!-- Placeholder for Quill Editor -->
           <div ref="quillEditor" class="quill-editor"></div>
           <v-card-actions>
-            <v-btn type="submit" variant="text">{{ $t('studygroup.create.create') }}</v-btn>
+            <v-btn type="submit" variant="text" :disabled="creating" :loading="creating">{{ $t('studygroup.create.create') }}</v-btn>
             <v-btn @click="cancel" variant="text" color="red">{{ $t('cancel') }}</v-btn>
           </v-card-actions>
         </v-form>
@@ -24,17 +32,23 @@
 
 <script>
 import { apiClient } from '@/api'
+import TagSelector from '@/components/common/TagSelector.vue'
 import router from '@/router'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Quill from 'quill'
 import 'quill/dist/quill.snow.css' // Ensure you import Quill's CSS
 
 export default {
   name: 'CreateStudyGroup',
+  components: { TagSelector },
   setup() {
+    const { t } = useI18n()
     const groupName = ref('')
     const quillEditor = ref(null)
     const groupDescription = ref('')
+    const creating = ref(false)
+    const selectedTags = ref([]) // array of TagDTO objects { id, name } or plain strings for new
 
     // Quill editor instance
     let quillInstance
@@ -42,7 +56,7 @@ export default {
     onMounted(() => {
       quillInstance = new Quill(quillEditor.value, {
         theme: 'snow', // Specify theme
-        placeholder: this.$t('studygroup.create.placeholderDesc'), // Specify placeholder
+        placeholder: t('studygroup.create.placeholderDesc'), // Specify placeholder
         modules: {
           toolbar: [
             [{ header: [1, 2, 3, 4] }], // 标题
@@ -67,26 +81,133 @@ export default {
       })
     })
 
+    // Normalize selection: remove duplicates by id/name (case-insensitive),
+    // and prefer existing tag objects over free-typed strings with same name.
+    const normalizeSelection = (arr) => {
+      const result = []
+      const seenIds = new Set()
+      const seenNames = new Set()
+      for (const raw of Array.isArray(arr) ? arr : []) {
+        const isObj = raw && typeof raw === 'object'
+        const id = isObj ? (raw.id || raw.Id || raw.ID) : null
+        const name = String(isObj ? (raw.name || raw.Name || '') : raw || '')
+        const keyName = name.trim().toLowerCase()
+
+        if (id) {
+          if (seenIds.has(id)) continue
+          // If a free-text with same name was already added, replace it with object
+          if (keyName && seenNames.has(keyName)) {
+            // remove prior free-text entry with same name
+            const idx = result.findIndex(x => {
+              const isObjX = x && typeof x === 'object'
+              if (isObjX && (x.id || x.Id || x.ID)) return false
+              const nm = String(isObjX ? (x.name || x.Name || '') : x || '')
+              return nm.trim().toLowerCase() === keyName
+            })
+            if (idx >= 0) result.splice(idx, 1)
+          }
+          seenIds.add(id)
+          if (keyName) seenNames.add(keyName)
+          result.push({ id, name: name || String(id) })
+        } else if (keyName) {
+          if (seenNames.has(keyName)) continue
+          seenNames.add(keyName)
+          // Keep as plain string to indicate new tag
+          result.push(name)
+        }
+      }
+      return result
+    }
+
     const createGroup = async () => {
       try {
+        creating.value = true
+        // Normalize and enforce up to 10 tags
+        selectedTags.value = normalizeSelection(selectedTags.value)
+        if (selectedTags.value.length > 10) {
+          alert('每个学习小组最多可选择 10 个标签')
+          return
+        }
+        // Separate known tag IDs and new tag names
+        const ids = []
+        const names = []
+        const existingNamesLower = new Set()
+        for (const item of selectedTags.value || []) {
+          if (item && typeof item === 'object' && item.id) {
+            ids.push(item.id)
+            const nm = String(item.name || '').trim().toLowerCase()
+            if (nm) existingNamesLower.add(nm)
+          } else if (typeof item === 'string') {
+            names.push(item.trim())
+          } else if (item && typeof item === 'object' && !item.id && item.name) {
+            names.push(String(item.name).trim())
+          }
+        }
+
+        // Client-side duplicate check
+        const seenNames = new Set()
+        for (const n of names) {
+          const key = n.toLowerCase()
+          if (existingNamesLower.has(key) || seenNames.has(key)) {
+            alert('添加的标签里有重复项：' + n)
+            return
+          }
+          seenNames.add(key)
+        }
+
         const payload = {
           name: groupName.value,
           description: groupDescription.value, // Use innerHTML of Quill editor
+          tagIds: Array.from(new Set(ids.filter(Boolean))),
+          newTagNames: names.filter(Boolean),
         }
         // API call logic here
         await apiClient.post('/StudyGroup/CreateStudyGroup', payload)
         // 创建成功后的处理
-        alert(this.$t('studygroup.create.success'))
+        alert(t('studygroup.create.success'))
         router.push({ name: 'studyGroupList' })
       } catch (error) {
         console.error('Create study group failed:', error)
-        alert(this.$t('studygroup.create.failed'))
+        alert(t('studygroup.create.failed'))
+      } finally {
+        creating.value = false
       }
     }
 
+    // Tag searching is handled inside TagSelector
+
+    // Remove a specific selected tag (by id or name, case-insensitive)
+    const removeTag = (tag) => {
+      const isObj = tag && typeof tag === 'object'
+      const id = isObj ? (tag.id || tag.Id || tag.ID) : null
+      const name = String(isObj ? (tag.name || tag.Name || '') : tag || '').trim().toLowerCase()
+      selectedTags.value = (selectedTags.value || []).filter(x => {
+        const isObjX = x && typeof x === 'object'
+        const idX = isObjX ? (x.id || x.Id || x.ID) : null
+        const nameX = String(isObjX ? (x.name || x.Name || '') : x || '').trim().toLowerCase()
+        if (id && idX) return idX !== id
+        if (id && !idX) return true
+        if (!id && idX) return true
+        return nameX !== name
+      })
+    }
+
+    // Normalize selection and cap to 10 when user edits
+    watch(selectedTags, (val) => {
+      const normalized = normalizeSelection(val)
+      if (normalized.length !== (val?.length || 0)) {
+        selectedTags.value = normalized
+        return
+      }
+      if (normalized.length > 10) {
+        selectedTags.value = normalized.slice(0, 10)
+        alert('最多选择 10 个标签')
+      }
+    })
+
     const cancel = () => {
       // Cancel logic here
-      if (confirm(this.$t('studygroup.create.cancelConfirm'))) {
+      if (confirm(t('studygroup.create.cancelConfirm'))) {
         router.push({ name: 'studyGroupList' })
       }
     }
@@ -94,8 +215,13 @@ export default {
     return {
       groupName,
       quillEditor,
+      selectedTags,
+      
+      removeTag,
       createGroup,
       cancel,
+      t,
+      creating,
     }
   },
 }
