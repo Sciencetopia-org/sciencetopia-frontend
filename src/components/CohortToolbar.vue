@@ -94,13 +94,14 @@ export default {
       return !!this.activeCohort?.studyGroupId
     },
     versionText() {
-      const pinned = this.activeCohort?.pinnedVersionId
-      const current = this.plan?.currentVersionId
-      if (!pinned && !current) return ''
-      if (pinned && current && String(pinned) !== String(current)) {
-        return this.$t('cohortToolbar.versionHasUpdate', { pinned, current })
+      const pinned = this.activeCohort?.pinnedVersionNumber
+      const current = this.plan?.currentVersionNumber
+      if (typeof pinned !== 'number' && typeof current !== 'number') return ''
+      if (typeof pinned === 'number' && typeof current === 'number' && pinned !== current) {
+        return this.$t('cohortToolbar.versionHasUpdate', { pinned: `v${pinned}`, current: `v${current}` })
       }
-      return this.$t('cohortToolbar.versionCurrent', { current: pinned || current })
+      const display = typeof pinned === 'number' ? pinned : current
+      return this.$t('cohortToolbar.versionCurrent', { current: `v${display}` })
     },
     canPin() {
       // Either publish or upgrade permission can allow pin operations depending on backend rules
@@ -143,17 +144,17 @@ export default {
       this.$emit('manage-members', { planId: this.planId, cohortId: this.activeCohort?.id })
     },
     async pinVersion() {
-      if (!this.activeCohort || !this.plan?.currentVersionId) return
+      const currentVersionNumber = this.plan?.currentVersionNumber
+      if (!this.activeCohort || typeof currentVersionNumber !== 'number') return
       const cohortId = this.activeCohort.id
-      const targetVersionId = this.plan.currentVersionId
-      // Try pin-version, fall back to upgrade-version as a compatible action
+      const groupId = this.activeCohort.studyGroupId
       try {
-        try {
-          await apiClient.post(`/cohorts/${cohortId}/pin-version`, { targetVersionId })
-        } catch (_) {
-          await apiClient.post(`/cohorts/${cohortId}/upgrade-version`, { targetVersionId })
+        if (groupId) {
+          await apiClient.patch(`/Groups/${groupId}/Cohorts/${cohortId}`, { pinnedVersionNumber: currentVersionNumber })
+        } else {
+          await apiClient.put(`/Cohorts/${cohortId}`, { pinnedVersionNumber: currentVersionNumber })
         }
-        this.$store.commit('UPSERT_COHORT', { id: cohortId, pinnedVersionId: targetVersionId })
+        this.$store.commit('UPSERT_COHORT', { id: cohortId, pinnedVersionNumber: currentVersionNumber })
         this.toast(this.$t('cohortToolbar.pinSuccess'))
       } catch (e) {
         this.toast(this.$t('cohortToolbar.pinFailed'))

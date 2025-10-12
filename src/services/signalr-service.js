@@ -103,15 +103,23 @@ const initializeSignalRConnection = (
 
     connection.on('plan_version_published', (payload) => {
       try {
-        const { planId, currentVersionId } = payload || {}
-        if (planId != null) store.commit('UPSERT_PLAN', { id: planId, currentVersionId })
+        const { planId, currentVersionNumber, latestVersionNumber } = payload || {}
+        if (planId != null) {
+          store.commit('UPSERT_PLAN', {
+            id: planId,
+            currentVersionNumber: currentVersionNumber ?? latestVersionNumber,
+            latestVersionNumber: latestVersionNumber ?? currentVersionNumber,
+            isCurrent: true,
+            hasUpgrade: false,
+          })
+        }
       } catch (_) {}
     })
 
     connection.on('cohort_version_upgraded', (payload) => {
       try {
-        const { cohortId, pinnedVersionId } = payload || {}
-        if (cohortId != null) store.commit('UPSERT_COHORT', { id: cohortId, pinnedVersionId })
+        const { cohortId, pinnedVersionNumber } = payload || {}
+        if (cohortId != null) store.commit('UPSERT_COHORT', { id: cohortId, pinnedVersionNumber })
       } catch (_) {}
     })
 

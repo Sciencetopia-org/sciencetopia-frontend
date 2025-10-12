@@ -154,7 +154,12 @@
     </v-dialog>
 
     <!-- Share dialog -->
-    <ShareStudyPlanDialog v-model="shareDialog" v-if="currentPlan?.id" :planId="currentPlan.id" />
+    <ShareStudyPlanDialog
+      v-model="shareDialog"
+      v-if="currentPlan?.id"
+      :planId="currentPlan.id"
+      :planStableId="currentPlan.stableId"
+    />
 
     <v-snackbar v-model="backgroundSnackbar" :timeout="backgroundLoading ? -1 : 3000">
       <div class="d-flex align-center">
@@ -301,30 +306,45 @@ export default {
         })
         // Expecting res.data to be an array of lightweight items with id, title, description, role
         const items = Array.isArray(res.data) ? res.data : res.data?.items || []
-        this.studyPlans = items.map((item) => ({
-          studyPlan: {
-            id: item.id,
-            title: item.title,
-            // keep shape consistent; introduction used in center panel
-            introduction: item.description ? { description: item.description } : null,
-            // normalize to 0-100 if provided by list endpoint
-            progress: typeof item.progress === 'number'
-              ? (item.progress <= 1 ? item.progress * 100 : item.progress)
-              : undefined,
-            // try pick advanced topic progress from list if available
-            advancedProgress: (() => {
-              const val =
-                (typeof item.advancedTopicProgressPercentage === 'number' ? item.advancedTopicProgressPercentage : undefined) ??
-                (typeof item.advancedProgress === 'number' ? item.advancedProgress : undefined) ??
-                (typeof item.extraProgress === 'number' ? item.extraProgress : undefined)
-              if (typeof val !== 'number') return 0
-              return val <= 1 ? val * 100 : val
-            })(),
-          },
-        }))
+        this.studyPlans = items.map((item) => {
+          const stableId = item.stableId || item.StableId || item.stableID
+          const versionNumber = item.versionNumber || item.VersionNumber || 1
+          const latestVersionNumber = item.latestVersionNumber || item.LatestVersionNumber || versionNumber
+          const currentVersionNumber = item.currentVersionNumber || item.CurrentVersionNumber || latestVersionNumber
+          const isCurrent = item.isCurrent ?? item.IsCurrent ?? (versionNumber === currentVersionNumber)
+          const hasUpgrade = item.hasUpgrade ?? item.HasUpgrade ?? (!isCurrent && versionNumber < latestVersionNumber)
+          const description = item.description ?? item.Description ?? ''
+
+          return {
+            studyPlan: {
+              id: item.id || item.Id,
+              stableId,
+              versionNumber,
+              latestVersionNumber,
+              currentVersionNumber,
+              isCurrent,
+              hasUpgrade,
+              status: item.status || item.Status || (isCurrent ? 'Current' : 'Archived'),
+              title: item.title || item.Title,
+              introduction: description ? { description } : null,
+              progress: typeof item.progress === 'number'
+                ? (item.progress <= 1 ? item.progress * 100 : item.progress)
+                : undefined,
+              advancedProgress: (() => {
+                const val =
+                  (typeof item.advancedTopicProgressPercentage === 'number' ? item.advancedTopicProgressPercentage : undefined) ??
+                  (typeof item.advancedProgress === 'number' ? item.advancedProgress : undefined) ??
+                  (typeof item.extraProgress === 'number' ? item.extraProgress : undefined)
+                if (typeof val !== 'number') return 0
+                return val <= 1 ? val * 100 : val
+              })(),
+            },
+          }
+        })
         // Prime role map from list if role provided; otherwise, leave to permission service on demand
         items.forEach((item) => {
-          if (item?.id && item?.role) this.roleMap[item.id] = item.role
+          const id = item.id || item.Id
+          if (id && item?.role) this.roleMap[id] = item.role
         })
 
         // Fetch per-plan progress for current user; non-blocking best-effort
@@ -433,7 +453,12 @@ export default {
     async fetchPlanDetailsById(planId) {
       // PlanDetailPanel handles fetching by planId; here we set minimal state
       this.detailLoading = false
-      this.currentPlan = { id: planId }
+      const match = this.studyPlans.find(p => String(p?.studyPlan?.id) === String(planId))
+      if (match?.studyPlan) {
+        this.currentPlan = { ...match.studyPlan }
+      } else {
+        this.currentPlan = { id: planId }
+      }
       this.currentLesson = null
       this.currentLessonId = null
       this.fetchAffiliations(planId)

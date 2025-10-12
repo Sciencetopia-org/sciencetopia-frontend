@@ -29,7 +29,7 @@
           <v-list-item-title class="text-truncate mr-2">{{ p.planTitle }}</v-list-item-title>
           <div class="d-flex align-center">
             <v-chip v-if="p.enrollMode" size="x-small" label class="mr-2">{{ p.enrollMode }}</v-chip>
-            <v-chip v-if="p.pinnedVersionId" size="x-small" label class="mr-2">v{{ p.pinnedVersionId }}</v-chip>
+            <v-chip v-if="p.pinnedVersionNumber" size="x-small" label class="mr-2">v{{ p.pinnedVersionNumber }}</v-chip>
             <v-chip v-if="p.role" size="x-small" label color="primary">{{ p.role }}</v-chip>
           </div>
         </div>
@@ -93,7 +93,7 @@
               <v-list-item-title class="text-truncate mr-2">{{ p.planTitle }}</v-list-item-title>
               <div class="d-flex align-center">
                 <v-chip v-if="p.enrollMode" size="x-small" label class="mr-2">{{ p.enrollMode }}</v-chip>
-                <v-chip v-if="p.pinnedVersionId" size="x-small" label class="mr-2">v{{ p.pinnedVersionId }}</v-chip>
+                <v-chip v-if="p.pinnedVersionNumber" size="x-small" label class="mr-2">v{{ p.pinnedVersionNumber }}</v-chip>
                 <v-chip v-if="p.role" size="x-small" label color="primary">{{ p.role }}</v-chip>
               </div>
             </div>

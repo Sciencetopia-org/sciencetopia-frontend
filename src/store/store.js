@@ -67,8 +67,14 @@ const store = createStore({
      * @property {string|number} id
      * @property {string} title
      * @property {string} [description]
-     * @property {string|number} [currentVersionId]
-     * @property {string} [visibility] // public | group | private
+     * @property {string} [status]
+     * @property {string} [visibility]
+     * @property {string} [stableId]
+     * @property {number} [versionNumber]
+     * @property {number} [currentVersionNumber]
+     * @property {number} [latestVersionNumber]
+     * @property {boolean} [isCurrent]
+     * @property {boolean} [hasUpgrade]
      */
     /** @type {Record<string|number, PlanLite>} */
     plansById: {},
@@ -80,7 +86,7 @@ const store = createStore({
      * @property {string} [title]
      * @property {string|number|null} [studyGroupId]
      * @property {string} [enrollMode] // public | group | solo
-     * @property {string|number} [pinnedVersionId]
+     * @property {number|null} [pinnedVersionNumber]
      * @property {number} [membersCount]
      * @property {string} [createdAt]
      * @property {string|number} [createdBy]
@@ -216,25 +222,81 @@ const store = createStore({
 
     // =========== Entities mutations ===========
     UPSERT_PLAN(state, plan) {
-      if (!plan || plan.id == null) return
-      state.plansById[plan.id] = { ...state.plansById[plan.id], ...plan }
+      if (!plan) return
+      const id = plan.id ?? plan.Id
+      if (id == null) return
+      const stableId = plan.stableId ?? plan.StableId ?? plan.stableID ?? id
+      const versionNumber = plan.versionNumber ?? plan.VersionNumber ?? plan.version ?? 1
+      const latestVersionNumber = plan.latestVersionNumber ?? plan.LatestVersionNumber ?? versionNumber
+      const currentVersionNumber = plan.currentVersionNumber ?? plan.CurrentVersionNumber ?? (plan.isCurrent ? versionNumber : latestVersionNumber)
+      const isCurrent = plan.isCurrent ?? plan.IsCurrent ?? (versionNumber === currentVersionNumber)
+      const hasUpgrade = plan.hasUpgrade ?? plan.HasUpgrade ?? (!isCurrent && versionNumber < latestVersionNumber)
+
+      const normalized = {
+        ...plan,
+        id,
+        stableId,
+        versionNumber,
+        latestVersionNumber,
+        currentVersionNumber,
+        isCurrent,
+        hasUpgrade,
+        title: plan.title ?? plan.Title ?? '',
+        description: plan.description ?? plan.Description ?? '',
+        status: plan.status ?? plan.Status ?? (isCurrent ? 'Current' : 'Archived'),
+      }
+
+      state.plansById[id] = { ...state.plansById[id], ...normalized }
     },
     UPSERT_PLANS(state, plans) {
       if (!Array.isArray(plans)) return
-      for (const p of plans) {
-        if (!p || p.id == null) continue
-        state.plansById[p.id] = { ...state.plansById[p.id], ...p }
+      for (const plan of plans) {
+        if (!plan) continue
+        const id = plan.id ?? plan.Id
+        if (id == null) continue
+        const stableId = plan.stableId ?? plan.StableId ?? plan.stableID ?? id
+        const versionNumber = plan.versionNumber ?? plan.VersionNumber ?? plan.version ?? 1
+        const latestVersionNumber = plan.latestVersionNumber ?? plan.LatestVersionNumber ?? versionNumber
+        const currentVersionNumber = plan.currentVersionNumber ?? plan.CurrentVersionNumber ?? (plan.isCurrent ? versionNumber : latestVersionNumber)
+        const isCurrent = plan.isCurrent ?? plan.IsCurrent ?? (versionNumber === currentVersionNumber)
+        const hasUpgrade = plan.hasUpgrade ?? plan.HasUpgrade ?? (!isCurrent && versionNumber < latestVersionNumber)
+
+        const normalized = {
+          ...plan,
+          id,
+          stableId,
+          versionNumber,
+          latestVersionNumber,
+          currentVersionNumber,
+          isCurrent,
+          hasUpgrade,
+          title: plan.title ?? plan.Title ?? '',
+          description: plan.description ?? plan.Description ?? '',
+          status: plan.status ?? plan.Status ?? (isCurrent ? 'Current' : 'Archived'),
+        }
+
+        state.plansById[id] = { ...state.plansById[id], ...normalized }
       }
     },
     UPSERT_COHORT(state, cohort) {
       if (!cohort || cohort.id == null) return
-      state.cohortsById[cohort.id] = { ...state.cohortsById[cohort.id], ...cohort }
+      const normalized = {
+        ...cohort,
+        pinnedVersionNumber: cohort.pinnedVersionNumber ?? cohort.PinnedVersionNumber ?? null,
+        studyPlanId: cohort.studyPlanId ?? cohort.StudyPlanId ?? cohort.studyPlanStableId ?? cohort.StudyPlanStableId,
+      }
+      state.cohortsById[cohort.id] = { ...state.cohortsById[cohort.id], ...normalized }
     },
     UPSERT_COHORTS(state, cohorts) {
       if (!Array.isArray(cohorts)) return
       for (const c of cohorts) {
         if (!c || c.id == null) continue
-        state.cohortsById[c.id] = { ...state.cohortsById[c.id], ...c }
+        const normalized = {
+          ...c,
+          pinnedVersionNumber: c.pinnedVersionNumber ?? c.PinnedVersionNumber ?? null,
+          studyPlanId: c.studyPlanId ?? c.StudyPlanId ?? c.studyPlanStableId ?? c.StudyPlanStableId,
+        }
+        state.cohortsById[c.id] = { ...state.cohortsById[c.id], ...normalized }
       }
     },
     SET_ENROLLMENT_FOR_PLAN(state, { planId, enrollment }) {
@@ -531,9 +593,14 @@ if (process.env.NODE_ENV !== 'production') {
   try {
     const mockPlan = {
       id: 'p-demo-1',
+      stableId: 'stable-demo-1',
       title: 'Demo Plan: Web Basics',
       description: 'HTML/CSS/JS foundations',
-      currentVersionId: 'v1',
+      versionNumber: 1,
+      currentVersionNumber: 1,
+      latestVersionNumber: 1,
+      isCurrent: true,
+      hasUpgrade: false,
       visibility: 'public',
     }
     const mockCohort = {
@@ -542,7 +609,7 @@ if (process.env.NODE_ENV !== 'production') {
       title: 'Public Cohort A',
       studyGroupId: null,
       enrollMode: 'public',
-      pinnedVersionId: 'v1',
+      pinnedVersionNumber: 1,
       membersCount: 12,
       createdAt: new Date().toISOString(),
       createdBy: 'u-1',

@@ -87,6 +87,7 @@ export default {
   props: {
     modelValue: { type: Boolean, default: false },
     planId: { type: [String, Number], required: true },
+    planStableId: { type: String, required: true },
   },
   data() {
     return {
@@ -182,7 +183,7 @@ export default {
 
     /** 仅创建 Cohort（返回 id 后记录到 createdCohortId） */
     async createCohort() {
-      if (!this.planId || !this.groupId) return
+      if (!this.planStableId || !this.groupId) return
       this.creating = true
       try {
         const payload = {
@@ -192,7 +193,7 @@ export default {
           endAt: this.createForm.endAt || undefined,
         }
         const res = await apiClient.post(
-          `/Groups/${this.groupId}/Plans/${this.planId}/Cohorts`,
+          `/Groups/${this.groupId}/Plans/${this.planStableId}/Cohorts`,
           payload
         )
 

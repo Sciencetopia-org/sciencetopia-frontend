@@ -146,11 +146,10 @@ export default {
       return !!this.activeCohort?.studyGroupId
     },
     hasNewVersion() {
-      const current = this.plan?.currentVersionId
-      const pinned = this.activeCohort?.pinnedVersionId
-      if (!current) return false
-      if (!pinned) return false
-      return String(current) !== String(pinned)
+      const current = this.plan?.currentVersionNumber
+      const pinned = this.activeCohort?.pinnedVersionNumber
+      if (typeof current !== 'number' || typeof pinned !== 'number') return false
+      return current !== pinned
     },
   },
   watch: {
@@ -249,24 +248,23 @@ export default {
       }
     },
     async upgradeVersion() {
-      if (!this.activeCohort || !this.plan?.currentVersionId) return
+      const currentVersionNumber = this.plan?.currentVersionNumber
+      if (!this.activeCohort || typeof currentVersionNumber !== 'number') return
       this.upgradeBusy = true
       try {
-        // primary endpoint
-        await apiClient.post(`/cohorts/${this.activeCohort.id}/upgrade-version`, { targetVersionId: this.plan.currentVersionId })
-      } catch (e1) {
         try {
-          // fallback endpoint naming
-          await apiClient.post(`/cohorts/${this.activeCohort.id}/upgradeVersion`, { targetVersionId: this.plan.currentVersionId })
-        } catch (e2) {
-          this.toastError(this.$t('cohort.upgradeFailed'))
-          this.upgradeBusy = false
-          return
+          await apiClient.post(`/Cohorts/${this.activeCohort.id}/UpgradeVersion`)
+        } catch (_) {
+          await apiClient.post(`/cohorts/${this.activeCohort.id}/upgradeVersion`)
         }
+        this.$store.commit('UPSERT_COHORT', { id: this.activeCohort.id, pinnedVersionNumber: currentVersionNumber })
+        this.toastError(this.$t('cohort.upgradeSuccess'), false)
+        await this.fetchSummary()
+      } catch (e) {
+        this.toastError(this.$t('cohort.upgradeFailed'))
+      } finally {
+        this.upgradeBusy = false
       }
-      this.toastError(this.$t('cohort.upgradeSuccess'), false)
-      await this.fetchSummary()
-      this.upgradeBusy = false
     },
     toastError(text, isError = true) {
       this.errorText = text
