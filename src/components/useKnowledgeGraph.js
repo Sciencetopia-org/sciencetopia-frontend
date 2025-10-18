@@ -935,11 +935,13 @@ export default function useKnowledgeGraph(endpoint) {
       highlightSelectedNodes(selectedNodes.value)
     }
     document.addEventListener('fullscreenchange', handleFullScreenChange)
+    try { window.addEventListener('app:lang-changed', handleLangChanged) } catch (_) {}
   })
 
   onBeforeUnmount(() => {
     resizeObserver.disconnect()
     document.removeEventListener('fullscreenchange', handleFullScreenChange)
+    try { window.removeEventListener('app:lang-changed', handleLangChanged) } catch (_) {}
     abortAllInflight()
     // 清理所有悬停定时器
     hoverTimers.forEach(t => clearTimeout(t))

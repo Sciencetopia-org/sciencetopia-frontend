@@ -1,5 +1,5 @@
 // /src/composables/useSelectedNodeDetails.js
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { useNodeDetailsCache } from '@/composables/useNodeDetailsCache'
 
@@ -14,6 +14,14 @@ export function useSelectedNodeDetails(options = {}) {
 
   let alive = true
   onBeforeUnmount(() => { alive = false })
+  
+  // Refresh node details when language changes (to update localized name/description)
+  onMounted(() => {
+    try { window.addEventListener('app:lang-changed', refreshDetails) } catch (_) {}
+  })
+  onBeforeUnmount(() => {
+    try { window.removeEventListener('app:lang-changed', refreshDetails) } catch (_) {}
+  })
 
   async function refreshDetails() {
     const selected = store.state.selectedNodes || []
