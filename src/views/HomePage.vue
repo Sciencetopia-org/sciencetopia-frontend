@@ -56,7 +56,7 @@
                 <v-tooltip v-if="!isEditing"
                   :text="isFavorited ? $t('knowledgeGraph.removenode') : $t('knowledgeGraph.savenode')" location="top">
                   <template v-slot:activator="{ props }">
-                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="toggleFavorites"
+                    <v-btn variant="text" icon class="mx-0" v-bind="props" @click="onToggleFavorites"
                       :disabled="graphActionPending || isFavoritedLoading" :loading="isFavoritedLoading">
                       <i :class="isFavorited ? 'fas fa-heart-circle-minus' : 'fas fa-heart-circle-plus'" />
                       <!-- <span class="ml-1">
@@ -204,6 +204,7 @@
       </v-card>
     </v-navigation-drawer>
   </v-container>
+  <v-snackbar v-model="snackOpen" timeout="2200">{{ snackText }}</v-snackbar>
 </template>
 
 <script setup>
@@ -242,6 +243,9 @@ const rightDrawer = ref(false)
 const graphWrap = ref(null)
 const graph = ref(null)
 
+const snackOpen = ref(false)
+const snackText = ref('')
+
 // Safely call methods exposed from KnowledgeNetwork via the graph ref
 function callGraphMethod(name) {
   const fn = graph.value?.[name]
@@ -257,6 +261,21 @@ const showFavoritedNodes = () => callGraphMethod('showFavoritedNodes')
 const resetGraphView = () => callGraphMethod('resetView')
 const startGraphEditing = () => callGraphMethod('startEditing')
 const submitGraphEditing = () => callGraphMethod('submitEditing')
+
+async function onToggleFavorites() {
+  try {
+    const result = await callGraphMethod('toggleFavorites')
+    if (result && result.success === true) {
+      snackText.value = result.favorited ? t('favoriteAdded') : t('favoriteRemoved')
+    } else {
+      snackText.value = t('favoriteToggleFailed')
+    }
+  } catch (e) {
+    snackText.value = t('favoriteToggleFailed')
+  } finally {
+    snackOpen.value = true
+  }
+}
 
 // Exposed state from KnowledgeNetwork for actions in the title bar
 const selectedNodes = computed(() => store.state.selectedNodes)

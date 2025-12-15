@@ -1,0 +1,47 @@
+<template>
+  <div>
+    <v-skeleton-loader v-if="loading" type="article, actions" class="mb-2" />
+    <template v-if="!loading">
+      <div v-for="(node, index) in detailedSelectedNodes" :key="index">
+        <v-card-title>{{ node.name }}</v-card-title>
+
+        <!-- 描述：允许换行；避免 node.description 为空时报错 -->
+        <v-card-text v-if="node.description" v-html="node.description.replace(/\n/g, '<br>')"></v-card-text>
+        <v-card-text v-else class="text-grey">
+          {{ $t('knowledgeGraph.noDescription') || 'No description.' }}
+        </v-card-text>
+
+        <!-- 资源列表（注意你的返回是数组对象：resource.link） -->
+        <v-card-item v-for="(resource, i) in (node.resources || [])" :key="i" class="link-preview-container">
+          <LinkPreview :url="resource.link || resource" />
+        </v-card-item>
+      </div>
+    </template>
+    <div v-if="detailedSelectedNodes.length === 0 && !loading" class="pb-6">
+      <v-card-text style="color: grey">
+        {{ $t('knowledgeGraph.defaultmessage') }}
+      </v-card-text>
+    </div>
+  </div>
+</template>
+
+<script>
+import { computed } from 'vue'
+import { useSelectedNodeDetails } from '@/composables/useSelectedNodeDetails'
+import LinkPreview from '@/components/LinkPreview.vue' // Assuming you have a LinkPreview component
+
+export default {
+  name: 'NodeInfo',
+  components: {
+    LinkPreview,
+  },
+  setup() {
+    const { detailedSelectedNodes, loading, error } = useSelectedNodeDetails({ revalidate: true })
+    return { detailedSelectedNodes, loading, error }
+  },
+}
+</script>
+
+<style scoped>
+@import '../assets/css/link-preview.css';
+</style>

@@ -29,9 +29,22 @@
         <v-skeleton-loader type="list-item-two-line" class="mb-2" />
         <v-skeleton-loader type="list-item-two-line" class="mb-2" />
       </div>
-      <div v-else-if="current.resources && current.resources.length">
-        <v-card-item v-for="(resource, idx) in current.resources" :key="idx" class="link-preview-container">
-          <LinkPreview :url="resource.link || resource.url" />
+      <div v-else-if="filteredResources && filteredResources.length">
+        <div v-if="filteredOutCount > 0" class="mb-2">
+          <v-btn variant="text" density="comfortable" @click="showBlocked = !showBlocked" :prepend-icon="showBlocked ? 'mdi-eye-off-outline' : 'mdi-eye-outline'">
+            {{ $t('lessonDetail.regionFiltered', { count: filteredOutCount }) || `部分资源因地区限制未显示（${filteredOutCount}）` }}
+          </v-btn>
+        </div>
+        <v-card-item v-for="(resource, idx) in filteredResources" :key="idx" class="link-preview-container">
+          <!-- Single-line clickable title: prefer name; fallback to link -->
+          <div class="resource-title">
+            <template v-if="resource.link">
+              <a class="resource-title-link" :href="resource.link" target="_blank" rel="noopener">{{ resource.name || resource.link }}</a>
+            </template>
+            <template v-else>
+              <span class="resource-title-text">{{ resource.name || '' }}</span>
+            </template>
+          </div>
           <div class="d-flex align-center mt-1">
             <v-checkbox
               v-model="resource.learned"
@@ -43,6 +56,31 @@
             />
           </div>
         </v-card-item>
+        <template v-if="showBlocked && hiddenResources.length">
+          <v-divider class="my-2" />
+          <div class="text-caption text-medium-emphasis mb-1">{{ $t('lessonDetail.filteredTitle') || '被隐藏的资源（可能在中国大陆无法访问）' }}</div>
+          <v-card-item v-for="(resource, idx) in hiddenResources" :key="'hidden-' + idx" class="link-preview-container">
+            <!-- Single-line clickable title for blocked resources as well -->
+            <div class="resource-title">
+              <template v-if="resource.link">
+                <a class="resource-title-link" :href="resource.link" target="_blank" rel="noopener">{{ resource.name || resource.link }}</a>
+              </template>
+              <template v-else>
+                <span class="resource-title-text">{{ resource.name || '' }}</span>
+              </template>
+            </div>
+            <div class="d-flex align-center mt-1">
+              <v-checkbox
+                v-model="resource.learned"
+                :disabled="!isInteractable"
+                hide-details
+                density="compact"
+                @click.stop="toggleResource(resource)"
+                :label="resource.learned ? $t('lessonDetail.completed') : $t('lessonDetail.notCompleted')"
+              />
+            </div>
+          </v-card-item>
+        </template>
       </div>
       <div v-else-if="resourcesLoaded" class="text-medium-emphasis text-caption">{{ $t('lessonDetail.noResources') }}</div>
     </div>
@@ -51,12 +89,13 @@
 
 <script>
 import { apiClient } from '@/api'
-import LinkPreview from '@/components/LinkPreview.vue'
 import TagChips from '@/components/common/TagChips.vue'
+import { isMainlandChina } from '@/utils/region'
+import { filterResourcesForChina, isAccessibleInChina } from '@/utils/resourceFilter'
 
 export default {
   name: 'LessonDetailPanel',
-  components: { LinkPreview, TagChips },
+  components: { TagChips },
   props: {
     planId: { type: [String, Number], required: false },
     lessonId: { type: [String, Number, String], default: null },
@@ -67,7 +106,7 @@ export default {
   },
   emits: ['resource-updated'],
   data() {
-    return { current: this.lesson, loadingLesson: false, resourcesLoaded: false }
+    return { current: this.lesson, loadingLesson: false, resourcesLoaded: false, isCN: false, showBlocked: false }
   },
   watch: {
     lesson: {
@@ -105,6 +144,9 @@ export default {
     },
   },
   methods: {
+    async ensureRegion() {
+      try { this.isCN = await isMainlandChina() } catch (_) { this.isCN = false }
+    },
     async fetchLessonById() {
       try {
         // loadingLesson is set by callers to avoid flicker
@@ -236,11 +278,36 @@ export default {
       const l = this.current || {}
       return l.description || l.summary || l.desc || ''
     },
+    filteredResources() {
+      const list = Array.isArray(this.current?.resources) ? this.current.resources : []
+      if (!this.resourcesLoaded) return list
+      return filterResourcesForChina(list, this.isCN)
+    },
+    filteredOutCount() {
+      const list = Array.isArray(this.current?.resources) ? this.current.resources : []
+      return Math.max(0, list.length - this.filteredResources.length)
+    },
+    hiddenResources() {
+      const list = Array.isArray(this.current?.resources) ? this.current.resources : []
+      if (!this.isCN) return []
+      return list.filter(r => !isAccessibleInChina(r?.link || r?.url))
+    }
   },
+  async mounted() { await this.ensureRegion() },
 }
 </script>
 
 <style scoped>
+.resource-title { font-size: 16px; font-weight: 400; color: #000; line-height: 1.3; }
+.resource-title-link { color: inherit; text-decoration: none; }
+.resource-title-link:hover { text-decoration: underline; }
+.resource-title-text { color: #000; }
+
 @import '../assets/css/link-preview.css';
 .placeholder { color: #999; text-align: center; width: 100%; margin-top: 20px; }
 </style>
+
+
+
+
+

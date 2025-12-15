@@ -237,7 +237,7 @@
 import confetti from 'canvas-confetti'
 import rightArrow from '@/assets/images/right-arrow-next.svg'
 import { apiClient } from '@/api'
-import LinkPreview from '@/components/LinkPreview.vue' // Assuming you have a LinkPreview component
+import LinkPreview from '@/components/LinkPreview.vue'
 import TagChips from '@/components/common/TagChips.vue'
 import EditStudyPlanForm from './EditStudyPlanForm.vue'
 
@@ -263,8 +263,7 @@ export default {
     },
   },
 
-  data() {
-    return {
+  data() { return { 
       isEditMode: false, // Track edit mode state
       localStudyPlan: JSON.parse(JSON.stringify(this.studyPlan)), // Local copy for editing
       detailsVisible: {
@@ -464,3 +463,8 @@ export default {
   margin-top: 10px;
 }
 </style>
+
+
+
+
+

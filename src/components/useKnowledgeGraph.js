@@ -1082,15 +1082,68 @@ export default function useKnowledgeGraph(endpoint) {
       return
     }
     try {
+      beginLoading()
       const response = await apiClient.get('/KnowledgeGraph/Favorites/MyFavorites')
       const favoriteData = Array.isArray(response?.data) ? response.data : []
+      // Build id -> tagLevel map from server
+      const idToLevel = new Map()
+      favoriteData.forEach(item => {
+        const id = canonicalId(item?.properties?.stableId ?? item?.properties?.id ?? item?.identity)
+        const lvl = item?.tagLevel || null
+        if (id) idToLevel.set(id, lvl)
+      })
       const favoritedNodeIds = new Set(
         favoriteData
-          .map(node => canonicalId(node?.properties?.id ?? node?.identity))
+          .map(node =>
+            canonicalId(
+              node?.properties?.stableId ??
+              node?.properties?.id ??
+              node?.identity
+            )
+          )
           .filter(Boolean)
       )
-      node.style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
-      labels.style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
+      // Add any favorited nodes that are not yet in the current graph
+      const missingIds = Array.from(favoritedNodeIds).filter(id => !nodeById.has(id))
+      if (missingIds.length) {
+        // Fetch minimal details for display names in parallel (best-effort)
+        const fetchDetail = async (id) => {
+          try {
+            const res = await apiClient.get('/KnowledgeGraph/GetNodeDetails', { params: { nodeId: id } })
+            const body = res?.data || {}
+            return { id, name: body?.name || String(id) }
+          } catch (_) {
+            return { id, name: String(id) }
+          }
+        }
+        const results = await Promise.allSettled(missingIds.map(fetchDetail))
+        const incNodes = results
+          .map((r, i) => {
+            const fallbackId = canonicalId(missingIds[i])
+            const v = r.status === 'fulfilled' ? r.value : { id: fallbackId, name: String(fallbackId) }
+            const id = canonicalId(v.id)
+            const level = idToLevel.get(id) || 'Field'
+            return { id, name: v.name, tagLevel: level, degree: 0 }
+          })
+          .filter(n => n && n.id && !loadedNodeIds.has(n.id))
+
+        // Track and render synchronously so styling applies immediately
+        incNodes.forEach(n => loadedNodeIds.add(n.id))
+        if (incNodes.length) {
+          nodes.value = nodes.value.concat(incNodes)
+          // Immediately update the D3 graph to create DOM elements for new nodes
+          updateD3Graph(nodes.value, links.value)
+        }
+      }
+      node
+        .style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
+        .style('visibility', d => favoritedNodeIds.has(d.id) ? 'visible' : (shouldDisplayNode(d.tagLevel, currentZoomLevel) ? 'visible' : 'hidden'))
+      labels
+        .style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
+      // Force label text visible for favorited nodes
+      labels
+        .filter(d => favoritedNodeIds.has(d.id))
+        .text(d => d.name)
       link.style('opacity', d =>
         favoritedNodeIds.has(idOf(d.source)) && favoritedNodeIds.has(idOf(d.target)) ? 1 : 0.1
       )
@@ -1100,6 +1153,8 @@ export default function useKnowledgeGraph(endpoint) {
       } else {
         console.error('Error fetching favorite nodes:', error)
       }
+    } finally {
+      endLoading()
     }
   }
 
@@ -1158,3 +1213,6 @@ export default function useKnowledgeGraph(endpoint) {
     endLoading,
   }
 }
+
+
+

@@ -116,12 +116,20 @@ export default {
         const response = await apiClient.post(`/KnowledgeGraph/Favorites/${nodeId}`)
         if (response?.data?.success === true && typeof response.data.favorited === 'boolean') {
           isFavorited.value = response.data.favorited
+          // Immediately apply favorites overlay without reloading the graph
+          await showFavoritedNodes()
+          return { success: true, favorited: isFavorited.value }
         } else {
           await fetchFavoriteStatus(nodeId)
+          await showFavoritedNodes()
+          return { success: true, favorited: isFavorited.value }
         }
       } catch (error) {
         console.error('Error toggling favorite status:', error)
         await fetchFavoriteStatus(nodeId)
+        // Still attempt to apply overlay with the latest server state
+        try { await showFavoritedNodes() } catch (_) {}
+        return { success: false, favorited: isFavorited.value, error }
       } finally {
         isFavoritedLoading.value = false
         actionPending.value = false

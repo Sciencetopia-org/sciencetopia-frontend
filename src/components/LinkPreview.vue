@@ -4,12 +4,11 @@
     <a
       v-else-if="preview"
       :href="preview.url"
-      target="_blank"
-      class="link-preview"
+      target="_blank" rel="noopener" class="link-preview"
     >
-      <h3 class="preview-title">{{ preview.title }}</h3>
-      <img :src="preview.image" alt="缩略图" class="preview-image" />
-      <p>{{ preview.description }}</p>
+      <h3 class="preview-title">{{ preview.title || preview.url }}</h3>
+      <img v-if="preview.image" :src="preview.image" alt="preview" class="preview-image" />
+      <p v-if="preview.description">{{ preview.description }}</p>
     </a>
   </div>
 </template>
@@ -49,3 +48,4 @@ export default {
   },
 }
 </script>
+
