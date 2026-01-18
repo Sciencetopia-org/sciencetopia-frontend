@@ -106,7 +106,7 @@
 
 <script>
 import PersonalInformation from './PersonalInformation.vue'
-import StudyPlanList from './StudyPlanList.vue'
+import StudyPlanList from '@/components/study-plan/StudyPlanList.vue'
 import { apiClient } from '@/api'
 
 export default {

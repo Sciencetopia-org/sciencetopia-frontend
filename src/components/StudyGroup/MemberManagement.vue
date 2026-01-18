@@ -75,7 +75,7 @@
 import { apiClient } from '@/api'
 
 export default {
-  components: { LoadingSpinner: require('../LoadingSpinner.vue').default },
+  components: { LoadingSpinner: require('@/components/ui/LoadingSpinner.vue').default },
   props: {
     groupId: String,
   },
@@ -155,3 +155,4 @@ export default {
   background-color: unset !important;
 }
 </style>
+

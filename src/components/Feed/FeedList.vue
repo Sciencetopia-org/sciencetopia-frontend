@@ -43,7 +43,7 @@
 </template>
 
 <script>
-import { useGlobalLoading } from '../GlobalLoader.vue'
+import { useGlobalLoading } from '@/components/ui/GlobalLoader.vue'
 import { mapActions } from 'vuex'
 // import { apiClient } from '@/api'
 

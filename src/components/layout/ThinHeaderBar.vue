@@ -37,9 +37,9 @@
 
 <script>
 import { debounce } from 'lodash-es'
-import MessageAlert from './MessageAlert.vue'
-import LogInPartial from './LogInPartial.vue'
-import ReusableIconButton from './ReusableIconButton.vue'
+import MessageAlert from '@/components/messaging/MessageAlert.vue'
+import LogInPartial from '@/components/auth/LogInPartial.vue'
+import ReusableIconButton from '@/components/ui/ReusableIconButton.vue'
 
 export default {
   name: 'ThinHeaderBar',

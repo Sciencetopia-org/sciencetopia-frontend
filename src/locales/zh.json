@@ -393,6 +393,7 @@
     },
     "errors": {
       "invalidGroupName": "小组名称不正确，请重新输入。",
+      "noDissolvePermission": "无权限解散学习小组。",
       "leaveFailed": "退出小组失败，请稍后再试。",
       "dissolveFailed": "解散小组失败，请稍后再试。"
     },

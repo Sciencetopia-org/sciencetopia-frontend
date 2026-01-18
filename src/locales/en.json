@@ -340,6 +340,7 @@
     },
     "errors": {
       "invalidGroupName": "Group name does not match, please re-enter.",
+      "noDissolvePermission": "You do not have permission to dissolve this study group.",
       "leaveFailed": "Failed to leave group, please try again later.",
       "dissolveFailed": "Failed to dissolve group, please try again later."
     },

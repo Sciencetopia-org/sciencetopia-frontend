@@ -7,8 +7,8 @@
 </template>
 
 <script>
-import PlanDetailPanel from '@/components/PlanDetailPanel.vue'
-import LessonDetailPanel from '@/components/LessonDetailPanel.vue'
+import PlanDetailPanel from '@/components/study-plan/PlanDetailPanel.vue'
+import LessonDetailPanel from '@/components/study-plan/LessonDetailPanel.vue'
 export default {
   name: 'PlanPage',
   props: {
@@ -29,3 +29,4 @@ export default {
 
 <style scoped>
 </style>
+

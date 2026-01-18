@@ -9,7 +9,7 @@
 </template>
 
 <script>
-import CohortStatsPanel from '@/components/CohortStatsPanel.vue'
+import CohortStatsPanel from '@/components/cohort/CohortStatsPanel.vue'
 
 export default {
   name: 'ProgressPage',
@@ -27,3 +27,4 @@ export default {
   padding: 8px 12px 16px;
 }
 </style>
+

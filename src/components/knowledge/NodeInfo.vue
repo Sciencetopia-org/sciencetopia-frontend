@@ -40,7 +40,7 @@
 <script>
 import { computed, reactive } from 'vue'
 import { useSelectedNodeDetails } from '@/composables/useSelectedNodeDetails'
-import LinkPreview from '@/components/LinkPreview.vue'
+import LinkPreview from '@/components/knowledge/LinkPreview.vue'
 import { isMainlandChina } from '@/utils/region'
 import { isAccessibleInChina } from '@/utils/resourceFilter'
 
@@ -80,8 +80,9 @@ export default {
 </script>
 
 <style scoped>
-@import '../assets/css/link-preview.css';
+@import '../../assets/css/link-preview.css';
 </style>
+
 
 
 

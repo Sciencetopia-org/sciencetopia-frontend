@@ -3,7 +3,7 @@ import { createApp } from 'vue'
 import store from './store/store'
 import App from './App.vue'
 import i18n from './i18n'
-import GlobalLoader from './components/GlobalLoader.vue'
+import GlobalLoader from './components/ui/GlobalLoader.vue'
 import {
   initializeSignalRConnection,
   connection,
@@ -113,3 +113,4 @@ app.config.globalProperties.$i18n = i18n.global
 // e.g., i18n.global.locale = 'en'; vuetify.locale.current = 'en'
 
 app.mount('#app')
+

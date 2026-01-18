@@ -7,8 +7,8 @@
 </template>
 
 <script>
-import LayOut from './components/LayOut.vue'
-import SimplestLayOut from './components/SimplestLayOut.vue'
+import LayOut from './components/layout/LayOut.vue'
+import SimplestLayOut from './components/layout/SimplestLayOut.vue'
 import 'bootstrap/dist/css/bootstrap.css'
 import 'quill/dist/quill.snow.css' // for snow theme
 
@@ -61,3 +61,4 @@ export default {
   src: url('./assets/fonts/SiYuanHeiTiGoogleBan/NotoSansCJK-Regular-1.otf') format('opentype');
 }
 </style>
+

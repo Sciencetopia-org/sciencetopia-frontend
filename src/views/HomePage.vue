@@ -209,10 +209,10 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue'
-import KnowledgeNetwork from '@/components/KnowledgeNetwork.vue'
-import NodeInfo from '@/components/NodeInfo.vue'
-import NodeCreationForm from '@/components/NodeCreationForm.vue'
-import LinkCreationForm from '@/components/LinkCreationForm.vue'
+import KnowledgeNetwork from '@/components/knowledge/KnowledgeNetwork.vue'
+import NodeInfo from '@/components/knowledge/NodeInfo.vue'
+import NodeCreationForm from '@/components/knowledge/NodeCreationForm.vue'
+import LinkCreationForm from '@/components/knowledge/LinkCreationForm.vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { eventBus } from '@/eventBus'
@@ -810,3 +810,4 @@ onBeforeUnmount(() => {
   z-index: 2;
 }
 </style>
+

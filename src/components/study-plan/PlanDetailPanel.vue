@@ -91,7 +91,7 @@
 
 <script>
 import { apiClient } from '@/api'
-import EditStudyPlanForm from '@/components/EditStudyPlanForm.vue'
+import EditStudyPlanForm from '@/components/study-plan/EditStudyPlanForm.vue'
 import TagChips from '@/components/common/TagChips.vue'
 import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit } from '@/services/studyplan-permissions'
 
@@ -378,3 +378,4 @@ export default {
 
 /* no skeleton styles; progress bars appear only when data is ready */
 </style>
+

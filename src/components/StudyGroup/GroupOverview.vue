@@ -49,7 +49,7 @@
  import { sanitizeHtml } from '@/utils/text'
 
 export default {
-  components: { LoadingSpinner: require('../LoadingSpinner.vue').default, TagSelector, TagChips },
+  components: { LoadingSpinner: require('@/components/ui/LoadingSpinner.vue').default, TagSelector, TagChips },
   props: {
     groupId: String,
   },
@@ -215,3 +215,4 @@ export default {
   height: 400px;
 }
 </style>
+

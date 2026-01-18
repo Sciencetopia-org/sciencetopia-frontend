@@ -106,12 +106,12 @@
   </v-container>
 </template>
 <script>
-import { useGlobalLoading } from '../GlobalLoader.vue'
+import { useGlobalLoading } from '@/components/ui/GlobalLoader.vue'
 import { mapActions } from 'vuex'
 import { apiClient } from '@/api'
 import Masonry from 'masonry-layout'
 import imagesLoaded from 'imagesloaded'
-import LoadingSpinner from '../LoadingSpinner.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 
 export default {
   name: 'StudyGroupList',
@@ -528,3 +528,4 @@ export default {
   box-shadow: 0 4px 10px 1px #faf6f0;
 }
 </style>
+

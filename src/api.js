@@ -1,7 +1,10 @@
 import axios from 'axios'
 
+const apiBaseUrl = process.env.VUE_APP_API_BASE_URL || 'http://localhost:5085/api'
+const pyApiBaseUrl = process.env.VUE_APP_PY_API_BASE_URL || 'http://localhost:5086/api'
+
 const apiClient = axios.create({
-  baseURL: 'http://localhost:5085/api', // 替换为您的API的基础URL
+  baseURL: apiBaseUrl,
   withCredentials: true,
   headers: {
     Accept: 'application/json',
@@ -10,7 +13,7 @@ const apiClient = axios.create({
 })
 
 const pyApiClient = axios.create({
-  baseURL: 'http://localhost:5086/api', // 替换为您的API的基础URL
+  baseURL: pyApiBaseUrl,
   withCredentials: true,
   headers: {
     Accept: 'application/json',

@@ -66,57 +66,7 @@
                     $t('studygroup.follow')
                   }}</v-btn>
                 </template>
-                <template v-if="isMember & (role === 'manager')">
-                  <button
-                    class="dissove-button"
-                    @click="promptDissoveGroup(groupId)"
-                  >
-                    {{ $t('studygroup.disolve') }}
-                  </button>
-                  <!-- Confirmation Dialog -->
-                  <v-dialog v-model="DissolveDialog" max-width="600px">
-                    <v-card>
-                      <!-- Dialog Title with Warning Icon -->
-                      <v-card-title class="headline" style="color: red">
-                        <v-icon left color="red">mdi-alert-circle</v-icon>
-                        {{ $t('operation') }}
-                      </v-card-title>
-
-                      <!-- Dialog Content -->
-                      <v-card-text>
-                        <p>{{ $t('studygroup.groupDissolveMessage') }}</p>
-                        <v-spacer style="height: 20px"></v-spacer>
-                        <p>{{ $t('studygroup.confirmGroupName') }}</p>
-                        <v-spacer style="height: 10px"></v-spacer>
-                        <v-text-field
-                          v-model="enteredGroupName"
-                          :label="$t('studygroup.groupname')"
-                          variant="outlined"
-                          required
-                          color="red"
-                        ></v-text-field>
-                      </v-card-text>
-
-                      <!-- Dialog Actions with Warning Styling -->
-                      <v-card-actions>
-                        <v-spacer></v-spacer>
-                        <v-btn
-                          color="red darken-1"
-                          text
-                          @click="confirmDissolveGroup"
-                          >{{ $t('confirm') }}</v-btn
-                        >
-                        <v-btn
-                          color="grey darken-1"
-                          text
-                          @click="cancelDissolveGroup"
-                          >{{ $t('cancel') }}</v-btn
-                        >
-                      </v-card-actions>
-                    </v-card>
-                  </v-dialog>
-                </template>
-                <template v-else-if="isMember">
+                <template v-if="isMember && role !== 'manager'">
                   <v-btn
                     color="red"
                     variant="outlined"
@@ -265,7 +215,7 @@
 <script>
 import { apiClient } from '@/api'
 import ManagePanel from './ManagePanel.vue'
-import GroupPlansList from '@/components/group/GroupPlansList.vue'
+import GroupPlansList from '@/components/StudyGroup/GroupPlansList.vue'
 import { mapActions } from 'vuex'
 
 export default {
@@ -280,7 +230,6 @@ export default {
       activeTab: 'studyGroupSpace', // Track the active tab
       loadingGroup: true,
       leaveDialog: false, // Show confirmation dialog when leaving group
-      DissolveDialog: false, // Show confirmation dialog when dissolving group
       enteredGroupName: '', // Entered group name for confirmation
       pendingJoinRequests: 0, // Number of pending join requests
       tags: [],
@@ -418,39 +367,6 @@ export default {
       this.enteredGroupName = '' // Reset the input field
     },
 
-    promptDissoveGroup() {
-      // Show a confirmation dialog before dissolving the group
-      this.DissolveDialog = true
-    },
-
-    // Triggered when the user confirms the dissolve action
-    async confirmDissolveGroup() {
-      // Validate the entered group name
-      if (this.enteredGroupName !== this.group.name) {
-        this.$toast.error(this.$t('studygroup.errors.invalidGroupName'))
-        return
-      }
-
-      // Proceed with the API call to dissolve the group
-      try {
-        await apiClient.post('/StudyGroup/DissolveStudyGroup', {
-          userId: this.$store.state.currentUserID, // Replace with the actual user ID from the store
-          groupId: this.groupId,
-        })
-        this.$toast.success(this.$t('studygroup.success.dissolved'))
-        this.DissolveDialog = false // Close the dialog
-        // Optionally redirect or update UI after dissolving the group
-      } catch (error) {
-        console.error('Error dissolving group:', error)
-        this.$toast.error(this.$t('studygroup.errors.dissolveFailed'))
-      }
-    },
-
-    // Triggered when the user cancels the dissolve action
-    cancelDissolveGroup() {
-      this.DissolveDialog = false // Close the dialog
-      this.enteredGroupName = '' // Reset the input field
-    },
     goToGroupPlan(planId) {
       this.$router.push({ name: 'GroupPlanWorkspace', params: { groupId: this.groupId, planId } })
     },
@@ -513,30 +429,6 @@ export default {
   position: absolute;
   bottom: 20px;
   right: 40px;
-}
-
-.dissove-button {
-  color: #ec0017;
-  border: 2px solid #ec0017;
-  padding: 8px 16px;
-  margin-right: 10px;
-
-  &:hover {
-    background-color: #ec0017;
-    color: white;
-  }
-
-  &:focus {
-    background-color: #aa1b1d;
-    border: 2px solid #aa1b1d;
-    color: white;
-  }
-
-  &:active {
-    background-color: #aa1b1d;
-    border: 2px solid #aa1b1d;
-    color: white;
-  }
 }
 
 .group-space-container {
@@ -622,3 +514,4 @@ export default {
   max-height: 500px;
 }
 </style>
+

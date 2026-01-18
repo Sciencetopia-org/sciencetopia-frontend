@@ -25,7 +25,7 @@
 <script>
 import useKnowledgeGraph from './useKnowledgeGraph'
 import EditGuideDialog from './EditGuideDialog.vue'
-import ContextMenu from './ContextMenu.vue'
+import ContextMenu from '@/components/ui/ContextMenu.vue'
 import { ref, computed, watch, nextTick } from 'vue'
 import { apiClient } from '@/api'
 import { useStore } from 'vuex'

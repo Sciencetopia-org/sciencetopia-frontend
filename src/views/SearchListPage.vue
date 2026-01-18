@@ -29,7 +29,7 @@
 
 <script>
 import { apiClient } from '@/api'
-import LinkPreview from '@/components/LinkPreview.vue' // Assuming you have a LinkPreview component
+import LinkPreview from '@/components/knowledge/LinkPreview.vue' // Assuming you have a LinkPreview component
 
 export default {
   data() {
@@ -81,3 +81,4 @@ export default {
 <style scoped>
 /* Add your custom styles here */
 </style>
+

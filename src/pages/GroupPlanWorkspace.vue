@@ -36,9 +36,9 @@
 </template>
 
 <script>
-import GroupPlansList from '@/components/group/GroupPlansList.vue'
-import PlanDetailPanel from '@/components/PlanDetailPanel.vue'
-import LessonDetailPanel from '@/components/LessonDetailPanel.vue'
+import GroupPlansList from '@/components/StudyGroup/GroupPlansList.vue'
+import PlanDetailPanel from '@/components/study-plan/PlanDetailPanel.vue'
+import LessonDetailPanel from '@/components/study-plan/LessonDetailPanel.vue'
 import { roleAllowsComment } from '@/services/studyplan-permissions'
 
 export default {
@@ -75,3 +75,4 @@ export default {
   height: 100%;
 }
 </style>
+

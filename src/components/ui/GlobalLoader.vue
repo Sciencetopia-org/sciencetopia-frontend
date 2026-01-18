@@ -6,7 +6,7 @@
 
 <script>
 import { ref } from 'vue'
-import LoadingSpinner from './LoadingSpinner.vue' // Import the Spinner component
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue' // Import the Spinner component
 
 const isLoading = ref(false)
 
@@ -46,3 +46,4 @@ export default {
   z-index: 9999;
 }
 </style>
+

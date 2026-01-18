@@ -174,12 +174,13 @@
 <script>
 import { apiClient } from '@/api'
 import PlanProgressBars from '@/components/common/PlanProgressBars.vue'
-import LearningPlanner from '@/components/LearningPlanner.vue'
-import PlanDetailPanel from '@/components/PlanDetailPanel.vue'
-import LessonDetailPanel from '@/components/LessonDetailPanel.vue'
-import ProgressPage from '@/components/ProgressPage.vue'
-import ShareStudyPlanDialog from '@/components/ShareStudyPlanDialog.vue'
-import EditStudyPlanForm from '@/components/EditStudyPlanForm.vue'
+import LearningPlanner from '@/components/study-plan/LearningPlanner.vue'
+import PlanContextBar from '@/components/study-plan/PlanContextBar.vue'
+import PlanDetailPanel from '@/components/study-plan/PlanDetailPanel.vue'
+import LessonDetailPanel from '@/components/study-plan/LessonDetailPanel.vue'
+import ProgressPage from '@/components/study-plan/ProgressPage.vue'
+import ShareStudyPlanDialog from '@/components/study-plan/ShareStudyPlanDialog.vue'
+import EditStudyPlanForm from '@/components/study-plan/EditStudyPlanForm.vue'
 import { eventBus } from '@/eventBus'
 import { connection } from '@/services/signalr-service'
 import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit, roleAllowsComment } from '@/services/studyplan-permissions'
@@ -187,7 +188,7 @@ import confetti from 'canvas-confetti'
 
 export default {
   name: 'StudyPlanWorkspace',
-  components: { LearningPlanner, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage, EditStudyPlanForm, PlanProgressBars },
+  components: { LearningPlanner, PlanContextBar, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage, EditStudyPlanForm, PlanProgressBars },
   data() {
     return {
       studyPlans: [],
@@ -818,3 +819,4 @@ export default {
 
 /* no skeleton styles; show progress only when value exists */
 </style>
+

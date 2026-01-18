@@ -63,6 +63,46 @@
                 </tr>
               </tbody>
             </v-table>
+
+            <v-divider class="my-6" />
+            <h3 class="text-subtitle-1 mb-2">{{ $t('operation') }}</h3>
+            <p class="text-body-2 text-medium-emphasis mb-3">
+              {{ $t('studygroup.groupDissolveMessage') }}
+            </p>
+            <v-btn class="dissolve-button" @click="promptDissolveGroup">
+              {{ $t('studygroup.disolve') }}
+            </v-btn>
+
+            <v-dialog v-model="dissolveDialog" max-width="600px">
+              <v-card>
+                <v-card-title class="headline" style="color: red">
+                  <v-icon left color="red">mdi-alert-circle</v-icon>
+                  {{ $t('operation') }}
+                </v-card-title>
+                <v-card-text>
+                  <p>{{ $t('studygroup.groupDissolveMessage') }}</p>
+                  <v-spacer style="height: 20px"></v-spacer>
+                  <p>{{ $t('studygroup.confirmGroupName') }}</p>
+                  <v-spacer style="height: 10px"></v-spacer>
+                  <v-text-field
+                    v-model="enteredGroupName"
+                    :label="$t('studygroup.groupname')"
+                    variant="outlined"
+                    required
+                    color="red"
+                  ></v-text-field>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn color="red darken-1" text @click="confirmDissolveGroup">
+                    {{ $t('confirm') }}
+                  </v-btn>
+                  <v-btn color="grey darken-1" text @click="cancelDissolveGroup">
+                    {{ $t('cancel') }}
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
           </div>
 
           <!-- Member settings -->
@@ -156,6 +196,46 @@
                 </tr>
               </tbody>
             </v-table>
+
+            <v-divider class="my-6" />
+            <h3 class="text-subtitle-1 mb-2">{{ $t('operation') }}</h3>
+            <p class="text-body-2 text-medium-emphasis mb-3">
+              {{ $t('studygroup.groupDissolveMessage') }}
+            </p>
+            <v-btn class="dissolve-button" @click="promptDissolveGroup">
+              {{ $t('studygroup.disolve') }}
+            </v-btn>
+
+            <v-dialog v-model="dissolveDialog" max-width="600px">
+              <v-card>
+                <v-card-title class="headline" style="color: red">
+                  <v-icon left color="red">mdi-alert-circle</v-icon>
+                  {{ $t('operation') }}
+                </v-card-title>
+                <v-card-text>
+                  <p>{{ $t('studygroup.groupDissolveMessage') }}</p>
+                  <v-spacer style="height: 20px"></v-spacer>
+                  <p>{{ $t('studygroup.confirmGroupName') }}</p>
+                  <v-spacer style="height: 10px"></v-spacer>
+                  <v-text-field
+                    v-model="enteredGroupName"
+                    :label="$t('studygroup.groupname')"
+                    variant="outlined"
+                    required
+                    color="red"
+                  ></v-text-field>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn color="red darken-1" text @click="confirmDissolveGroup">
+                    {{ $t('confirm') }}
+                  </v-btn>
+                  <v-btn color="grey darken-1" text @click="cancelDissolveGroup">
+                    {{ $t('cancel') }}
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
           </div>
 
           <!-- Member settings -->
@@ -189,7 +269,7 @@
 
 <script>
 import { apiClient } from '@/api'
-import LoadingSpinner from '../LoadingSpinner.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 
 export default {
   name: 'GroupSettingsDialog',
@@ -206,6 +286,10 @@ export default {
       internalOpen: this.modelValue,
       loading: false,
       error: null,
+      dissolveDialog: false,
+      enteredGroupName: '',
+      groupName: '',
+      originalGroupName: '',
       form: {
         profile: { name: '', bio: '' },
         sharedPlans: [],
@@ -235,6 +319,24 @@ export default {
   },
   methods: {
     close() { this.internalOpen = false },
+    notifyError(message) {
+      this.$toast?.error?.(message) || alert(message)
+    },
+    notifySuccess(message) {
+      this.$toast?.success?.(message) || alert(message)
+    },
+    normalizeGroupName(value) {
+      return String(value || '').trim().toLowerCase()
+    },
+    async fetchGroupName() {
+      try {
+        const res = await apiClient.get(`/StudyGroup/GetStudyGroupById/${this.groupId}`)
+        const data = res?.data || {}
+        this.groupName = data.name || data.Name || ''
+      } catch (e) {
+        this.groupName = ''
+      }
+    },
     async fetch() {
       this.loading = true; this.error = null
       try {
@@ -248,6 +350,11 @@ export default {
         if (data.notifications) this.form.notifications = { ...this.form.notifications, ...data.notifications }
         if (data.privacy) this.form.privacy = { ...this.form.privacy, ...data.privacy }
         if (Array.isArray(data.myPlans)) this.form.myPlans = data.myPlans
+        this.originalGroupName = this.form.profile.name
+        if (!this.originalGroupName) {
+          await this.fetchGroupName()
+          this.originalGroupName = this.groupName
+        }
       } catch (e) {
         this.error = 'groupSettings.loadFailed'
       } finally {
@@ -270,6 +377,43 @@ export default {
         this.loading = false
       }
     },
+    promptDissolveGroup() {
+      if (!this.isManager) {
+        this.notifyError(this.$t('studygroup.errors.noDissolvePermission'))
+        return
+      }
+      this.enteredGroupName = ''
+      this.dissolveDialog = true
+    },
+    async confirmDissolveGroup() {
+      if (!this.isManager) {
+        this.notifyError(this.$t('studygroup.errors.noDissolvePermission'))
+        return
+      }
+      const expectedName = this.normalizeGroupName(
+        this.originalGroupName || this.groupName || this.form.profile.name
+      )
+      const enteredName = this.normalizeGroupName(this.enteredGroupName)
+      if (!expectedName || enteredName !== expectedName) {
+        this.notifyError(this.$t('studygroup.errors.invalidGroupName'))
+        return
+      }
+      try {
+        await apiClient.post('/StudyGroup/DissolveStudyGroup', {
+          userId: this.$store.state.currentUserID,
+          groupId: this.groupId,
+        })
+        this.notifySuccess(this.$t('studygroup.success.dissolved'))
+        this.dissolveDialog = false
+      } catch (error) {
+        console.error('Error dissolving group:', error)
+        this.notifyError(this.$t('studygroup.errors.dissolveFailed'))
+      }
+    },
+    cancelDissolveGroup() {
+      this.dissolveDialog = false
+      this.enteredGroupName = ''
+    },
   },
   mounted() {
     if (this.inline) {
@@ -282,4 +426,27 @@ export default {
 </script>
 
 <style scoped>
+.dissolve-button {
+  color: #ec0017;
+  border: 2px solid #ec0017;
+  padding: 8px 16px;
+
+  &:hover {
+    background-color: #ec0017;
+    color: white;
+  }
+
+  &:focus {
+    background-color: #aa1b1d;
+    border: 2px solid #aa1b1d;
+    color: white;
+  }
+
+  &:active {
+    background-color: #aa1b1d;
+    border: 2px solid #aa1b1d;
+    color: white;
+  }
+}
 </style>
+

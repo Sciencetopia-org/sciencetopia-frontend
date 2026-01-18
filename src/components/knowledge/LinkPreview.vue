@@ -15,7 +15,7 @@
 
 <script>
 import { fetchLinkPreview } from '@/services/linkPreviewService'
-import LoadingSpinner from './LoadingSpinner.vue' // Import the Spinner component
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue' // Import the Spinner component
 
 export default {
   name: 'LinkPreview',
@@ -48,4 +48,5 @@ export default {
   },
 }
 </script>
+
 

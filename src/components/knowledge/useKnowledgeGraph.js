@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, reactive, watch } from 'vue'
 import { useStore } from 'vuex'
 import { apiClient } from '@/api'
 import * as d3 from 'd3'
-import { useGlobalLoading } from './GlobalLoader.vue'
+import { useGlobalLoading } from '@/components/ui/GlobalLoader.vue'
 import { useNodeDetailsCache } from '@/composables/useNodeDetailsCache'
 
 export default function useKnowledgeGraph(endpoint) {

@@ -48,7 +48,7 @@
 <script>
 import { apiClient } from '@/api'
 import { DateTime } from 'luxon'
-import LoadingSpinner from './LoadingSpinner.vue'
+import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 
 export default {
   components: { LoadingSpinner },
@@ -161,3 +161,4 @@ export default {
   word-break: break-word;
 }
 </style>
+
