@@ -9,7 +9,7 @@
       <v-card-text>
         <div v-if="loading"><LoadingSpinner /></div>
         <template v-else>
-          <v-alert v-if="error" type="error" class="mb-3">{{ error }}</v-alert>
+          <v-alert v-if="error" type="error" class="mb-3">{{ $t(error) }}</v-alert>
 
           <!-- Manager settings -->
           <div v-if="isManager">
@@ -290,6 +290,9 @@ export default {
       enteredGroupName: '',
       groupName: '',
       originalGroupName: '',
+      originalProfile: { name: '', bio: '' },
+      originalSharedPlans: [],
+      originalCohorts: [],
       form: {
         profile: { name: '', bio: '' },
         sharedPlans: [],
@@ -299,10 +302,10 @@ export default {
         myPlans: [],
       },
       permOptions: [
-        { title: this.$t('groupSettings.perms.readonly'), value: 'Readonly' },
-        { title: this.$t('groupSettings.perms.comment'), value: 'Comment' },
-        { title: this.$t('groupSettings.perms.editable'), value: 'Editable' },
-        { title: this.$t('groupSettings.perms.admin'), value: 'Admin' },
+        { title: this.$t('groupSettings.perms.readonly'), value: 'view' },
+        { title: this.$t('groupSettings.perms.comment'), value: 'comment' },
+        { title: this.$t('groupSettings.perms.editable'), value: 'edit' },
+        { title: this.$t('groupSettings.perms.admin'), value: 'admin' },
       ],
       enrollOptions: [
         { title: this.$t('groupSettings.enroll.optIn'), value: 'OptIn' },
@@ -325,6 +328,27 @@ export default {
     notifySuccess(message) {
       this.$toast?.success?.(message) || alert(message)
     },
+    cloneDeep(value) {
+      try { return JSON.parse(JSON.stringify(value)) } catch (_) { return value }
+    },
+    normalizePermission(value) {
+      const v = String(value || '').toLowerCase()
+      if (v === 'readonly' || v === 'read' || v === 'view') return 'view'
+      if (v === 'comment') return 'comment'
+      if (v === 'editable' || v === 'edit') return 'edit'
+      if (v === 'admin') return 'admin'
+      return 'view'
+    },
+    normalizeEnrollMode(value) {
+      if (value === null || value === undefined) return 'OptIn'
+      if (typeof value === 'number') return value === 1 ? 'Auto' : 'OptIn'
+      const v = String(value).toLowerCase()
+      if (v === '1' || v === 'auto') return 'Auto'
+      return 'OptIn'
+    },
+    serializeEnrollMode(value) {
+      return this.normalizeEnrollMode(value) === 'Auto' ? 1 : 0
+    },
     normalizeGroupName(value) {
       return String(value || '').trim().toLowerCase()
     },
@@ -340,20 +364,108 @@ export default {
     async fetch() {
       this.loading = true; this.error = null
       try {
-        const as = this.isManager ? 'manager' : 'member'
-        const res = await apiClient.get(`/StudyGroup/Settings/${this.groupId}`, { params: { as } })
-        const data = res?.data || {}
-        // merge into form
-        if (data.profile) this.form.profile = { ...this.form.profile, ...data.profile }
-        if (Array.isArray(data.sharedPlans)) this.form.sharedPlans = data.sharedPlans
-        if (Array.isArray(data.cohorts)) this.form.cohorts = data.cohorts
-        if (data.notifications) this.form.notifications = { ...this.form.notifications, ...data.notifications }
-        if (data.privacy) this.form.privacy = { ...this.form.privacy, ...data.privacy }
-        if (Array.isArray(data.myPlans)) this.form.myPlans = data.myPlans
-        this.originalGroupName = this.form.profile.name
-        if (!this.originalGroupName) {
-          await this.fetchGroupName()
-          this.originalGroupName = this.groupName
+        const groupReq = apiClient.get(`/StudyGroup/GetStudyGroupById/${this.groupId}`)
+        const plansReq = apiClient.get(`/StudyGroups/${this.groupId}/Plans`)
+        const cohortsReq = apiClient.get(`/Groups/${this.groupId}/CohortPlans`)
+
+        const [groupRes, plansRes, cohortsRes] = await Promise.allSettled([groupReq, plansReq, cohortsReq])
+
+        let gotAny = false
+
+        if (groupRes.status === 'fulfilled') {
+          const data = groupRes.value?.data || {}
+          this.form.profile = {
+            name: data.name || data.Name || '',
+            bio: data.description || data.Description || '',
+          }
+          this.originalProfile = { ...this.form.profile }
+          this.groupName = this.form.profile.name
+          gotAny = true
+        }
+
+        let sharedPlans = []
+        if (plansRes.status === 'fulfilled') {
+          const list = Array.isArray(plansRes.value?.data) ? plansRes.value.data : []
+          sharedPlans = list.map((p) => {
+            const stableId = p.studyPlanStableId || p.StudyPlanStableId || p.studyPlanId || p.StudyPlanId || p.id || p.Id
+            const planVersionId = p.planVersionId || p.PlanVersionId || p.activePlanVersionId || p.ActivePlanVersionId
+            return {
+              id: stableId,
+              studyPlanStableId: stableId,
+              planVersionId,
+              permission: this.normalizePermission(p.permission || p.Permission),
+              autoEnroll: Boolean(p.autoEnroll ?? p.AutoEnroll),
+              pinnedVersionNumber: p.pinnedVersionNumber ?? p.PinnedVersionNumber ?? null,
+              title: p.title || p.planTitle || p.Title || p.PlanTitle || '',
+            }
+          })
+          gotAny = true
+        }
+
+        let cohorts = []
+        if (cohortsRes.status === 'fulfilled') {
+          const list = Array.isArray(cohortsRes.value?.data) ? cohortsRes.value.data : []
+          cohorts = list.map((c) => ({
+            id: c.id || c.Id,
+            title: c.title || c.Title,
+            planTitle: c.planTitle || c.PlanTitle,
+            enrollMode: this.normalizeEnrollMode(c.enrollMode ?? c.EnrollMode),
+            pinnedVersionNumber: c.pinnedVersionNumber ?? c.PinnedVersionNumber ?? null,
+            planStableId: c.studyPlanStableId || c.StudyPlanStableId,
+            planVersionId: c.studyPlanId || c.StudyPlanId,
+          }))
+          gotAny = true
+        }
+
+        await Promise.all(sharedPlans.map(async (p) => {
+          if (p.title) return
+          const planId = p.planVersionId || p.studyPlanStableId
+          if (!planId) return
+          try {
+            const resp = await apiClient.get(`/StudyPlans/${planId}`)
+            const title = resp?.data?.title || resp?.data?.Title
+            if (title) p.title = title
+          } catch (_) { /* ignore title fetch errors */ }
+        }))
+        sharedPlans.forEach((p) => {
+          if (!p.title) {
+            p.title = p.studyPlanStableId || p.planVersionId || ''
+          }
+        })
+
+        this.form.sharedPlans = sharedPlans
+        this.form.cohorts = cohorts
+        if (this.isManager) {
+          this.form.myPlans = []
+        }
+
+        if (!this.isManager) {
+          const cohortMap = new Map(cohorts.map(c => [String(c.id), c]))
+          const myPlans = await Promise.all(sharedPlans.map(async (p) => {
+            const planId = p.planVersionId || p.studyPlanStableId
+            let activeCohortId = null
+            if (planId) {
+              try {
+                const resp = await apiClient.get(`/StudyPlans/${planId}/Enrollment/Me`)
+                activeCohortId = resp?.data?.activeCohortId || resp?.data?.ActiveCohortId
+              } catch (_) { /* ignore enrollment errors */ }
+            }
+            const cohort = activeCohortId ? cohortMap.get(String(activeCohortId)) : null
+            return {
+              planId: p.studyPlanStableId || planId,
+              title: p.title,
+              cohortTitle: cohort?.title || '',
+            }
+          }))
+          this.form.myPlans = myPlans
+        }
+
+        this.originalSharedPlans = this.cloneDeep(this.form.sharedPlans)
+        this.originalCohorts = this.cloneDeep(this.form.cohorts)
+        this.originalGroupName = this.form.profile.name || this.groupName || ''
+
+        if (!gotAny) {
+          throw new Error('load_failed')
         }
       } catch (e) {
         this.error = 'groupSettings.loadFailed'
@@ -363,14 +475,67 @@ export default {
     },
     async save() {
       try {
-        this.loading = true
+        this.loading = true; this.error = null
         if (String(process.env.VUE_APP_USE_MOCKS).toLowerCase() === 'true') {
           await new Promise(r => setTimeout(r, 400))
-          this.close()
+          if (!this.inline) this.close()
           return
         }
-        await apiClient.post(`/StudyGroup/Settings/${this.groupId}`, { ...this.form })
-        this.close()
+
+        if (!this.isManager) {
+          this.notifyError(this.$t('groupSettings.saveFailed'))
+          return
+        }
+
+        const ops = []
+
+        const newName = String(this.form.profile.name || '').trim()
+        const newBio = String(this.form.profile.bio || '')
+        if (newName && newName !== (this.originalProfile.name || '')) {
+          ops.push(apiClient.post(`/StudyGroupManage/RenameGroup/${this.groupId}`, { newName }))
+        }
+        if (newBio !== (this.originalProfile.bio || '')) {
+          ops.push(apiClient.post(`/StudyGroupManage/EditDescription/${this.groupId}`, { newDescription: newBio }))
+        }
+
+        const originalPlans = new Map(this.originalSharedPlans.map(p => [String(p.studyPlanStableId || p.id), p]))
+        for (const p of this.form.sharedPlans) {
+          const key = String(p.studyPlanStableId || p.id || '')
+          if (!key) continue
+          const orig = originalPlans.get(key)
+          const permission = this.normalizePermission(p.permission)
+          const autoEnroll = Boolean(p.autoEnroll)
+          const pinnedVersionNumber = p.pinnedVersionNumber ?? orig?.pinnedVersionNumber ?? null
+          if (!orig || permission !== this.normalizePermission(orig.permission) || autoEnroll !== Boolean(orig.autoEnroll)) {
+            ops.push(apiClient.post(`/StudyGroups/${this.groupId}/Plans/${key}/Share`, {
+              permission,
+              autoEnroll,
+              versionNumber: pinnedVersionNumber,
+            }))
+          }
+        }
+
+        const originalCohorts = new Map(this.originalCohorts.map(c => [String(c.id), c]))
+        for (const c of this.form.cohorts) {
+          const key = String(c.id || '')
+          if (!key) continue
+          const orig = originalCohorts.get(key)
+          const enrollMode = this.serializeEnrollMode(c.enrollMode)
+          const origEnroll = orig ? this.serializeEnrollMode(orig.enrollMode) : null
+          if (!orig || enrollMode !== origEnroll) {
+            ops.push(apiClient.patch(`/Groups/${this.groupId}/Cohorts/${key}`, {
+              enrollMode,
+              pinnedVersionNumber: c.pinnedVersionNumber ?? orig?.pinnedVersionNumber ?? null,
+            }))
+          }
+        }
+
+        if (ops.length) {
+          await Promise.all(ops)
+        }
+
+        if (!this.inline) this.close()
+        await this.fetch()
       } catch (e) {
         this.error = 'groupSettings.saveFailed'
       } finally {
@@ -394,6 +559,7 @@ export default {
         this.originalGroupName || this.groupName || this.form.profile.name
       )
       const enteredName = this.normalizeGroupName(this.enteredGroupName)
+      console.log('Dissolve confirmation:', { expectedName, enteredName })
       if (!expectedName || enteredName !== expectedName) {
         this.notifyError(this.$t('studygroup.errors.invalidGroupName'))
         return
@@ -449,4 +615,3 @@ export default {
   }
 }
 </style>
-

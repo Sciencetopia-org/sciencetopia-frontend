@@ -43,7 +43,7 @@
                 </template>
               </v-tooltip>
 
-              <v-tooltip :text="$t('studygroup.demote')" location="bottom">
+              <v-tooltip v-if="supportsDemote" :text="$t('studygroup.demote')" location="bottom">
                 <template v-slot:activator="{ props }">
                   <v-btn icon v-bind="props" :disabled="actioningId===member.id" @click="demoteToMember(member.id)"
                     >🧑</v-btn
@@ -85,6 +85,7 @@ export default {
       loading: true,
       actioningId: null,
       inviting: false,
+      supportsDemote: false,
     }
   },
   async mounted() {
@@ -94,10 +95,9 @@ export default {
     async promoteToManager(memberId) {
       this.actioningId = memberId
       try {
-        await apiClient.post(
-          `/StudyGroupManage/PromoteToManager/${this.groupId}`,
-          { memberId }
-        )
+        await apiClient.post(`/StudyGroupManage/TransferManagerRole/${this.groupId}`, {
+          newManagerId: memberId,
+        })
         await this.fetchMembers()
       } finally {
         this.actioningId = null
@@ -106,10 +106,7 @@ export default {
     async demoteToMember(memberId) {
       this.actioningId = memberId
       try {
-        await apiClient.post(`/StudyGroupManage/DemoteToMember/${this.groupId}`, {
-          memberId,
-        })
-        await this.fetchMembers()
+        // No demote endpoint in current backend; keep no-op to avoid 404s.
       } finally {
         this.actioningId = null
       }
@@ -117,7 +114,7 @@ export default {
     async removeMember(memberId) {
       this.actioningId = memberId
       try {
-        await apiClient.post(`/StudyGroupManage/RemoveMember/${this.groupId}`, {
+        await apiClient.post(`/StudyGroupManage/DeleteMember/${this.groupId}`, {
           memberId,
         })
         await this.fetchMembers()

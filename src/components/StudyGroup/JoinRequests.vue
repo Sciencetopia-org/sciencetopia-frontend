@@ -16,13 +16,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="request in requests" :key="request.id">
+          <tr v-for="request in requests" :key="request.userId || request.UserId">
             <td>
               <v-btn
                 icon="dots-vertical"
                 class="justify-center align-center default-avatar"
                 size="40"
-                @click="navigateToProfile(request.userId)"
+                @click="navigateToProfile(request.userId || request.UserId)"
               >
                 <v-avatar size="38">
                   <img :src="request.avatarUrl" :alt="$t('user.useravatar')" />
@@ -35,17 +35,17 @@
               <v-btn
                 variant="text"
                 color="primary"
-                :disabled="actioningId===request.id"
-                :loading="actioningId===request.id && actioningType==='approve'"
-                @click="approveRequest(request.id)"
+                :disabled="actioningId===(request.userId || request.UserId)"
+                :loading="actioningId===(request.userId || request.UserId) && actioningType==='approve'"
+                @click="approveRequest(request.userId || request.UserId)"
                 >{{ $t('approve') }}</v-btn
               >
               <v-btn
                 variant="text"
                 color="secondary"
-                :disabled="actioningId===request.id"
-                :loading="actioningId===request.id && actioningType==='reject'"
-                @click="rejectRequest(request.id)"
+                :disabled="actioningId===(request.userId || request.UserId)"
+                :loading="actioningId===(request.userId || request.UserId) && actioningType==='reject'"
+                @click="rejectRequest(request.userId || request.UserId)"
                 >{{ $t('reject') }}</v-btn
               >
             </td>
@@ -80,23 +80,27 @@ export default {
   methods: {
     ...mapActions(['goToProfile']), // Map the Vuex action
 
-    async approveRequest(requestId) {
-      this.actioningId = requestId; this.actioningType = 'approve'
+    async approveRequest(userId) {
+      if (!userId) return
+      this.actioningId = userId; this.actioningType = 'approve'
       try {
-        await apiClient.post(
-          `/StudyGroupManage/ApproveJoinRequest/${this.groupId}`,
-          { requestId }
-        )
+        await apiClient.post('/StudyGroup/UpdateApplicationStatus', {
+          userId,
+          studyGroupId: this.groupId,
+          status: 'Approved',
+        })
         await this.fetchRequests()
       } finally { this.actioningId = null; this.actioningType = null }
     },
-    async rejectRequest(requestId) {
-      this.actioningId = requestId; this.actioningType = 'reject'
+    async rejectRequest(userId) {
+      if (!userId) return
+      this.actioningId = userId; this.actioningType = 'reject'
       try {
-        await apiClient.post(
-          `/StudyGroupManage/RejectJoinRequest/${this.groupId}`,
-          { requestId }
-        )
+        await apiClient.post('/StudyGroup/UpdateApplicationStatus', {
+          userId,
+          studyGroupId: this.groupId,
+          status: 'Rejected',
+        })
         await this.fetchRequests()
       } finally { this.actioningId = null; this.actioningType = null }
     },
