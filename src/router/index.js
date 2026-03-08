@@ -39,7 +39,7 @@ const routes = [
         // Permissions guard: CanViewPlan
         try {
           const perms = await fetchEffectivePermissions({ planId })
-          if (perms && perms.CanViewPlan === false) {
+          if (perms && perms.CanView === false && perms.CanViewPlan === false) {
             next({ name: 'Forbidden' })
             return
           }

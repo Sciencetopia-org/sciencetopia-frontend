@@ -73,6 +73,11 @@ function matchMockPath(config) {
   }
 
   // 5) Joinable cohorts for a plan
+  cap = m(/^\/StudyPlans\/([^/]+)\/JoinableCohorts$/i)
+  if (cap) {
+    const [planId] = cap
+    return `/mock/joinable/${planId}.json`
+  }
   cap = m(/^\/plans\/([^/]+)\/joinable-cohorts$/i)
   if (cap) {
     const [planId] = cap
@@ -80,6 +85,11 @@ function matchMockPath(config) {
   }
 
   // 6) Enrollment of me
+  cap = m(/^\/StudyPlans\/([^/]+)\/Enrollment\/Me$/i)
+  if (cap) {
+    const [planId] = cap
+    return `/mock/enrollment/${planId}-me.json`
+  }
   cap = m(/^\/plans\/([^/]+)\/enrollment\/me$/i)
   if (cap) {
     const [planId] = cap

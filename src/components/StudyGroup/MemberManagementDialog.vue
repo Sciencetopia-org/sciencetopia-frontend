@@ -20,13 +20,13 @@
 
         <div v-if="loading"><v-skeleton-loader type="list-item" v-for="n in 5" :key="n" /></div>
         <v-list v-else density="compact">
-          <v-list-item v-for="m in members" :key="m.userId">
+          <v-list-item v-for="m in members" :key="m.id">
             <template #prepend>
               <v-avatar color="grey-lighten-2" size="28">{{ (m.displayName || m.userName || 'U')[0] }}</v-avatar>
             </template>
-            <v-list-item-title>{{ m.displayName || m.userName || m.userId }}</v-list-item-title>
+            <v-list-item-title>{{ m.displayName || m.userName || m.id }}</v-list-item-title>
             <template #append>
-              <v-btn size="small" variant="text" color="red" :loading="removeBusyId===m.userId" @click="remove(m)">{{ $t('memberMgmt.remove') }}</v-btn>
+              <v-btn size="small" variant="text" color="red" :loading="removeBusyId===m.id" @click="remove(m)">{{ $t('memberMgmt.remove') }}</v-btn>
             </template>
           </v-list-item>
         </v-list>
@@ -45,7 +45,8 @@ export default {
   name: 'MemberManagementDialog',
   props: {
     modelValue: { type: Boolean, default: false },
-    cohortId: { type: [String, Number], required: true },
+    groupId: { type: [String, Number], required: true },
+    cohortId: { type: [String, Number, null], default: null },
   },
   data() {
     return {
@@ -69,14 +70,14 @@ export default {
     async fetchMembers() {
       this.loading = true
       try {
-        // Try canonical list endpoint
-        let res = null
-        try {
-          res = await apiClient.get(`/cohorts/${this.cohortId}/members`)
-        } catch (_) {
-          res = await apiClient.get(`/Cohorts/${this.cohortId}/Members`)
-        }
-        this.members = Array.isArray(res?.data) ? res.data : []
+        const res = await apiClient.get(`/StudyGroup/GetStudyGroupMembers/${this.groupId}`)
+        const list = Array.isArray(res?.data) ? res.data : []
+        this.members = list.map((m) => ({
+          id: m.id || m.userId,
+          userName: m.userName || m.displayName || m.name,
+          displayName: m.displayName || m.userName || m.name,
+          role: m.role,
+        })).filter((m) => !!m.id)
       } catch (_) {
         this.members = []
       } finally {
@@ -88,11 +89,7 @@ export default {
       if (!token) return
       this.inviteBusy = true
       try {
-        try {
-          await apiClient.post(`/cohorts/${this.cohortId}/invite`, { user: token })
-        } catch (_) {
-          await apiClient.post(`/Cohorts/${this.cohortId}/Invite`, { user: token })
-        }
+        await apiClient.post(`/StudyGroupManage/InviteMember/${this.groupId}`, { memberId: token })
         this.toast(this.$t('memberMgmt.inviteSuccess'))
         this.inviteInput = ''
         await this.fetchMembers()
@@ -103,13 +100,9 @@ export default {
       }
     },
     async remove(m) {
-      this.removeBusyId = m.userId
+      this.removeBusyId = m.id
       try {
-        try {
-          await apiClient.delete(`/cohorts/${this.cohortId}/members/${m.userId}`)
-        } catch (_) {
-          await apiClient.delete(`/Cohorts/${this.cohortId}/Members/${m.userId}`)
-        }
+        await apiClient.post(`/StudyGroupManage/DeleteMember/${this.groupId}`, { memberId: m.id })
         this.toast(this.$t('memberMgmt.removeSuccess'))
         await this.fetchMembers()
       } catch (_) {
@@ -124,4 +117,3 @@ export default {
 
 <style scoped>
 </style>
-

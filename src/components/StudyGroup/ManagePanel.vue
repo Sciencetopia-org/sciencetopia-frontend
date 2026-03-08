@@ -39,7 +39,7 @@
             <ActivityLogs :groupId="groupId" />
           </div>
           <div v-else-if="currentTab.key==='settings'">
-            <GroupSettingsDialog :inline="true" :groupId="groupId" :role="isManager ? 'manager' : 'member'" />
+            <GroupSettingsDialog :inline="true" :groupId="groupId" :role="isManager ? 'Admin' : 'Member'" />
           </div>
         </v-card>
       </v-col>
@@ -57,7 +57,7 @@ import { apiClient } from '@/api'
 
 export default {
   props: {
-    groupId: String,
+    groupId: [String, Number],
     pendingJoinRequests: Number,
   },
   data() {
@@ -74,10 +74,16 @@ export default {
     }
   },
   async mounted() {
-    const response = await apiClient.get(
-      `/StudyGroup/GetUserRoleInGroup/${this.groupId}`
-    )
-    this.isManager = response.data === 'manager'
+    try {
+      const response = await apiClient.get(
+        `/StudyGroup/GetUserRoleInGroup/${this.groupId}`
+      )
+      const role = String(response?.data || '').toLowerCase()
+      this.isManager = role === 'owner' || role === 'admin' || role === 'manager'
+    } catch (error) {
+      this.isManager = false
+      console.error('Failed to fetch user role in group:', error)
+    }
 
     // // Fetch pending join requests if the user is a manager
     // if (this.isManager) {

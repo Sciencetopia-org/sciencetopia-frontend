@@ -277,7 +277,7 @@ export default {
   props: {
     modelValue: { type: Boolean, default: false },
     groupId: { type: [String, Number], required: true },
-    role: { type: String, default: '' }, // 'manager' | 'member' | ''
+    role: { type: String, default: '' },
     inline: { type: Boolean, default: false },
   },
   emits: ['update:modelValue'],
@@ -314,7 +314,10 @@ export default {
     }
   },
   computed: {
-    isManager() { return String(this.role).toLowerCase() === 'manager' },
+    isManager() {
+      const v = String(this.role || '').toLowerCase()
+      return v === 'owner' || v === 'admin' || v === 'manager'
+    },
   },
   watch: {
     modelValue(val) { this.internalOpen = val; if (val) this.fetch() },

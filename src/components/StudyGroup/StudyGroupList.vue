@@ -68,10 +68,7 @@
       <div v-for="group in filteredGroups" :key="group.id" class="masonry-item">
         <!-- 下面保持不变 -->
         <v-card class="st-card">
-          <v-img class="group-image" @click="toGroupPage(group.id)" :src="group.imageUrl
-              ? require(`@/assets/images/${group.imageUrl}`)
-              : require('@/assets/images/default_study_group.png')
-            " aspect-ratio="16/9" cover />
+          <v-img class="group-image" @click="toGroupPage(group.id)" :src="resolveGroupImage(group.imageUrl)" aspect-ratio="16/9" cover />
           <v-card-title>
             <button @click="toGroupPage(group.id)" class="group-name">
               {{ group.name }}
@@ -164,6 +161,16 @@ export default {
   },
   methods: {
     ...mapActions(['goToProfile']),
+    resolveGroupImage(imageUrl) {
+      if (!imageUrl) return require('@/assets/images/default_study_group.png')
+      const src = String(imageUrl).trim()
+      if (/^(https?:)?\/\//i.test(src) || src.startsWith('data:image/')) return src
+      try {
+        return require(`@/assets/images/${src}`)
+      } catch (_) {
+        return require('@/assets/images/default_study_group.png')
+      }
+    },
     stripHtml(html) {
       try { return (require('@/utils/text.js').stripHtml)(html) } catch (_) {
         try {
@@ -275,8 +282,16 @@ export default {
     toGroupPage(groupId) {
       this.$router.push({ name: 'studyGroupPage', params: { groupId } })
     },
-    applyToJoin(groupId) {
-      console.log(`Applying to join group with ID: ${groupId}`)
+    async applyToJoin(groupId) {
+      try {
+        await apiClient.post('/StudyGroup/ApplyToJoin', { studyGroupId: String(groupId) })
+        this.$toast?.success?.('Application submitted.')
+      } catch (_) {
+        this.$toast?.error?.(this.$t('operationfailed'))
+      }
+    },
+    follow() {
+      this.$toast?.info?.('Follow is not available yet.')
     },
     async navigateToProfile(userId) {
       this.goToProfile({ userId, router: this.$router })

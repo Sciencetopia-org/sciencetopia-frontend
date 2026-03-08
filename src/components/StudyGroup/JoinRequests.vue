@@ -64,7 +64,7 @@ import { mapActions } from 'vuex'
 export default {
   components: { LoadingSpinner: require('@/components/ui/LoadingSpinner.vue').default },
   props: {
-    groupId: String,
+    groupId: [String, Number],
   },
   data() {
     return {

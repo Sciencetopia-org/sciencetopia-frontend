@@ -66,7 +66,7 @@
                     $t('studygroup.follow')
                   }}</v-btn>
                 </template>
-                <template v-if="isMember && role !== 'manager'">
+                <template v-if="isMember && !isManager">
                   <v-btn
                     color="red"
                     variant="outlined"
@@ -153,7 +153,7 @@
       :pendingJoinRequests="pendingJoinRequests"
     />
 
-    <v-container v-if="role === 'manager'">
+    <v-container v-if="isManager">
       <v-col cols="auto" class="group-sidebar">
         <transition name="slide">
           <v-list-item
@@ -220,7 +220,7 @@ import { mapActions } from 'vuex'
 
 export default {
   props: {
-    groupId: Number,
+    groupId: [String, Number],
   },
   data() {
     return {
@@ -255,6 +255,15 @@ export default {
             ? 'translateY(0)'
             : 'translateY(100%)',
       }
+    },
+    normalizedRole() {
+      const v = String(this.role || '').toLowerCase()
+      if (v === 'owner') return 'owner'
+      if (v === 'admin' || v === 'manager') return 'admin'
+      return 'member'
+    },
+    isManager() {
+      return this.normalizedRole === 'owner' || this.normalizedRole === 'admin'
     },
     groupImageSrc() {
       const img = this.group?.imageurl || this.group?.imageUrl
@@ -303,8 +312,7 @@ export default {
         )
         this.role = response.data
 
-        // Fetch pending join requests if the user is a manager
-        if (this.role === 'manager') {
+        if (this.isManager) {
           console.log('Fetching pending join requests...')
           const joinRequestsResponse = await apiClient.get(
             `/StudyGroup/GetPendingJoinRequestsCount/${this.groupId}`
@@ -326,7 +334,7 @@ export default {
     },
     onTabChange(tabIndex) {
       this.activeTab = tabIndex
-      if (this.activeTab === 3 && this.role === 'manager') {
+      if (this.activeTab === 3 && this.isManager) {
         this.$router.push({
           name: 'managePanel',
           params: { groupId: this.groupId },
@@ -369,6 +377,17 @@ export default {
 
     goToGroupPlan(planId) {
       this.$router.push({ name: 'GroupPlanWorkspace', params: { groupId: this.groupId, planId } })
+    },
+    async applyToJoin(groupId) {
+      try {
+        await apiClient.post('/StudyGroup/ApplyToJoin', { studyGroupId: String(groupId) })
+        this.$toast?.success?.('Application submitted.')
+      } catch (_) {
+        this.$toast?.error?.(this.$t('operationfailed'))
+      }
+    },
+    follow() {
+      this.$toast?.info?.('Follow is not available yet.')
     },
   },
   async mounted() {

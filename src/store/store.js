@@ -98,7 +98,7 @@ const store = createStore({
      * @typedef {Object} Enrollment
      * @property {string|number|null} activeCohortId
      * @property {string} [role]
-     * @property {string} [joinedAt]
+     * @property {number|null} [joinedAt]
      * @property {Array<string|number>} [archivedCohortIds]
      */
     /** @type {Record<string|number, Enrollment>} */
@@ -538,15 +538,15 @@ const store = createStore({
     async loadPlanRouteContext({ commit }, planId) {
       if (!planId) return
       try {
-        // GET /plans/:planId
-        const planRes = await apiClient.get(`/plans/${planId}`)
+        // GET /StudyPlans/:planId
+        const planRes = await apiClient.get(`/StudyPlans/${planId}`)
         const plan = planRes?.data || null
         if (plan) commit('UPSERT_PLAN', plan)
 
-        // GET /plans/:planId/enrollment/me
+        // GET /StudyPlans/:planId/Enrollment/Me
         let enrollment = null
         try {
-          const enrRes = await apiClient.get(`/plans/${planId}/enrollment/me`)
+          const enrRes = await apiClient.get(`/StudyPlans/${planId}/Enrollment/Me`)
           enrollment = enrRes?.data || null
           if (enrollment) commit('SET_ENROLLMENT_FOR_PLAN', { planId, enrollment })
         } catch (e) {
@@ -625,13 +625,13 @@ if (process.env.NODE_ENV !== 'production') {
     store.commit('UPSERT_GROUP', mockGroup)
     store.commit('SET_ENROLLMENT_FOR_PLAN', {
       planId: mockPlan.id,
-      enrollment: {
-        activeCohortId: mockCohort.id,
-        role: 'member',
-        joinedAt: new Date().toISOString(),
-        archivedCohortIds: [],
-      },
-    })
+        enrollment: {
+          activeCohortId: mockCohort.id,
+          role: 'member',
+          joinedAt: Date.now(),
+          archivedCohortIds: [],
+        },
+      })
   } catch (e) {
     // ignore if store not ready
   }

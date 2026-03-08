@@ -31,7 +31,7 @@
             <td>{{ member.userName }}</td>
             <td>{{ member.role }}</td>
             <td class="actions-column">
-              <v-tooltip :text="$t('studygroup.promote')" location="bottom">
+              <v-tooltip v-if="canPromote(member)" :text="$t('studygroup.promote')" location="bottom">
                 <template v-slot:activator="{ props }">
                   <v-btn
                     icon
@@ -43,7 +43,7 @@
                 </template>
               </v-tooltip>
 
-              <v-tooltip v-if="supportsDemote" :text="$t('studygroup.demote')" location="bottom">
+              <v-tooltip v-if="canDemote(member)" :text="$t('studygroup.demote')" location="bottom">
                 <template v-slot:activator="{ props }">
                   <v-btn icon v-bind="props" :disabled="actioningId===member.id" @click="demoteToMember(member.id)"
                     >🧑</v-btn
@@ -77,7 +77,7 @@ import { apiClient } from '@/api'
 export default {
   components: { LoadingSpinner: require('@/components/ui/LoadingSpinner.vue').default },
   props: {
-    groupId: String,
+    groupId: [String, Number],
   },
   data() {
     return {
@@ -85,13 +85,24 @@ export default {
       loading: true,
       actioningId: null,
       inviting: false,
-      supportsDemote: false,
     }
   },
   async mounted() {
     await this.fetchMembers()
   },
   methods: {
+    normalizeRole(value) {
+      const v = String(value || '').toLowerCase()
+      if (v === 'manager' || v === 'admin') return 'Admin'
+      if (v === 'owner') return 'Owner'
+      return 'Member'
+    },
+    canPromote(member) {
+      return this.normalizeRole(member?.role) === 'Member'
+    },
+    canDemote(member) {
+      return this.normalizeRole(member?.role) === 'Admin'
+    },
     async promoteToManager(memberId) {
       this.actioningId = memberId
       try {
@@ -106,7 +117,13 @@ export default {
     async demoteToMember(memberId) {
       this.actioningId = memberId
       try {
-        // No demote endpoint in current backend; keep no-op to avoid 404s.
+        await apiClient.post(`/StudyGroupManage/DeleteMember/${this.groupId}`, {
+          memberId,
+        })
+        await apiClient.post(`/StudyGroupManage/InviteMember/${this.groupId}`, {
+          memberId,
+        })
+        await this.fetchMembers()
       } finally {
         this.actioningId = null
       }
@@ -128,14 +145,27 @@ export default {
         const response = await apiClient.get(
           `/StudyGroup/GetStudyGroupMembers/${this.groupId}`
         )
-        this.members = response.data
+        const list = Array.isArray(response?.data) ? response.data : []
+        this.members = list.map((m) => ({
+          id: m.id || m.userId,
+          userName: m.userName || m.displayName || m.name || m.id,
+          avatarUrl: m.avatarUrl,
+          role: this.normalizeRole(m.role),
+        }))
       } finally {
         this.loading = false
       }
     },
-    inviteMember() {
+    async inviteMember() {
+      const memberId = window.prompt(this.$t('memberMgmt.inviteLabel'))
+      if (!memberId) return
       this.inviting = true
-      setTimeout(() => { this.inviting = false }, 800)
+      try {
+        await apiClient.post(`/StudyGroupManage/InviteMember/${this.groupId}`, { memberId: String(memberId).trim() })
+        await this.fetchMembers()
+      } finally {
+        this.inviting = false
+      }
     },
   },
 }

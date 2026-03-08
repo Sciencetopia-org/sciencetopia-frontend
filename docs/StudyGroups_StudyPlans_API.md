@@ -37,8 +37,8 @@ Study Plans（学习计划）
   - 响应：`{ activeCohortId, archivedCohortIds, role, joinedAt }`
     - `activeCohortId: Guid?` 当前所在 Cohort
     - `archivedCohortIds: Guid[]` 历史参与过的 Cohort（不含当前）
-    - `role: "manager"|"member"|null` 仅当所在 Cohort 为组域时给出（基于组角色）
-    - `joinedAt: null`（预留字段）
+    - `role: "Owner"|"Admin"|"Member"|null` 仅当所在 Cohort 为组域时给出（基于组角色）
+    - `joinedAt: long?` 入学时间（Unix epoch 毫秒）
 
 - GET `api/StudyPlans/{id}/JoinableCohorts`
   - 功能：列出用户可加入的 Cohort（组域须为组成员）

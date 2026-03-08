@@ -51,7 +51,7 @@
 export default {
   components: { LoadingSpinner: require('@/components/ui/LoadingSpinner.vue').default, TagSelector, TagChips },
   props: {
-    groupId: String,
+    groupId: [String, Number],
   },
   data() {
     return {
@@ -103,17 +103,25 @@ export default {
     initQuillIfNeeded() {},
     sanitizeHtml,
     async fetchGroupData() {
-      const response = await apiClient.get(
-        `/StudyGroup/GetStudyGroupById/${this.groupId}`
-      )
-      this.group = response.data
-      this.groupName = this.group.name
-      this.groupDescription = this.group.description
+      try {
+        const response = await apiClient.get(
+          `/StudyGroup/GetStudyGroupById/${this.groupId}`
+        )
+        this.group = response.data || {}
+        this.groupName = this.group.name || ''
+        this.groupDescription = this.group.description || ''
+      } catch (error) {
+        this.group = {}
+        this.groupName = ''
+        this.groupDescription = ''
+        console.error('Failed to fetch study group details:', error)
+      }
     },
     async fetchRole() {
       try {
         const resp = await apiClient.get(`/StudyGroup/GetUserRoleInGroup/${this.groupId}`)
-        this.isManager = String(resp?.data || '').toLowerCase() === 'manager'
+        const role = String(resp?.data || '').toLowerCase()
+        this.isManager = role === 'owner' || role === 'admin' || role === 'manager'
       } catch (_) {
         this.isManager = false
       }

@@ -100,7 +100,7 @@ export default {
     async fetchJoinables() {
       this.loading = true
       try {
-        const res = await apiClient.get(`/plans/${this.planId}/joinable-cohorts`, { params: { page: this.page, pageSize: this.pageSize } })
+        const res = await apiClient.get(`/StudyPlans/${this.planId}/JoinableCohorts`, { params: { page: this.page, pageSize: this.pageSize } })
         const data = res?.data || {}
         const allPublic = Array.isArray(data.public) ? data.public : []
         const gScoped = Array.isArray(data.groupScoped) ? data.groupScoped : []
@@ -137,4 +137,3 @@ export default {
 
 <style scoped>
 </style>
-
