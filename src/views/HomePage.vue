@@ -80,9 +80,9 @@
                   :key="option.value"
                   size="small"
                   class="kgp-filter-chip"
-                  :class="{ 'kgp-filter-chip--active': graphNodeFilter === option.value }"
-                  :variant="graphNodeFilter === option.value ? 'flat' : 'outlined'"
-                  :disabled="graphActionPending"
+                  :class="{ 'kgp-filter-chip--active': graphNodeFilterDisplay === option.value }"
+                  :variant="graphNodeFilterDisplay === option.value ? 'flat' : 'outlined'"
+                  :disabled="graphActionPending || graphFilterLoading"
                   @click="applyNodeStateFilter(option.value)"
                 >
                   {{ option.chipTitle }}
@@ -290,8 +290,56 @@ const showFavoritedNodes = () => callGraphMethod('setNodeStateFilter', 'favorite
 const centerGraphView = () => callGraphMethod('resetView')
 const startGraphEditing = () => callGraphMethod('startEditing')
 const submitGraphEditing = () => callGraphMethod('submitEditing')
-const applyNodeStateFilter = (filter) => callGraphMethod('setNodeStateFilter', filter)
 const reloadKnowledgeGraph = () => refreshGraph()
+
+async function applyNodeStateFilter(filter, options = {}) {
+  const { preservePositions = true } = options || {}
+  const targetFilter = filter || 'all'
+  const hasTagFilter = (selectedTags.value || []).filter(Boolean).length > 0
+  graphFilterLoading.value = true
+  pendingGraphNodeFilter.value = targetFilter
+  graph.value?.beginLoading?.()
+
+  try {
+    if (!hasTagFilter) {
+      if (targetFilter === 'all') {
+        if (baseGraphPayload.value) {
+          applyGraphData(
+            decorateGraphPayload(baseGraphPayload.value, baseGraphPayload.value),
+            {
+              preservePositions,
+              emptyMessageKey: 'home.emptyGraphStructure',
+              emptyMessageParams: { name: selectedTagSystem.value || t('home.tagsStructure') },
+            }
+          )
+          currentGraphZoomLevel.value = 'Field'
+        } else {
+          await loadGraphBySystem('Field')
+        }
+      } else {
+        if (!expandedGraphPayload.value) {
+          expandedGraphPayload.value = await fetchGraphBySystem('Keyword')
+        }
+        const filteredPayload = await buildFilteredGraphPayload(targetFilter)
+        applyGraphData(
+          decorateGraphPayload(filteredPayload, baseGraphPayload.value || filteredPayload),
+          {
+            preservePositions,
+            emptyMessageKey: 'home.emptyGraphStructure',
+            emptyMessageParams: { name: selectedTagSystem.value || t('home.tagsStructure') },
+          }
+        )
+        currentGraphZoomLevel.value = 'Keyword'
+      }
+    }
+
+    return await callGraphMethod('setNodeStateFilter', targetFilter)
+  } finally {
+    pendingGraphNodeFilter.value = null
+    graphFilterLoading.value = false
+    graph.value?.endLoading?.()
+  }
+}
 
 async function onToggleFavorites() {
   try {
@@ -315,9 +363,16 @@ const isFavorited = computed(() => unwrapExposed(graph.value?.isFavorited, false
 const isFavoritedLoading = computed(() => unwrapExposed(graph.value?.isFavoritedLoading, false))
 const graphActionPending = computed(() => unwrapExposed(graph.value?.actionPending, false))
 const graphNodeFilter = computed(() => unwrapExposed(graph.value?.activeNodeFilter, 'all'))
+const graphFilterLoading = ref(false)
+const pendingGraphNodeFilter = ref(null)
+const graphNodeFilterDisplay = computed(() => pendingGraphNodeFilter.value || graphNodeFilter.value)
 const graphHeight = ref(480)
 const graphWidth = ref(800)
 const graphKey = ref(0)
+const currentGraphZoomLevel = ref('Field')
+const baseGraphPayload = ref(null)
+const expandedGraphPayload = ref(null)
+const expandedGraphNodeStates = ref(new Map())
 
 const filterLoading = ref(false)     // ← 标签筛选（搜索）加载态
 const filterTagStructureLoading = ref(false) // ← 标签结构切换加载态
@@ -386,10 +441,148 @@ function removeTag(t) {
   selectedTags.value = selectedTags.value.filter(tag => tag !== t)
 }
 
-function applyGraphData(data, { emptyMessageKey = 'home.emptyGraph', emptyMessageParams } = {}) {
+function canonicalGraphId(value) {
+  if (value === null || value === undefined) return ''
+  return typeof value === 'object' ? String(value.id ?? '') : String(value)
+}
+
+function graphEdgeKey(link) {
+  const source = canonicalGraphId(link?.source)
+  const target = canonicalGraphId(link?.target)
+  const relation = link?.relationshipType || link?.relation || link?.type || ''
+  return `${source}-${target}-${relation}`
+}
+
+function decorateGraphPayload(payload, basePayload = payload) {
+  const sourcePayload = payload || { nodes: [], links: [] }
+  const referencePayload = basePayload || sourcePayload
+  const baseNodeIds = new Set((referencePayload.nodes || []).map(node => canonicalGraphId(node?.id)).filter(Boolean))
+  const baseLinkKeys = new Set((referencePayload.links || []).map(graphEdgeKey))
+
+  return {
+    ...sourcePayload,
+    nodes: (sourcePayload.nodes || []).map(node => ({
+      ...node,
+      isBaseGraphNode: baseNodeIds.has(canonicalGraphId(node?.id)),
+    })),
+    links: (sourcePayload.links || []).map(link => ({
+      ...link,
+      isBaseGraphLink: baseLinkKeys.has(graphEdgeKey(link)),
+    })),
+  }
+}
+
+function matchesNodeStateFilter(state, filter) {
+  if (!state) return false
+  if (filter === 'favorited') return state.isFavorited === true
+  if (filter === 'learned') return state.isLearned === true
+  if (filter === 'favorited-or-learned') return state.isFavorited === true || state.isLearned === true
+  return true
+}
+
+async function ensureExpandedGraphNodeStates(payload) {
+  const graphPayload = payload || expandedGraphPayload.value
+  const nodeIds = (graphPayload?.nodes || []).map(node => canonicalGraphId(node?.id)).filter(Boolean)
+  if (!nodeIds.length) {
+    expandedGraphNodeStates.value = new Map()
+    return expandedGraphNodeStates.value
+  }
+
+  const userId = store.state.currentUserID || store.state.userInfo?.id
+  if (!userId) {
+    expandedGraphNodeStates.value = new Map()
+    return expandedGraphNodeStates.value
+  }
+
+  const [statesResult, favoritesResult, learnedResult] = await Promise.allSettled([
+    apiClient.post('/KnowledgeGraph/Favorites/NodeStates', { nodeIds }),
+    apiClient.get('/KnowledgeGraph/Favorites/MyFavorites'),
+    apiClient.get('/KnowledgeGraph/Favorites/MyDerivedLearned'),
+  ])
+
+  const statesPayload = statesResult.status === 'fulfilled' && Array.isArray(statesResult.value?.data)
+    ? statesResult.value.data
+    : []
+
+  const stateMap = new Map(
+    statesPayload
+      .map(item => [canonicalGraphId(item?.nodeId), item])
+      .filter(([id]) => Boolean(id))
+  )
+
+  const favoritedIds = new Set(
+    (favoritesResult.status === 'fulfilled' && Array.isArray(favoritesResult.value?.data)
+      ? favoritesResult.value.data
+      : []
+    )
+      .map(item => canonicalGraphId(item?.properties?.stableId ?? item?.properties?.id ?? item?.identity))
+      .filter(Boolean)
+  )
+
+  const learnedById = new Map(
+    (learnedResult.status === 'fulfilled' && Array.isArray(learnedResult.value?.data)
+      ? learnedResult.value.data
+      : []
+    )
+      .map(item => {
+        const id = canonicalGraphId(item?.properties?.stableId ?? item?.properties?.id ?? item?.identity)
+        if (!id) return null
+        return [id, item]
+      })
+      .filter(Boolean)
+  )
+
+  nodeIds.forEach((id) => {
+    const current = stateMap.get(id) || {}
+    const learnedEntry = learnedById.get(id)
+    stateMap.set(id, {
+      ...current,
+      nodeId: id,
+      isFavorited: current?.isFavorited === true || favoritedIds.has(id),
+      isLearned: current?.isLearned === true || Boolean(learnedEntry),
+      isPartiallyLearned: learnedEntry ? false : current?.isPartiallyLearned === true,
+      totalResourceCount: Number.isFinite(current?.totalResourceCount)
+        ? current.totalResourceCount
+        : Number.isFinite(learnedEntry?.totalResourceCount) ? learnedEntry.totalResourceCount : 0,
+      completedResourceCount: Number.isFinite(current?.completedResourceCount)
+        ? current.completedResourceCount
+        : Number.isFinite(learnedEntry?.completedResourceCount) ? learnedEntry.completedResourceCount : 0,
+    })
+  })
+
+  expandedGraphNodeStates.value = stateMap
+  return stateMap
+}
+
+async function buildFilteredGraphPayload(filter) {
+  const basePayload = baseGraphPayload.value || { nodes: [], links: [] }
+  const expandedPayload = expandedGraphPayload.value || basePayload
+  const baseIds = new Set((basePayload.nodes || []).map(node => canonicalGraphId(node?.id)).filter(Boolean))
+  const includedIds = new Set(baseIds)
+  const stateMap = await ensureExpandedGraphNodeStates(expandedPayload)
+
+  ;(expandedPayload.nodes || []).forEach((node) => {
+    const nodeId = canonicalGraphId(node?.id)
+    if (!nodeId || baseIds.has(nodeId)) return
+    if (matchesNodeStateFilter(stateMap.get(nodeId), filter)) {
+      includedIds.add(nodeId)
+    }
+  })
+
+  return {
+    nodes: (expandedPayload.nodes || []).filter(node => includedIds.has(canonicalGraphId(node?.id))),
+    links: (expandedPayload.links || []).filter((link) => {
+      const sourceId = canonicalGraphId(link?.source?.id ?? link?.source)
+      const targetId = canonicalGraphId(link?.target?.id ?? link?.target)
+      return includedIds.has(sourceId) && includedIds.has(targetId)
+    }),
+  }
+}
+
+function applyGraphData(data, { emptyMessageKey = 'home.emptyGraph', emptyMessageParams, preservePositions = true } = {}) {
   const payload = data || { nodes: [], links: [] }
   if (graph.value && typeof graph.value.loadData === 'function') {
-    graph.value.loadData(payload)
+    graph.value.loadData(payload, { preservePositions })
   }
 
   const nodes = Array.isArray(payload?.nodes) ? payload.nodes : []
@@ -399,7 +592,18 @@ function applyGraphData(data, { emptyMessageKey = 'home.emptyGraph', emptyMessag
     : t(emptyMessageKey, emptyMessageParams)
 }
 
-async function loadGraphBySystem() {
+async function fetchGraphBySystem(zoomLevel = 'Field') {
+  const tagSystemParam = selectedTagSystem.value || ''
+  const res = await apiClient.get('/KnowledgeGraph/GetNodeInView', {
+    params: {
+      tagSystem: tagSystemParam,
+      zoomLevel,
+    }
+  })
+  return res?.data?.data ?? res?.data
+}
+
+async function loadGraphBySystem(zoomLevel = 'Field') {
   const tagSystemParam = selectedTagSystem.value || ''
   const displayName = tagSystemParam || t('home.tagsStructure')
   graphEmptyMessage.value = ''
@@ -407,14 +611,21 @@ async function loadGraphBySystem() {
   graph.value?.beginLoading?.()
 
   try {
-    const res = await apiClient.get('/KnowledgeGraph/GetNodeInView', {
-      params: { tagSystem: tagSystemParam }
-    })
-    const data = res?.data?.data ?? res?.data
-    applyGraphData(data, {
+    const data = await fetchGraphBySystem(zoomLevel)
+    if (zoomLevel === 'Field') {
+      baseGraphPayload.value = data
+      expandedGraphPayload.value = null
+      expandedGraphNodeStates.value = new Map()
+    }
+    currentGraphZoomLevel.value = zoomLevel
+    applyGraphData(
+      decorateGraphPayload(data, zoomLevel === 'Field' ? data : (baseGraphPayload.value || data)),
+      {
+      preservePositions: false,
       emptyMessageKey: 'home.emptyGraphStructure',
       emptyMessageParams: { name: displayName }
-    })
+      }
+    )
     return data
   } catch (error) {
     console.error('GetNodeInView failed:', error?.response?.status, error?.response?.data || error)
@@ -450,7 +661,8 @@ async function fetchGraphByTags(tags) {
   }
 }
 
-async function filterByTags() {
+async function filterByTags(options = {}) {
+  const { preservePositions = true } = options || {}
   const tags = (selectedTags.value || []).filter(Boolean)
   if (!selectedTagSystem.value && tags.length === 0) {
     graphEmptyMessage.value = ''
@@ -458,7 +670,7 @@ async function filterByTags() {
   }
 
   if (tags.length === 0) {
-    return loadGraphBySystem()
+    return loadGraphBySystem(graphNodeFilter.value === 'all' ? 'Field' : 'Keyword')
   }
 
   await nextTick()
@@ -469,7 +681,10 @@ async function filterByTags() {
 
   try {
     const data = await fetchGraphByTags(tags)
-    applyGraphData(data, { emptyMessageKey: 'home.emptyGraphFilter' })
+    baseGraphPayload.value = null
+    expandedGraphPayload.value = null
+    expandedGraphNodeStates.value = new Map()
+    applyGraphData(data, { emptyMessageKey: 'home.emptyGraphFilter', preservePositions })
     return data
   } catch (error) {
     console.error('FilterByTags failed:', error?.response?.status, error?.response?.data || error)
@@ -569,8 +784,56 @@ function onWindowResize() {
   scheduleMeasure()
 }
 
-function refreshGraph() {
-  filterByTags().catch(err => console.error(err))
+async function refreshGraph() {
+  const hasTagFilter = (selectedTags.value || []).filter(Boolean).length > 0
+  const activeFilter = graphNodeFilter.value || 'all'
+  const displayName = selectedTagSystem.value || t('home.tagsStructure')
+
+  if (hasTagFilter) {
+    filterByTags({ preservePositions: false }).catch(err => console.error(err))
+    return
+  }
+
+  graphEmptyMessage.value = ''
+  graph.value?.beginLoading?.()
+
+  try {
+    baseGraphPayload.value = await fetchGraphBySystem('Field')
+    expandedGraphPayload.value = null
+    expandedGraphNodeStates.value = new Map()
+
+    if (activeFilter === 'all') {
+      currentGraphZoomLevel.value = 'Field'
+      applyGraphData(
+        decorateGraphPayload(baseGraphPayload.value, baseGraphPayload.value),
+        {
+          preservePositions: false,
+          emptyMessageKey: 'home.emptyGraphStructure',
+          emptyMessageParams: { name: displayName },
+        }
+      )
+      await callGraphMethod('setNodeStateFilter', 'all')
+      return
+    }
+
+    expandedGraphPayload.value = await fetchGraphBySystem('Keyword')
+    const filteredPayload = await buildFilteredGraphPayload(activeFilter)
+    currentGraphZoomLevel.value = 'Keyword'
+    applyGraphData(
+      decorateGraphPayload(filteredPayload, baseGraphPayload.value || filteredPayload),
+      {
+        preservePositions: false,
+        emptyMessageKey: 'home.emptyGraphStructure',
+        emptyMessageParams: { name: displayName },
+      }
+    )
+    await callGraphMethod('setNodeStateFilter', activeFilter)
+  } catch (err) {
+    console.error(err)
+    graphEmptyMessage.value = t('operationfailedmsg3')
+  } finally {
+    graph.value?.endLoading?.()
+  }
 }
 
 
@@ -685,29 +948,29 @@ onBeforeUnmount(() => {
   border-radius: 999px !important;
   min-height: 30px !important;
   padding-inline: 2px !important;
-  background: rgba(255, 255, 255, 0.92);
-  border-color: rgba(120, 95, 70, 0.16) !important;
-  color: #6c5a49 !important;
+  background: rgba(251, 248, 242, 0.96);
+  border-color: rgba(197, 159, 89, 0.38) !important;
+  color: #304e75 !important;
   box-shadow: none !important;
   transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
 .kgp-filter-chip:hover {
-  background: #fff7ef;
-  border-color: rgba(201, 121, 0, 0.22) !important;
-  color: #8a4b08 !important;
+  background: rgba(241, 233, 215, 0.94);
+  border-color: rgba(48, 78, 117, 0.52) !important;
+  color: #304e75 !important;
   transform: translateY(-1px);
 }
 
 .kgp-filter-chip--active {
-  background: #f6dfc3 !important;
-  border-color: #e7b073 !important;
-  color: #8f4700 !important;
+  background: #dfcba4 !important;
+  border-color: #c59f59 !important;
+  color: #304e75 !important;
 }
 
 .kgp-filter-chip--active:hover {
-  background: #f3d6b4 !important;
-  border-color: #df9d58 !important;
+  background: #d6bf8f !important;
+  border-color: #b88f47 !important;
 }
 
 .kgp-center-body {
@@ -907,7 +1170,7 @@ onBeforeUnmount(() => {
 }
 
 .kgp-filter-trigger--ready {
-  color: #c96c00 !important;
+  color: #304e75 !important;
 }
 
 .kgp-filter-trigger--ready :deep(.v-icon) {

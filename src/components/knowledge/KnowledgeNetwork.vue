@@ -1,7 +1,7 @@
 <template>
-  <GlobalLoader />
-  <div ref="svgRef" id="cy" :class="{ 'fullscreen-mode': isFullScreen }"
+  <div ref="svgRef" id="cy" :class="{ 'fullscreen-mode': isFullScreen, 'cy--loading': isGraphLoading }"
     :style="{ width: width + 'px', height: height + 'px' }">
+    <GlobalLoader />
     <div v-if="inputVisible" class="search-flyin" @keydown.esc.stop.prevent="closeSearchPanel"
       @mousedown.stop @touchstart.stop @wheel.stop @click.stop="focusSearchInput">
       <svg-icon type="mdi" :path="path" class="search-flyin__icon" />
@@ -26,6 +26,7 @@
 import useKnowledgeGraph from './useKnowledgeGraph'
 import EditGuideDialog from './EditGuideDialog.vue'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
+import { useGlobalLoading } from '@/components/ui/GlobalLoader.vue'
 import { ref, computed, watch, nextTick } from 'vue'
 import { apiClient } from '@/api'
 import { useStore } from 'vuex'
@@ -43,6 +44,7 @@ export default {
 
   setup(_, { expose }) {
     const store = useStore()
+    const { isLoading: isGraphLoading } = useGlobalLoading()
     const searchQuery = ref('')
     const inputVisible = ref(false)
     const searchInput = ref(null)
@@ -273,6 +275,7 @@ export default {
       activeNodeFilter,
       beginLoading,
       endLoading,
+      isGraphLoading,
     }
   },
 }
@@ -282,6 +285,18 @@ export default {
 #cy {
   position: relative;
   overflow: visible;
+  transition: opacity 0.18s ease, filter 0.18s ease;
+}
+
+#cy.cy--loading :deep(svg) {
+  opacity: 0.16;
+  filter: blur(1.5px);
+}
+
+#cy :deep(.overlay) {
+  background: rgba(251, 248, 242, 0.76);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 #cy, #cy * {

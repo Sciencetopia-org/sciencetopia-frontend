@@ -171,21 +171,39 @@ export default function useKnowledgeGraph(endpoint) {
     return strokeWidth
   }
 
+  function isBaseGraphNode(nodeDatum) {
+    return nodeDatum?.isBaseGraphNode !== false
+  }
+
+  function isBaseGraphLink(linkDatum, source, target) {
+    if (linkDatum?.isBaseGraphLink === false) return false
+    return isBaseGraphNode(source) && isBaseGraphNode(target)
+  }
+
   function applyNodeStateOverlay() {
     if (!node || !labels || !link) return
     const filterActive = activeNodeFilter.value !== 'all'
 
     node
-      .style('opacity', d => filterActive ? (matchesNodeFilter(d) ? 1 : 0.12) : 1)
+      .style('opacity', d => {
+        if (!filterActive) return 1
+        if (matchesNodeFilter(d)) return 1
+        return isBaseGraphNode(d) ? 0.12 : 0
+      })
       .style('visibility', d => {
         if (filterActive && matchesNodeFilter(d)) return 'visible'
+        if (filterActive && !isBaseGraphNode(d)) return 'hidden'
         return shouldDisplayNode(d.tagLevel, currentZoomLevel) ? 'visible' : 'hidden'
       })
       .style('stroke', d => getNodeStateStroke(d))
       .style('stroke-width', d => getNodeStateStrokeWidth(d))
 
     labels
-      .style('opacity', d => filterActive ? (matchesNodeFilter(d) ? 1 : 0.12) : 1)
+      .style('opacity', d => {
+        if (!filterActive) return 1
+        if (matchesNodeFilter(d)) return 1
+        return isBaseGraphNode(d) ? 0.12 : 0
+      })
       .text(d => getLabelText(d))
 
     link
@@ -193,7 +211,8 @@ export default function useKnowledgeGraph(endpoint) {
         if (!filterActive) return 1
         const source = getNodeDatum(d.source)
         const target = getNodeDatum(d.target)
-        return source && target && matchesNodeFilter(source) && matchesNodeFilter(target) ? 1 : 0.08
+        if (source && target && matchesNodeFilter(source) && matchesNodeFilter(target)) return 1
+        return isBaseGraphLink(d, source, target) ? 0.08 : 0
       })
       .style('visibility', d => {
         if (!d.source || !d.target) return 'hidden'
@@ -203,6 +222,7 @@ export default function useKnowledgeGraph(endpoint) {
         if (filterActive && matchesNodeFilter(source) && matchesNodeFilter(target)) {
           return 'visible'
         }
+        if (filterActive && !isBaseGraphLink(d, source, target)) return 'hidden'
         const sourceVisible = shouldDisplayNode(source.tagLevel, currentZoomLevel)
         const targetVisible = shouldDisplayNode(target.tagLevel, currentZoomLevel)
         return sourceVisible && targetVisible ? 'visible' : 'hidden'
@@ -291,8 +311,6 @@ export default function useKnowledgeGraph(endpoint) {
   }
 
   async function setNodeStateFilter(filter = 'all') {
-    beginLoading()
-    try {
     const userId = store.state.currentUserID || store.state.userInfo?.id
     if (!userId && filter !== 'all') {
       activeNodeFilter.value = 'all'
@@ -308,9 +326,6 @@ export default function useKnowledgeGraph(endpoint) {
 
     await refreshNodeStates()
     return activeNodeFilter.value
-    } finally {
-      endLoading()
-    }
   }
 
   function radiusFor(n) {
@@ -707,12 +722,30 @@ export default function useKnowledgeGraph(endpoint) {
     }
   }
 
-  const loadGraphData = async (payload) => {
-    showLoading()
+  const loadGraphData = async (payload, options = {}) => {
+    const { preservePositions = true } = options || {}
     try {
+      const previousNodeMap = new Map(
+        (nodes.value || [])
+          .filter(existing => existing?.id)
+          .map(existing => [existing.id, existing])
+      )
+
       const newNodes = (payload?.nodes || [])
         .map(normalizeNode)
         .filter(Boolean)
+        .map(nodeDatum => {
+          if (!preservePositions) return nodeDatum
+          const previous = previousNodeMap.get(nodeDatum.id)
+          if (!previous) return nodeDatum
+          return {
+            ...nodeDatum,
+            x: Number.isFinite(previous.x) ? previous.x : nodeDatum.x,
+            y: Number.isFinite(previous.y) ? previous.y : nodeDatum.y,
+            vx: Number.isFinite(previous.vx) ? previous.vx : 0,
+            vy: Number.isFinite(previous.vy) ? previous.vy : 0,
+          }
+        })
 
       const newLinks = (payload?.links || [])
         .map(normalizeEdge)
@@ -727,8 +760,8 @@ export default function useKnowledgeGraph(endpoint) {
       links.value = newLinks
       updateD3Graph(nodes.value, links.value)
       await refreshNodeStates()
-    } finally {
-      hideLoadingSoon()
+    } catch (error) {
+      throw error
     }
   }
 

@@ -35,7 +35,7 @@ export function useSelectedNodeDetails(options = {}) {
 
     try {
       const promises = selected.map(n =>
-        n?.id ? getNodeDetail(n.id, { revalidate }) : Promise.resolve(null)
+        n?.id ? getNodeDetail(n.id, { forceRefresh: true, revalidate }) : Promise.resolve(null)
       )
       const results = await Promise.allSettled(promises)
 

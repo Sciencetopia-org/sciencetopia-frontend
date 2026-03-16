@@ -18,7 +18,17 @@
         <v-container v-for="resource in searchResources" :key="resource.id">
           <v-card>
             <v-card-item class="link-preview-container">
-              <LinkPreview :url="resource.properties.link" />
+              <div class="search-resource-row">
+                <ResourceLearnToggle
+                  :resource="resource"
+                  :disabled="!canToggleResources"
+                  @updated="onResourceUpdated(resource, $event)"
+                  @toggle-failed="onResourceToggleFailed(resource, $event)"
+                />
+                <div class="search-resource-row__preview">
+                  <LinkPreview :url="resource.link" />
+                </div>
+              </div>
             </v-card-item>
           </v-card>
         </v-container>
@@ -30,6 +40,8 @@
 <script>
 import { apiClient } from '@/api'
 import LinkPreview from '@/components/knowledge/LinkPreview.vue' // Assuming you have a LinkPreview component
+import ResourceLearnToggle from '@/components/resources/ResourceLearnToggle.vue'
+import { hydrateCompletedStatuses } from '@/utils/resourceProgress'
 
 export default {
   data() {
@@ -40,6 +52,12 @@ export default {
   },
   components: {
     LinkPreview,
+    ResourceLearnToggle,
+  },
+  computed: {
+    canToggleResources() {
+      return Boolean(this.$store.state.currentUserID || this.$store.state.userInfo?.id)
+    },
   },
   mounted() {
     this.fetchSearchResults()
@@ -63,22 +81,45 @@ export default {
     async fetchSearchResources() {
       try {
         const query = this.$route.query.q
-        this.searchResources = await apiClient
+        const rawResources = await apiClient
           .get('/Search/SearchResources', {
             params: { query: query },
           })
           .then((response) => {
             return response.data
           })
+        this.searchResources = (Array.isArray(rawResources) ? rawResources : []).map(resource => ({
+          id: resource?.id ?? resource?.resourceId ?? resource?.ID ?? resource?.properties?.id,
+          name: resource?.name ?? resource?.title ?? resource?.properties?.name ?? '',
+          link: resource?.link ?? resource?.url ?? resource?.properties?.link ?? '',
+          learned: false,
+        }))
+        await hydrateCompletedStatuses(this.searchResources)
       } catch (error) {
         console.error('Failed to fetch search results:', error)
       }
+    },
+    onResourceUpdated(resource, event) {
+      resource.learned = event?.completed === true
+    },
+    onResourceToggleFailed(resource, event) {
+      resource.learned = event?.completed === true
+      if (event?.error) console.error('Failed to toggle search list resource completion', event.error)
     },
   },
 }
 </script>
 
 <style scoped>
-/* Add your custom styles here */
+.search-resource-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.search-resource-row__preview {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 </style>
 

@@ -17,14 +17,36 @@
             {{ $t('knowledgeGraph.regionFiltered', { count: filteredOutCount(node) }) || `部分资源因地区限制未显示（${filteredOutCount(node)}）` }}
           </v-btn>
         </div>
-        <v-card-item v-for="(resource, i) in filteredResources(node)" :key="i" class="link-preview-container">
-          <LinkPreview :url="resource.link || resource" />
+        <v-card-item v-for="(resource, i) in filteredResources(node)" :key="resource.id || resource.link || i" class="link-preview-container">
+          <div class="node-resource-row">
+            <ResourceLearnToggle
+              class="node-resource-row__toggle"
+              :resource="resource"
+              :disabled="!canToggleResources"
+              @updated="onResourceUpdated(node, resource, $event)"
+              @toggle-failed="onResourceToggleFailed(node, resource, $event)"
+            />
+            <div class="node-resource-row__preview">
+              <LinkPreview :url="resource.link || resource" />
+            </div>
+          </div>
         </v-card-item>
         <template v-if="isExpanded(node) && hiddenResources(node).length">
           <v-divider class="my-2" />
           <div class="text-caption text-medium-emphasis mb-1">{{ $t('knowledgeGraph.filteredTitle') || '被隐藏的资源（可能在中国大陆无法访问）' }}</div>
-          <v-card-item v-for="(resource, i) in hiddenResources(node)" :key="'hidden-' + i" class="link-preview-container">
-            <LinkPreview :url="resource.link || resource" />
+          <v-card-item v-for="(resource, i) in hiddenResources(node)" :key="'hidden-' + (resource.id || resource.link || i)" class="link-preview-container">
+            <div class="node-resource-row">
+              <ResourceLearnToggle
+                class="node-resource-row__toggle"
+                :resource="resource"
+                :disabled="!canToggleResources"
+                @updated="onResourceUpdated(node, resource, $event)"
+                @toggle-failed="onResourceToggleFailed(node, resource, $event)"
+              />
+              <div class="node-resource-row__preview">
+                <LinkPreview :url="resource.link || resource" />
+              </div>
+            </div>
           </v-card-item>
         </template>
       </div>
@@ -39,8 +61,11 @@
 
 <script>
 import { computed, reactive } from 'vue'
+import { useStore } from 'vuex'
 import { useSelectedNodeDetails } from '@/composables/useSelectedNodeDetails'
+import { useNodeDetailsCache } from '@/composables/useNodeDetailsCache'
 import LinkPreview from '@/components/knowledge/LinkPreview.vue'
+import ResourceLearnToggle from '@/components/resources/ResourceLearnToggle.vue'
 import { isMainlandChina } from '@/utils/region'
 import { isAccessibleInChina } from '@/utils/resourceFilter'
 
@@ -48,9 +73,12 @@ export default {
   name: 'NodeInfo',
   components: {
     LinkPreview,
+    ResourceLearnToggle,
   },
   setup() {
+    const store = useStore()
     const { detailedSelectedNodes, loading, error } = useSelectedNodeDetails({ revalidate: true })
+    const { primeNode } = useNodeDetailsCache()
     const state = { isCN: false }
     isMainlandChina().then(v => state.isCN = !!v).catch(() => { state.isCN = false })
     const filteredResources = (node) => {
@@ -74,13 +102,70 @@ export default {
     const sanitizeDescription = (desc) => {
       try { return String(desc || '').replace(/\r?\n/g, '<br>') } catch { return '' }
     }
-    return { detailedSelectedNodes, loading, error, filteredResources, filteredOutCount, hiddenResources, isExpanded, toggleHidden, sanitizeDescription }
+    const canToggleResources = computed(() => Boolean(store.state.currentUserID || store.state.userInfo?.id))
+    const syncNodeCache = (node) => {
+      if (!node?.id) return
+      primeNode(node.id, {
+        id: node.id,
+        name: node.name,
+        description: node.description,
+        resources: Array.isArray(node.resources) ? node.resources : [],
+        tags: Array.isArray(node.tags) ? node.tags : [],
+        createdDate: node.createdDate,
+        updatedDate: node.updatedDate,
+      })
+    }
+    const updateResourceState = (node, targetResource, completed) => {
+      const list = Array.isArray(node?.resources) ? node.resources : []
+      list.forEach(resource => {
+        const sameId = resource?.id && targetResource?.id && String(resource.id) === String(targetResource.id)
+        const sameLink = !sameId && resource?.link && targetResource?.link && resource.link === targetResource.link
+        if (sameId || sameLink) resource.learned = completed
+      })
+      syncNodeCache(node)
+    }
+    const onResourceUpdated = (node, resource, event) => {
+      updateResourceState(node, resource, event?.completed === true)
+    }
+    const onResourceToggleFailed = (node, resource, event) => {
+      updateResourceState(node, resource, event?.completed === true)
+      if (event?.error) console.error('Failed to toggle node resource completion', event.error)
+    }
+    return {
+      detailedSelectedNodes,
+      loading,
+      error,
+      filteredResources,
+      filteredOutCount,
+      hiddenResources,
+      isExpanded,
+      toggleHidden,
+      sanitizeDescription,
+      canToggleResources,
+      onResourceUpdated,
+      onResourceToggleFailed,
+    }
   },
 }
 </script>
 
 <style scoped>
 @import '../../assets/css/link-preview.css';
+
+.node-resource-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.node-resource-row__toggle {
+  margin-top: 10px;
+}
+
+.node-resource-row__preview {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 </style>
 
 
