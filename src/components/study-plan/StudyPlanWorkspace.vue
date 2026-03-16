@@ -681,12 +681,13 @@ export default {
       resource.learned = completed
       const planId = this.currentPlan?.id
       const panel = this.$refs && this.$refs.centerPanel
+      const currentLessonId = this.currentLessonId
       if (!planId) return
 
       if (phase === 'optimistic') {
         // Show skeletons only; defer network fetch to confirmed event
-        if (panel && typeof panel.setLessonLoading === 'function' && this.currentLessonId) {
-          panel.setLessonLoading(this.currentLessonId)
+        if (panel && typeof panel.setLessonLoading === 'function' && currentLessonId) {
+          panel.setLessonLoading(currentLessonId)
         }
         this.$set ? this.$set(this.progressLoading, planId, true) : (this.progressLoading[planId] = true)
         if (completed) this.launchConfetti()
@@ -701,9 +702,14 @@ export default {
       } else if (panel && typeof panel.fetchMyProgress === 'function') {
         panel.fetchMyProgress()
       }
+      if (typeof lessonProgress === 'number' && panel && typeof panel.applyLessonProgress === 'function' && currentLessonId) {
+        panel.applyLessonProgress(currentLessonId, lessonProgress)
+      }
       // Refresh left list (also updates advanced progress) and lesson bars
       this.refreshPlanProgress(planId, { silent: true })
-      if (panel && typeof panel.fetchLessonsProgress === 'function') panel.fetchLessonsProgress()
+      if (typeof lessonProgress !== 'number' && panel && typeof panel.fetchLessonsProgress === 'function') {
+        panel.fetchLessonsProgress()
+      }
     },
     launchConfetti() {
       const end = Date.now() + 5 * 1000 // 5 seconds

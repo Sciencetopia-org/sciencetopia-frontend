@@ -3,7 +3,7 @@
     <template #prepend>
       <v-checkbox
         :model-value="completed"
-        :disabled="disabled"
+        :disabled="isDisabled"
         @click.stop="toggle"
         :aria-label="`完成 ${displayTitle}`"
       />
@@ -33,6 +33,9 @@ export default {
     }
   },
   computed: {
+    isDisabled() {
+      return this.disabled || this.busy
+    },
     id() {
       return this.resource.id || this.resource.resourceId || null
     },
@@ -52,6 +55,7 @@ export default {
       const next = !this.localCompleted
       // optimistic update
       this.localCompleted = next
+      this.busy = true
       this.$emit('update', { completed: next, resource: this.resource })
       try {
         if (this.id) {

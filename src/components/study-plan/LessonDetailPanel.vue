@@ -46,14 +46,26 @@
             </template>
           </div>
           <div class="d-flex align-center mt-1">
-            <v-checkbox
-              v-model="resource.learned"
-              :disabled="!isInteractable"
-              hide-details
-              density="compact"
-              @click.stop="toggleResource(resource)"
-              :label="resource.learned ? $t('lessonDetail.completed') : $t('lessonDetail.notCompleted')"
-            />
+            <div class="resource-checkbox-wrap">
+              <v-checkbox
+                v-model="resource.learned"
+                :disabled="!isInteractable || isResourceBusy(resource)"
+                hide-details
+                density="compact"
+                class="resource-status-checkbox"
+                :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
+                @click.stop="toggleResource(resource)"
+                :label="resource.learned ? $t('lessonDetail.completed') : $t('lessonDetail.notCompleted')"
+              />
+              <span v-if="isResourceBusy(resource)" class="resource-status-checkbox__spinner">
+                <v-progress-circular
+                  indeterminate
+                  :size="12"
+                  :width="2"
+                  color="primary"
+                />
+              </span>
+            </div>
           </div>
         </v-card-item>
         <template v-if="showBlocked && hiddenResources.length">
@@ -70,14 +82,26 @@
               </template>
             </div>
             <div class="d-flex align-center mt-1">
-              <v-checkbox
-                v-model="resource.learned"
-                :disabled="!isInteractable"
-                hide-details
-                density="compact"
-                @click.stop="toggleResource(resource)"
-                :label="resource.learned ? $t('lessonDetail.completed') : $t('lessonDetail.notCompleted')"
-              />
+              <div class="resource-checkbox-wrap">
+                <v-checkbox
+                  v-model="resource.learned"
+                  :disabled="!isInteractable || isResourceBusy(resource)"
+                  hide-details
+                  density="compact"
+                  class="resource-status-checkbox"
+                  :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
+                  @click.stop="toggleResource(resource)"
+                  :label="resource.learned ? $t('lessonDetail.completed') : $t('lessonDetail.notCompleted')"
+                />
+                <span v-if="isResourceBusy(resource)" class="resource-status-checkbox__spinner">
+                  <v-progress-circular
+                    indeterminate
+                    :size="12"
+                    :width="2"
+                    color="primary"
+                  />
+                </span>
+              </div>
             </div>
           </v-card-item>
         </template>
@@ -117,7 +141,14 @@ export default {
   },
   emits: ['resource-updated'],
   data() {
-    return { current: this.lesson, loadingLesson: false, resourcesLoaded: false, isCN: false, showBlocked: false }
+    return {
+      current: this.lesson,
+      loadingLesson: false,
+      resourcesLoaded: false,
+      isCN: false,
+      showBlocked: false,
+      busyResourceKeys: {},
+    }
   },
   watch: {
     lesson: {
@@ -145,6 +176,7 @@ export default {
       if (!lessonId || !this.planId) {
         this.current = lesson || null
         this.resourcesLoaded = !!lesson
+        this.busyResourceKeys = {}
         return
       }
 
@@ -152,6 +184,7 @@ export default {
         const normalized = cloneLessonPayload(lesson)
         this.current = normalized
         this.resourcesLoaded = true
+        this.busyResourceKeys = {}
         lessonDetailCache.set(this.getCacheKey(this.planId, lessonId), normalized)
         return
       }
@@ -203,9 +236,10 @@ export default {
         if (lesson) {
           const normalized = cloneLessonPayload(lesson)
           lessonDetailCache.set(cacheKey, normalized)
-          if (String(this.planId || '') === String(requestedPlanId || '')
+        if (String(this.planId || '') === String(requestedPlanId || '')
             && String(this.lessonId || '') === String(requestedLessonId || '')) {
             this.current = cloneLessonPayload(normalized)
+            this.busyResourceKeys = {}
           }
         }
       } catch (_) { /* ignore */ }
@@ -236,10 +270,25 @@ export default {
       })
       return Array.from(map.values())
     },
+    resourceKey(resource) {
+      return String(resource?.id || resource?.resourceId || resource?.link || resource?.url || resource?.name || '')
+    },
+    isResourceBusy(resource) {
+      return !!this.busyResourceKeys[this.resourceKey(resource)]
+    },
+    setResourceBusy(resource, busy) {
+      const key = this.resourceKey(resource)
+      if (!key) return
+      this.busyResourceKeys = {
+        ...this.busyResourceKeys,
+        [key]: busy,
+      }
+    },
     async toggleResource(resource) {
       try {
-        if (!this.isInteractable) return
+        if (!this.isInteractable || this.isResourceBusy(resource)) return
         const next = !resource.learned
+        this.setResourceBusy(resource, true)
         // optimistic update
         resource.learned = next
         this.$emit('resource-updated', { completed: next, resource, phase: 'optimistic' })
@@ -293,6 +342,8 @@ export default {
         // rollback
         resource.learned = !resource.learned
         this.$emit('resource-updated', { completed: resource.learned, resource, error: e })
+      } finally {
+        this.setResourceBusy(resource, false)
       }
     },
   },
@@ -326,6 +377,7 @@ export default {
 </script>
 
 <style scoped>
+@import '../../assets/css/resource-status.css';
 .resource-title { font-size: 16px; font-weight: 400; color: #000; line-height: 1.3; }
 .resource-title-link { color: inherit; text-decoration: none; }
 .resource-title-link:hover { text-decoration: underline; }

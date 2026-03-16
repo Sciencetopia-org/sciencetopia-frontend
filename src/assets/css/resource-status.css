@@ -1,0 +1,48 @@
+.resource-busy-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(197, 159, 89, 0.9);
+  background: #fbf8f2;
+  color: #304e75;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  opacity: 0.72;
+}
+
+.resource-busy-indicator .v-progress-circular {
+  color: #304e75 !important;
+}
+
+.resource-checkbox-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.resource-status-checkbox--busy :deep(.v-selection-control__input) {
+  opacity: 0.08;
+}
+
+.resource-status-checkbox__spinner {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(197, 159, 89, 0.9);
+  background: #fbf8f2;
+  color: #304e75;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.resource-status-checkbox__spinner .v-progress-circular {
+  color: #304e75 !important;
+}

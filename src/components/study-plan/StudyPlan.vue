@@ -93,13 +93,20 @@
                   <LinkPreview :url="resource.link" />
                   <!-- Checkbox to mark the resource as learned -->
                   <!-- Checkbox: disable if the user is not the owner -->
-                  <v-checkbox
-                    v-model="resource.learned"
-                    :disabled="!isOwner"
-                    @click.stop="() => markResourceAsLearned(resource, lesson)"
-                    :label="resource.learned ? '已完成' : '未完成'"
-                  >
-                  </v-checkbox>
+                  <div class="resource-checkbox-wrap">
+                    <v-checkbox
+                      v-model="resource.learned"
+                      :disabled="!isOwner || isResourceBusy(resource)"
+                      class="resource-status-checkbox"
+                      :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
+                      @click.stop="() => markResourceAsLearned(resource, lesson)"
+                      :label="resource.learned ? '已完成' : '未完成'"
+                    >
+                    </v-checkbox>
+                    <span v-if="isResourceBusy(resource)" class="resource-status-checkbox__spinner">
+                      <v-progress-circular indeterminate :size="12" :width="2" color="primary" />
+                    </span>
+                  </div>
                 </v-card-item>
               </v-card>
             </div>
@@ -153,15 +160,22 @@
                       <LinkPreview :url="resource.link" />
                       <!-- Checkbox to mark the resource as learned -->
                       <!-- Checkbox: disable if the user is not the owner -->
-                      <v-checkbox
-                        v-model="resource.learned"
-                        :disabled="!isOwner"
-                        @click.stop="
-                          () => markResourceAsLearned(resource, lesson)
-                        "
-                        :label="resource.learned ? '已完成' : '未完成'"
-                      >
-                      </v-checkbox>
+                      <div class="resource-checkbox-wrap">
+                        <v-checkbox
+                          v-model="resource.learned"
+                          :disabled="!isOwner || isResourceBusy(resource)"
+                          class="resource-status-checkbox"
+                          :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
+                          @click.stop="
+                            () => markResourceAsLearned(resource, lesson)
+                          "
+                          :label="resource.learned ? '已完成' : '未完成'"
+                        >
+                        </v-checkbox>
+                        <span v-if="isResourceBusy(resource)" class="resource-status-checkbox__spinner">
+                          <v-progress-circular indeterminate :size="12" :width="2" color="primary" />
+                        </span>
+                      </div>
                     </v-card-item>
                   </v-card>
                 </div>
@@ -213,15 +227,22 @@
                     <LinkPreview :url="resource.link" />
                     <!-- Checkbox to mark the resource as learned -->
                     <!-- Checkbox: disable if the user is not the owner -->
-                    <v-checkbox
-                      v-model="resource.learned"
-                      :disabled="!isOwner"
-                      @click.stop="
-                        () => markResourceAsLearned(resource, lesson)
-                      "
-                      :label="resource.learned ? '已完成' : '未完成'"
-                    >
-                    </v-checkbox>
+                    <div class="resource-checkbox-wrap">
+                      <v-checkbox
+                        v-model="resource.learned"
+                        :disabled="!isOwner || isResourceBusy(resource)"
+                        class="resource-status-checkbox"
+                        :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
+                        @click.stop="
+                          () => markResourceAsLearned(resource, lesson)
+                        "
+                        :label="resource.learned ? '已完成' : '未完成'"
+                      >
+                      </v-checkbox>
+                      <span v-if="isResourceBusy(resource)" class="resource-status-checkbox__spinner">
+                        <v-progress-circular indeterminate :size="12" :width="2" color="primary" />
+                      </span>
+                    </div>
                   </v-card-item>
                 </v-card>
               </div>
@@ -273,9 +294,24 @@ export default {
       },
       rightArrowUrl: rightArrow,
       isCelebrating: false,
+      busyResourceKeys: {},
     }
   },
   methods: {
+    resourceKey(resource) {
+      return String(resource?.id || resource?.resourceId || resource?.link || resource?.url || resource?.name || '')
+    },
+    isResourceBusy(resource) {
+      return !!this.busyResourceKeys[this.resourceKey(resource)]
+    },
+    setResourceBusy(resource, busy) {
+      const key = this.resourceKey(resource)
+      if (!key) return
+      this.busyResourceKeys = {
+        ...this.busyResourceKeys,
+        [key]: busy,
+      }
+    },
     toggleEditMode() {
       this.isEditMode = !this.isEditMode
     },
@@ -309,6 +345,7 @@ export default {
     },
 
     async markResourceAsLearned(resource, lesson) {
+      if (this.isResourceBusy(resource)) return
       // Store the initial learned status
       const wasLearned = resource.learned
 
@@ -329,6 +366,7 @@ export default {
       // Update the learned status based on the action
       // Note: The actual toggling for learning new resources is automatically handled by v-model binding
       resource.learned = !wasLearned
+      this.setResourceBusy(resource, true)
 
       try {
         // API call to update the backend with the new learned status
@@ -348,6 +386,8 @@ export default {
         // Revert the change in case of an API error
         resource.learned = wasLearned
         // Optionally, inform the user that the update failed
+      } finally {
+        this.setResourceBusy(resource, false)
       }
     },
 
@@ -381,6 +421,7 @@ export default {
 </script>
 
 <style>
+@import '../../assets/css/resource-status.css';
 @import '../../assets/css/link-preview.css';
 
 .prerequisite-list,

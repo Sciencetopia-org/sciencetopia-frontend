@@ -140,6 +140,19 @@ export default {
     },
   },
   methods: {
+    getLessonSections() {
+      return ['prerequisite', 'mainCurriculum', 'advancedTopics']
+    },
+    findLessonEntry(lessonId) {
+      if (!this.plan || !lessonId) return null
+      const targetId = String(lessonId)
+      for (const section of this.getLessonSections()) {
+        const list = Array.isArray(this.plan?.[section]) ? this.plan[section] : []
+        const index = list.findIndex((lesson) => String(lesson?.id || lesson?.name || '') === targetId)
+        if (index >= 0) return { section, index, lesson: list[index] }
+      }
+      return null
+    },
     async loadPlan() {
       this.loading = true
       try {
@@ -209,6 +222,31 @@ export default {
         }
       })
       return Array.from(map.values())
+    },
+    setLessonLoading(lessonId) {
+      const match = this.findLessonEntry(lessonId)
+      if (!match) return
+      match.lesson._personalProgressLoaded = false
+    },
+    applyLessonProgress(lessonId, progress) {
+      const match = this.findLessonEntry(lessonId)
+      if (!match) return
+      const normalized = typeof progress === 'number'
+        ? (progress <= 1 ? progress * 100 : progress)
+        : null
+      if (normalized === null) {
+        match.lesson._personalProgressLoaded = true
+        return
+      }
+      match.lesson.progressPercentage = Math.round(normalized * 100) / 100
+      match.lesson._personalProgressLoaded = true
+      if (this.selectedLesson && String(this.selectedLesson?.id || this.selectedLesson?.name || '') === String(lessonId)) {
+        this.selectedLesson.progressPercentage = match.lesson.progressPercentage
+        this.selectedLesson._personalProgressLoaded = true
+      }
+    },
+    async fetchLessonsProgress() {
+      await this.loadPlan()
     },
     select(lesson) {
       this.selectedLesson = lesson
