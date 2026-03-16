@@ -61,6 +61,8 @@
 import { apiClient } from '@/api'
 import { mapActions } from 'vuex'
 
+const joinRequestCache = new Map()
+
 export default {
   components: { LoadingSpinner: require('@/components/ui/LoadingSpinner.vue').default },
   props: {
@@ -74,8 +76,13 @@ export default {
       actioningType: null,
     }
   },
-  async mounted() {
-    await this.fetchRequests()
+  watch: {
+    groupId: {
+      immediate: true,
+      async handler() {
+        await this.fetchRequests()
+      },
+    },
   },
   methods: {
     ...mapActions(['goToProfile']), // Map the Vuex action
@@ -89,6 +96,7 @@ export default {
           studyGroupId: this.groupId,
           status: 'Approved',
         })
+        joinRequestCache.delete(String(this.groupId || ''))
         await this.fetchRequests()
       } finally { this.actioningId = null; this.actioningType = null }
     },
@@ -101,16 +109,25 @@ export default {
           studyGroupId: this.groupId,
           status: 'Rejected',
         })
+        joinRequestCache.delete(String(this.groupId || ''))
         await this.fetchRequests()
       } finally { this.actioningId = null; this.actioningType = null }
     },
     async fetchRequests() {
+      const cacheKey = String(this.groupId || '')
+      if (joinRequestCache.has(cacheKey)) {
+        this.requests = joinRequestCache.get(cacheKey) || []
+        this.loading = false
+        return
+      }
+
       this.loading = true
       try {
         const response = await apiClient.get(
           `/StudyGroup/GetJoinRequests/${this.groupId}`
         )
-        this.requests = response.data
+        this.requests = Array.isArray(response?.data) ? response.data : []
+        joinRequestCache.set(cacheKey, this.requests)
       } finally { this.loading = false }
     },
     async navigateToProfile(userId) {

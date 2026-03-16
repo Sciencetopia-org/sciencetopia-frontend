@@ -26,21 +26,14 @@
 
       <v-col cols="9" class="pa-3">
         <v-card class="panel-card panel-card--cream pa-4" rounded="xl" elevation="2">
-          <div v-if="currentTab.key==='overview'">
-            <GroupOverview :groupId="groupId" />
-          </div>
-          <div v-else-if="isManager && currentTab.key==='members'">
-            <MemberManagement :groupId="groupId" />
-          </div>
-          <div v-else-if="isManager && currentTab.key==='requests'">
-            <JoinRequests :groupId="groupId" />
-          </div>
-          <div v-else-if="isManager && currentTab.key==='logs'">
-            <ActivityLogs :groupId="groupId" />
-          </div>
-          <div v-else-if="currentTab.key==='settings'">
-            <GroupSettingsDialog :inline="true" :groupId="groupId" :role="isManager ? 'Admin' : 'Member'" />
-          </div>
+          <keep-alive>
+            <component
+              :is="currentComponent"
+              v-if="currentComponent"
+              :key="`${currentTab.key}:${groupId}`"
+              v-bind="currentComponentProps"
+            />
+          </keep-alive>
         </v-card>
       </v-col>
     </v-row>
@@ -53,49 +46,26 @@ import MemberManagement from './MemberManagement.vue'
 import JoinRequests from './JoinRequests.vue'
 import ActivityLogs from './ActivityLogs.vue'
 import GroupSettingsDialog from './GroupSettingsDialog.vue'
-import { apiClient } from '@/api'
 
 export default {
   props: {
     groupId: [String, Number],
     pendingJoinRequests: Number,
+    role: { type: String, default: '' },
+    group: { type: Object, default: () => ({}) },
+    tags: { type: Array, default: () => [] },
   },
   data() {
     return {
-      isManager: false,
       activeTab: 0, // Default active tab
-      tabs: [
-        { title: this.$t('studygroup.basicinfo'), key: 'overview', component: GroupOverview },
-        { title: this.$t('memberMgmt.title'), key: 'members', component: MemberManagement },
-        { title: this.$t('studygroup.joinrequest'), key: 'requests', component: JoinRequests },
-        { title: this.$t('studygroup.activitylog'), key: 'logs', component: ActivityLogs },
-        { title: this.$t('studygroup.groupsetting'), key: 'settings' },
-      ],
     }
   },
-  async mounted() {
-    try {
-      const response = await apiClient.get(
-        `/StudyGroup/GetUserRoleInGroup/${this.groupId}`
-      )
-      const role = String(response?.data || '').toLowerCase()
-      this.isManager = role === 'owner' || role === 'admin' || role === 'manager'
-    } catch (error) {
-      this.isManager = false
-      console.error('Failed to fetch user role in group:', error)
-    }
-
-    // // Fetch pending join requests if the user is a manager
-    // if (this.isManager) {
-    //   const joinRequestsResponse = await apiClient.get(`/StudyGroup/GetPendingJoinRequestsCount/${this.groupId}`);
-    //   this.pendingJoinRequests = joinRequestsResponse.data;
-    // }
-
-    // Filter tabs based on user role
-    if (!this.isManager) {
-      // For members: keep 基础信息 + 设置
-      this.tabs = this.tabs.filter((t) => t.key === 'overview' || t.key === 'settings')
-    }
+  watch: {
+    tabs() {
+      if (this.activeTab >= this.tabs.length) {
+        this.activeTab = 0
+      }
+    },
   },
   components: {
     GroupOverview,
@@ -105,8 +75,52 @@ export default {
     GroupSettingsDialog,
   },
   computed: {
+    normalizedRole() {
+      const v = String(this.role || '').toLowerCase()
+      if (v === 'owner') return 'owner'
+      if (v === 'admin' || v === 'manager') return 'admin'
+      return 'member'
+    },
+    isManager() {
+      return this.normalizedRole === 'owner' || this.normalizedRole === 'admin'
+    },
+    tabs() {
+      const allTabs = [
+        { title: this.$t('studygroup.basicinfo'), key: 'overview', component: GroupOverview },
+        { title: this.$t('memberMgmt.title'), key: 'members', component: MemberManagement },
+        { title: this.$t('studygroup.joinrequest'), key: 'requests', component: JoinRequests },
+        { title: this.$t('studygroup.activitylog'), key: 'logs', component: ActivityLogs },
+        { title: this.$t('studygroup.groupsetting'), key: 'settings', component: GroupSettingsDialog },
+      ]
+
+      return this.isManager
+        ? allTabs
+        : allTabs.filter((t) => t.key === 'overview' || t.key === 'settings')
+    },
     currentTab() {
       return this.tabs[this.activeTab] || { key: 'overview' }
+    },
+    currentComponent() {
+      return this.currentTab.component || GroupOverview
+    },
+    currentComponentProps() {
+      switch (this.currentTab.key) {
+        case 'overview':
+          return {
+            groupId: this.groupId,
+            initialGroup: this.group,
+            initialTags: this.tags,
+            initialRole: this.role,
+          }
+        case 'members':
+        case 'requests':
+        case 'logs':
+          return { groupId: this.groupId }
+        case 'settings':
+          return { inline: true, groupId: this.groupId, role: this.isManager ? 'Admin' : 'Member' }
+        default:
+          return { groupId: this.groupId }
+      }
     },
   },
 }

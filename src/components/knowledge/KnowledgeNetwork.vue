@@ -81,6 +81,9 @@ export default {
       contextMenuState,
       hideContextMenu,
       showFavoritedNodes,
+      refreshNodeStates,
+      setNodeStateFilter,
+      activeNodeFilter,
       beginLoading,
       endLoading,
     } = useKnowledgeGraph('/KnowledgeGraph/GetNodeInView')
@@ -116,19 +119,17 @@ export default {
         const response = await apiClient.post(`/KnowledgeGraph/Favorites/${nodeId}`)
         if (response?.data?.success === true && typeof response.data.favorited === 'boolean') {
           isFavorited.value = response.data.favorited
-          // Immediately apply favorites overlay without reloading the graph
-          await showFavoritedNodes()
+          await refreshNodeStates()
           return { success: true, favorited: isFavorited.value }
         } else {
           await fetchFavoriteStatus(nodeId)
-          await showFavoritedNodes()
+          await refreshNodeStates()
           return { success: true, favorited: isFavorited.value }
         }
       } catch (error) {
         console.error('Error toggling favorite status:', error)
         await fetchFavoriteStatus(nodeId)
-        // Still attempt to apply overlay with the latest server state
-        try { await showFavoritedNodes() } catch (_) {}
+        try { await refreshNodeStates() } catch (_) {}
         return { success: false, favorited: isFavorited.value, error }
       } finally {
         isFavoritedLoading.value = false
@@ -220,10 +221,13 @@ export default {
       startEditing,
       submitEditing,
       showFavoritedNodes: () => withActionPending(showFavoritedNodes),
+      setNodeStateFilter: (filter) => withActionPending(setNodeStateFilter, filter),
+      refreshNodeStates: () => withActionPending(refreshNodeStates),
       selectedNodes,
       isFavorited,
       isFavoritedLoading,
       actionPending,
+      activeNodeFilter,
       isEditing,
       loadData: loadGraphData,
       toggleFullScreen,
@@ -254,6 +258,8 @@ export default {
       toggleEditMode,
       hideContextMenu,
       showFavoritedNodes,
+      setNodeStateFilter,
+      refreshNodeStates,
       contextMenuState,
       isFavorited,
       toggleFullScreen,
@@ -264,6 +270,7 @@ export default {
       focusSearchInput,
       isFavoritedLoading,
       actionPending,
+      activeNodeFilter,
       beginLoading,
       endLoading,
     }

@@ -348,11 +348,6 @@ export default {
           if (id && item?.role) this.roleMap[id] = item.role
         })
 
-        // Fetch per-plan progress for current user; non-blocking best-effort
-        const progressFetches = this.studyPlans.map((p) => this.refreshPlanProgress(p?.studyPlan?.id, { silent: true }))
-        // Allow progress requests to run in background without delaying list rendering
-        Promise.allSettled(progressFetches)
-          .catch(() => { /* no-op */ })
       } catch (e) {
         console.error('Error fetching study plans:', e)
       } finally {
@@ -515,8 +510,6 @@ export default {
     selectLesson(lesson) {
       this.currentLesson = lesson
       this.currentLessonId = lesson?.id || lesson?.name
-      // Batch check completion status when resource IDs are present
-      this.fetchLessonCompletedStatus(lesson)
     },
     selectLessonById(id, lesson) {
       this.currentLessonId = id
@@ -725,26 +718,6 @@ export default {
       if (!val) {
         this.fetchPlans()
         this.aiDirty = false
-      }
-    },
-    async fetchLessonCompletedStatus(lesson) {
-      try {
-        if (!lesson?.resources || lesson.resources.length === 0) return
-        const ids = lesson.resources
-          .map((r) => r.id || r.resourceId)
-          .filter(Boolean)
-        if (!ids.length) return
-        const res = await apiClient.post('/resources/completedStatus', {
-          resourceIds: ids,
-        })
-        const statusList = Array.isArray(res.data) ? res.data : []
-        const map = new Map(statusList.map((s) => [String(s.resourceId), !!s.completed]))
-        lesson.resources.forEach((r) => {
-          const key = String(r.id || r.resourceId)
-          if (map.has(key)) r.learned = map.get(key)
-        })
-      } catch (e) {
-        console.error('Failed to fetch completedStatus for lesson', e)
       }
     },
     // 统一的关闭入口：只有点右下角按钮才会触发

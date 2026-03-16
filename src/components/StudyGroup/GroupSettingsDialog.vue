@@ -357,8 +357,8 @@ export default {
     },
     async fetchGroupName() {
       try {
-        const res = await apiClient.get(`/StudyGroup/GetStudyGroupById/${this.groupId}`)
-        const data = res?.data || {}
+        const res = await apiClient.get(`/StudyGroup/SettingsBootstrap/${this.groupId}`)
+        const data = res?.data?.group || {}
         this.groupName = data.name || data.Name || ''
       } catch (e) {
         this.groupName = ''
@@ -367,74 +367,41 @@ export default {
     async fetch() {
       this.loading = true; this.error = null
       try {
-        const groupReq = apiClient.get(`/StudyGroup/GetStudyGroupById/${this.groupId}`)
-        const plansReq = apiClient.get(`/StudyGroups/${this.groupId}/Plans`)
-        const cohortsReq = apiClient.get(`/Groups/${this.groupId}/CohortPlans`)
+        const res = await apiClient.get(`/StudyGroup/SettingsBootstrap/${this.groupId}`)
+        const payload = res?.data || {}
+        const data = payload.group || {}
+        const hasGroupPayload = !!data && Object.keys(data).length > 0
 
-        const [groupRes, plansRes, cohortsRes] = await Promise.allSettled([groupReq, plansReq, cohortsReq])
-
-        let gotAny = false
-
-        if (groupRes.status === 'fulfilled') {
-          const data = groupRes.value?.data || {}
-          this.form.profile = {
-            name: data.name || data.Name || '',
-            bio: data.description || data.Description || '',
-          }
-          this.originalProfile = { ...this.form.profile }
-          this.groupName = this.form.profile.name
-          gotAny = true
+        this.form.profile = {
+          name: data.name || data.Name || '',
+          bio: data.description || data.Description || '',
         }
+        this.originalProfile = { ...this.form.profile }
+        this.groupName = this.form.profile.name
 
-        let sharedPlans = []
-        if (plansRes.status === 'fulfilled') {
-          const list = Array.isArray(plansRes.value?.data) ? plansRes.value.data : []
-          sharedPlans = list.map((p) => {
-            const stableId = p.studyPlanStableId || p.StudyPlanStableId || p.studyPlanId || p.StudyPlanId || p.id || p.Id
-            const planVersionId = p.planVersionId || p.PlanVersionId || p.activePlanVersionId || p.ActivePlanVersionId
-            return {
-              id: stableId,
-              studyPlanStableId: stableId,
-              planVersionId,
-              permission: this.normalizePermission(p.permission || p.Permission),
-              autoEnroll: Boolean(p.autoEnroll ?? p.AutoEnroll),
-              pinnedVersionNumber: p.pinnedVersionNumber ?? p.PinnedVersionNumber ?? null,
-              title: p.title || p.planTitle || p.Title || p.PlanTitle || '',
-            }
-          })
-          gotAny = true
-        }
-
-        let cohorts = []
-        if (cohortsRes.status === 'fulfilled') {
-          const list = Array.isArray(cohortsRes.value?.data) ? cohortsRes.value.data : []
-          cohorts = list.map((c) => ({
-            id: c.id || c.Id,
-            title: c.title || c.Title,
-            planTitle: c.planTitle || c.PlanTitle,
-            enrollMode: this.normalizeEnrollMode(c.enrollMode ?? c.EnrollMode),
-            pinnedVersionNumber: c.pinnedVersionNumber ?? c.PinnedVersionNumber ?? null,
-            planStableId: c.studyPlanStableId || c.StudyPlanStableId,
-            planVersionId: c.studyPlanId || c.StudyPlanId,
-          }))
-          gotAny = true
-        }
-
-        await Promise.all(sharedPlans.map(async (p) => {
-          if (p.title) return
-          const planId = p.planVersionId || p.studyPlanStableId
-          if (!planId) return
-          try {
-            const resp = await apiClient.get(`/StudyPlans/${planId}`)
-            const title = resp?.data?.title || resp?.data?.Title
-            if (title) p.title = title
-          } catch (_) { /* ignore title fetch errors */ }
-        }))
-        sharedPlans.forEach((p) => {
-          if (!p.title) {
-            p.title = p.studyPlanStableId || p.planVersionId || ''
+        const sharedPlans = (Array.isArray(payload.sharedPlans) ? payload.sharedPlans : []).map((p) => {
+          const stableId = p.studyPlanStableId || p.StudyPlanStableId || p.studyPlanId || p.StudyPlanId || p.id || p.Id
+          const planVersionId = p.planVersionId || p.PlanVersionId || p.activePlanVersionId || p.ActivePlanVersionId
+          return {
+            id: stableId,
+            studyPlanStableId: stableId,
+            planVersionId,
+            permission: this.normalizePermission(p.permission || p.Permission),
+            autoEnroll: Boolean(p.autoEnroll ?? p.AutoEnroll),
+            pinnedVersionNumber: p.pinnedVersionNumber ?? p.PinnedVersionNumber ?? null,
+            title: p.title || p.planTitle || p.Title || p.PlanTitle || stableId || planVersionId || '',
           }
         })
+
+        const cohorts = (Array.isArray(payload.cohorts) ? payload.cohorts : []).map((c) => ({
+          id: c.id || c.Id,
+          title: c.title || c.Title,
+          planTitle: c.planTitle || c.PlanTitle,
+          enrollMode: this.normalizeEnrollMode(c.enrollMode ?? c.EnrollMode),
+          pinnedVersionNumber: c.pinnedVersionNumber ?? c.PinnedVersionNumber ?? null,
+          planStableId: c.planStableId || c.PlanStableId || c.studyPlanStableId || c.StudyPlanStableId,
+          planVersionId: c.planVersionId || c.PlanVersionId || c.studyPlanId || c.StudyPlanId,
+        }))
 
         this.form.sharedPlans = sharedPlans
         this.form.cohorts = cohorts
@@ -443,34 +410,22 @@ export default {
         }
 
         if (!this.isManager) {
-          const cohortMap = new Map(cohorts.map(c => [String(c.id), c]))
-          const myPlans = await Promise.all(sharedPlans.map(async (p) => {
-            const planId = p.planVersionId || p.studyPlanStableId
-            let activeCohortId = null
-            if (planId) {
-              try {
-                const resp = await apiClient.get(`/StudyPlans/${planId}/Enrollment/Me`)
-                activeCohortId = resp?.data?.activeCohortId || resp?.data?.ActiveCohortId
-              } catch (_) { /* ignore enrollment errors */ }
-            }
-            const cohort = activeCohortId ? cohortMap.get(String(activeCohortId)) : null
-            return {
-              planId: p.studyPlanStableId || planId,
-              title: p.title,
-              cohortTitle: cohort?.title || '',
-            }
+          this.form.myPlans = (Array.isArray(payload.myPlans) ? payload.myPlans : []).map((p) => ({
+            planId: p.planId || p.PlanId,
+            title: p.title || p.Title || '',
+            cohortTitle: p.cohortTitle || p.CohortTitle || '',
           }))
-          this.form.myPlans = myPlans
         }
 
         this.originalSharedPlans = this.cloneDeep(this.form.sharedPlans)
         this.originalCohorts = this.cloneDeep(this.form.cohorts)
         this.originalGroupName = this.form.profile.name || this.groupName || ''
 
-        if (!gotAny) {
+        if (!hasGroupPayload) {
           throw new Error('load_failed')
         }
       } catch (e) {
+        console.error('Failed to load group settings:', e)
         this.error = 'groupSettings.loadFailed'
       } finally {
         this.loading = false

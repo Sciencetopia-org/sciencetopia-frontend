@@ -20,6 +20,8 @@
 <script>
 import { apiClient } from '@/api'
 
+const activityLogCache = new Map()
+
 export default {
   components: { LoadingSpinner: require('@/components/ui/LoadingSpinner.vue').default },
   props: {
@@ -31,15 +33,34 @@ export default {
       loading: true,
     }
   },
-  async mounted() {
-    try {
-      const response = await apiClient.get(
-        `/StudyGroup/GetActivityLogs/${this.groupId}`
-      )
-      this.logs = response.data
-    } finally {
-      this.loading = false
-    }
+  watch: {
+    groupId: {
+      immediate: true,
+      async handler() {
+        await this.fetchLogs()
+      },
+    },
+  },
+  methods: {
+    async fetchLogs() {
+      const cacheKey = String(this.groupId || '')
+      if (activityLogCache.has(cacheKey)) {
+        this.logs = activityLogCache.get(cacheKey) || []
+        this.loading = false
+        return
+      }
+
+      this.loading = true
+      try {
+        const response = await apiClient.get(
+          `/StudyGroup/GetActivityLogs/${this.groupId}`
+        )
+        this.logs = Array.isArray(response?.data) ? response.data : []
+        activityLogCache.set(cacheKey, this.logs)
+      } finally {
+        this.loading = false
+      }
+    },
   },
 }
 </script>

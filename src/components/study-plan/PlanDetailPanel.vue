@@ -26,8 +26,7 @@
             </div>
             <div class="d-flex align-center">
               <v-chip v-if="roleLabel" size="x-small" label class="mr-2">{{ roleLabel }}</v-chip>
-              <v-skeleton-loader v-if="myProgressLoading" type="chip" class="mr-2" style="width:90px; height:26px" />
-              <v-chip v-else-if="myProgress !== null" size="x-small" label class="mr-2" color="primary">{{
+              <v-chip v-if="myProgress !== null" size="x-small" label class="mr-2" color="primary">{{
                 $t('studyplan.myProgress', { percent: (typeof myProgress === 'number' ? myProgress.toFixed(2) : myProgress) }) }}</v-chip>
               <template v-if="allowEditControls">
                 <v-btn v-if="isOwnerComputed" class="mr-1" variant="text" @click="$emit('open-share')">{{ $t('studyplan.share') }}</v-btn>
@@ -109,7 +108,6 @@ export default {
       loading: false,
       plan: null,
       myProgress: null,
-      myProgressLoading: false,
       selectedLesson: null,
       openSections: [0, 1, 2],
       editDirty: false,
@@ -142,19 +140,6 @@ export default {
     },
   },
   methods: {
-    setLessonLoading(lessonId) {
-      if (!this.plan || !lessonId) return
-      const secs = ['prerequisite', 'mainCurriculum', 'advancedTopics']
-      for (const sec of secs) {
-        const list = Array.isArray(this.plan[sec]) ? this.plan[sec] : []
-        list.forEach(l => {
-          const lid = l?.id || l?.lessonId || l?.name
-          if (String(lid) === String(lessonId)) {
-            l._personalProgressLoaded = false
-          }
-        })
-      }
-    },
     async loadPlan() {
       this.loading = true
       try {
@@ -162,34 +147,30 @@ export default {
         const plan = res?.data?.studyPlan || res?.data
         if (plan) {
           const sections = ['prerequisite', 'mainCurriculum', 'advancedTopics']
-          sections.forEach((sec) => { if (plan[sec]) plan[sec] = this.mergeLessons(plan[sec]) })
-          // Hide lesson progress bars until personal progress API returns
           sections.forEach((sec) => {
-            const list = plan[sec]
-            if (Array.isArray(list)) list.forEach(l => { l._personalProgressLoaded = false })
+            if (!Array.isArray(plan[sec])) return
+            plan[sec] = this.mergeLessons(plan[sec]).map((lesson) => ({
+              ...lesson,
+              _personalProgressLoaded: typeof lesson?.progressPercentage === 'number',
+            }))
           })
           this.plan = plan
-          // Fetch plan tags (read-only chips)
-          try {
-            const t = await apiClient.get(`/StudyPlanTags/${this.planId}/Tags`)
-            const list = Array.isArray(t?.data) ? t.data : []
-            this.planTags = list.map(x => ({ id: x.id || x.Id, name: x.name || x.Name })).filter(x => x.name)
-          } catch (_) { this.planTags = [] }
-          // Immediately render plan details without waiting for progress APIs
-          this.loading = false
-          // Fire-and-forget progress fetches; update UI when they resolve
-          this.fetchMyProgress().catch(() => { this.myProgress = null })
-          this.fetchLessonsProgress()
-            .then(() => { if (!this.selectedLesson) this.selectFirstUnfinishedLesson() })
-            .catch(() => { /* ignore individual lesson progress errors */ })
-          // Also try to select something promptly before per-lesson progress returns
+          const tags = Array.isArray(plan?.tags) ? plan.tags : []
+          this.planTags = tags
+            .map(x => ({ id: x.id || x.Id, name: x.name || x.Name }))
+            .filter(x => x.name)
+          this.myProgress = typeof plan?.progressPercentage === 'number' ? plan.progressPercentage : null
           if (!this.selectedLesson) this.selectFirstUnfinishedLesson()
           return
         } else {
           this.plan = null
+          this.planTags = []
+          this.myProgress = null
         }
       } catch (e) {
         this.plan = null
+        this.planTags = []
+        this.myProgress = null
       } finally {
         // Ensure loading is cleared in error/empty-plan cases
         if (this.loading) this.loading = false
@@ -208,45 +189,6 @@ export default {
       for (const sec of secs) {
         const list = Array.isArray(this.plan[sec]) ? this.plan[sec] : []
         if (list.length) { this.select(list[0]); return }
-      }
-    },
-    async fetchLessonsProgress() {
-      try {
-        if (!this.plan) return
-        const sections = ['prerequisite', 'mainCurriculum', 'advancedTopics']
-        const promises = []
-        sections.forEach((sec) => {
-          const list = this.plan[sec]
-          if (!Array.isArray(list)) return
-          list.forEach((lesson) => {
-            const lid = lesson?.id || lesson?.lessonId || lesson?.name
-            if (!lid) return
-            const p = apiClient
-              .get(`/StudyPlans/${this.planId}/Lessons/${encodeURIComponent(lid)}/Progress/Me`)
-              .then((res) => {
-                const val = res?.data?.lessonProgress ?? res?.data?.progress ?? res?.data?.percentage ?? res?.data?.progressPercentage ?? res?.data
-                if (typeof val === 'number') {
-                  lesson.progressPercentage = val * 100
-                  lesson._personalProgressLoaded = true
-                }
-              })
-              .catch(() => { /* ignore individual errors */ })
-            promises.push(p)
-          })
-        })
-        await Promise.allSettled(promises)
-      } catch (_) { /* no-op */ }
-    },
-    async fetchMyProgress() {
-      try {
-        this.myProgressLoading = true
-        const res = await apiClient.get(`StudyPlans/${this.planId}/Progress/Me`)
-        const p = res?.data?.planProgress
-        this.myProgress = typeof p === 'number' ? p : null
-      } catch (_) {
-        this.myProgress = null
-      } finally {
-        this.myProgressLoading = false
       }
     },
     refreshRole: async function () {

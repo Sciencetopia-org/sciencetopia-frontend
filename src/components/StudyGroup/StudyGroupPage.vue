@@ -34,7 +34,7 @@
                 {{ $t('studygroup.groupmember') }}:
                 <v-row>
                   <v-col
-                    v-for="member in group.memberIds"
+                    v-for="member in displayMembers"
                     :key="member.id"
                     cols="auto"
                   >
@@ -131,7 +131,12 @@
           <v-card class="group-side-card">
             <v-card-title>{{ $t('studygroup.studypath') }}</v-card-title>
             <v-card-text>
-              <GroupPlansList :groupId="groupId" :bare="true" @select="goToGroupPlan" />
+              <template v-if="plansPanelReady">
+                <GroupPlansList :groupId="groupId" :bare="true" @select="goToGroupPlan" />
+              </template>
+              <template v-else>
+                <v-skeleton-loader type="list-item, list-item, list-item" />
+              </template>
             </v-card-text>
           </v-card>
 
@@ -150,6 +155,9 @@
     <ManagePanel
       v-if="activeTab === 'managePanel'"
       :groupId="groupId"
+      :role="role"
+      :group="group"
+      :tags="tags"
       :pendingJoinRequests="pendingJoinRequests"
     />
 
@@ -233,15 +241,19 @@ export default {
       enteredGroupName: '', // Entered group name for confirmation
       pendingJoinRequests: 0, // Number of pending join requests
       tags: [],
+      bootstrapRequestToken: 0,
+      plansPanelReady: false,
     }
   },
   watch: {
     $route(to) {
-      if (to.name === 'studyGroupSpace') {
-        this.activeTab = 'studyGroupSpace'
-      } else if (to.name === 'managePanel') {
-        this.activeTab = 'managePanel'
-      }
+      this.updateActiveTab(to)
+    },
+    groupId: {
+      immediate: true,
+      async handler(newGroupId) {
+        await this.reloadGroup(newGroupId)
+      },
     },
   },
   created() {
@@ -265,8 +277,19 @@ export default {
     isManager() {
       return this.normalizedRole === 'owner' || this.normalizedRole === 'admin'
     },
+    displayMembers() {
+      const members = this.group?.memberIds || this.group?.MemberIds
+      return Array.isArray(members)
+        ? members.map((member) => ({
+            id: member?.id || member?.Id || '',
+            avatarUrl: member?.avatarUrl || member?.AvatarUrl || '',
+            userName: member?.userName || member?.UserName || '',
+            role: member?.role || member?.Role || '',
+          }))
+        : []
+    },
     groupImageSrc() {
-      const img = this.group?.imageurl || this.group?.imageUrl
+      const img = this.group?.imageurl || this.group?.imageUrl || this.group?.ImageUrl
       if (!img) return require('@/assets/images/default_study_group.png')
       // Support both absolute URLs and local asset filenames like 'image_resources/image4.jpg'
       return /^https?:\/\//i.test(img) ? img : require(`@/assets/images/${img}`)
@@ -278,11 +301,13 @@ export default {
       try { return (require('@/utils/text.js').sanitizeHtml)(html) } catch (_) { return '' }
     },
 
-    updateActiveTab() {
-      if (this.$route.name === 'studyGroupSpace') {
+    updateActiveTab(route = this.$route) {
+      if (route.name === 'studyGroupSpace') {
         this.activeTab = 'studyGroupSpace'
-      } else if (this.$route.name === 'managePanel') {
+      } else if (route.name === 'managePanel') {
         this.activeTab = 'managePanel'
+      } else {
+        this.activeTab = 'studyGroupSpace'
       }
     },
 
@@ -290,19 +315,103 @@ export default {
       this.goToProfile({ userId, router: this.$router }) // Dispatch the action
     },
 
+    resetGroupState() {
+      this.group = {}
+      this.role = ''
+      this.isMember = false
+      this.pendingJoinRequests = 0
+      this.tags = []
+      this.plansPanelReady = false
+    },
+
+    normalizeBootstrapPayload(payload) {
+      const group = payload?.group || payload?.Group || {}
+      const tags = Array.isArray(payload?.tags)
+        ? payload.tags
+        : Array.isArray(payload?.Tags)
+          ? payload.Tags
+          : []
+
+      const normalizedGroup = {
+        ...group,
+        id: group?.id || group?.Id || '',
+        name: group?.name || group?.Name || '',
+        bio: group?.bio || group?.Bio || '',
+        description: group?.description || group?.Description || '',
+        imageUrl: group?.imageUrl || group?.ImageUrl || group?.imageurl || '',
+        memberIds: Array.isArray(group?.memberIds)
+          ? group.memberIds
+          : Array.isArray(group?.MemberIds)
+            ? group.MemberIds
+            : [],
+      }
+
+      return {
+        group: normalizedGroup,
+        role: payload?.role || payload?.Role || '',
+        isMember: typeof payload?.isMember === 'boolean'
+          ? payload.isMember
+          : typeof payload?.IsMember === 'boolean'
+            ? payload.IsMember
+            : null,
+        tags,
+        pendingJoinRequests: Number(
+          payload?.pendingJoinRequests ?? payload?.PendingJoinRequests ?? 0
+        ),
+      }
+    },
+
+    async fetchBootstrap(groupId) {
+      try {
+        const response = await apiClient.get(`/StudyGroup/Bootstrap/${groupId}`)
+        const payload = this.normalizeBootstrapPayload(response?.data || {})
+        this.group = payload.group
+        this.role = payload.role
+        this.tags = payload.tags
+        this.pendingJoinRequests = payload.pendingJoinRequests
+        if (typeof payload.isMember === 'boolean') {
+          this.isMember = payload.isMember
+        } else {
+          const memberIds = payload.group.memberIds
+          this.isMember = memberIds.some(
+            (memberId) => String(memberId?.id || memberId?.Id || '') === String(this.$store.state.currentUserID || '')
+          )
+        }
+      } catch (error) {
+        console.error('Error fetching group bootstrap:', error)
+        throw error
+      }
+    },
+    async reloadGroup(groupId) {
+      const token = ++this.bootstrapRequestToken
+      this.loadingGroup = true
+      this.resetGroupState()
+      this.updateActiveTab()
+
+      try {
+        if (!groupId) return
+        await this.fetchBootstrap(groupId)
+        if (token !== this.bootstrapRequestToken) return
+        await this.$nextTick()
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+          await new Promise((resolve) => window.requestAnimationFrame(resolve))
+        }
+        if (token !== this.bootstrapRequestToken) return
+        this.plansPanelReady = true
+        console.debug('StudyGroup bootstrap loaded', {
+          groupId: String(groupId),
+          role: this.role,
+          memberCount: this.displayMembers.length,
+        })
+      } finally {
+        if (token === this.bootstrapRequestToken) {
+          this.loadingGroup = false
+        }
+      }
+    },
     // Fetch group details from the backend
     async fetchGroupDetails(groupId) {
-      try {
-        const response = await apiClient.get(
-          `/StudyGroup/GetStudyGroupById/${groupId}`
-        )
-        this.group = response.data
-        this.isMember = this.group.memberIds.some(
-          (memberId) => memberId.id === this.$store.state.currentUserID
-        )
-      } catch (error) {
-        console.error('Error fetching group details:', error)
-      }
+      await this.fetchBootstrap(groupId)
     },
     // Fetch user role in the group from the backend
     async fetchUserRole(groupId) {
@@ -390,17 +499,7 @@ export default {
       this.$toast?.info?.('Follow is not available yet.')
     },
   },
-  async mounted() {
-    // Fetch group details and user role from the backend on component mount
-    try {
-      await Promise.all([
-        this.fetchGroupDetails(this.groupId),
-        this.fetchUserRole(this.groupId),
-        this.fetchGroupTags(this.groupId)
-      ])
-    } finally {
-      this.loadingGroup = false
-    }
+  mounted() {
     console.log(
       'this.$vuetify.theme.global.name',
       this.$vuetify.theme.global.name

@@ -43,6 +43,8 @@ export default function useKnowledgeGraph(endpoint) {
   const keywordLabelThreshold = 3.5
 
   const ALWAYS_VISIBLE_LEVELS = new Set(['Discipline', 'Subject'])
+  const VALID_NODE_FILTERS = new Set(['all', 'favorited', 'learned', 'favorited-or-learned'])
+  const activeNodeFilter = ref('all')
 
   const canonicalId = (id) => {
     if (id === null || id === undefined) return null
@@ -102,6 +104,187 @@ export default function useKnowledgeGraph(endpoint) {
   let dotsLayer
   const activeEllipses = new Map()   // parentId -> { g }
   let nodeById = new Map()           // id -> node（在 updateD3Graph 里维护）
+
+  function clearNodeStateMarkers() {
+    nodes.value.forEach(n => {
+      n.isFavorited = false
+      n.isLearned = false
+      n.isPartiallyLearned = false
+      n.totalResourceCount = 0
+      n.completedResourceCount = 0
+    })
+  }
+
+  function matchesNodeFilter(nodeDatum) {
+    if (!nodeDatum) return false
+    switch (activeNodeFilter.value) {
+      case 'favorited':
+        return nodeDatum.isFavorited === true
+      case 'learned':
+        return nodeDatum.isLearned === true
+      case 'favorited-or-learned':
+        return nodeDatum.isFavorited === true || nodeDatum.isLearned === true
+      default:
+        return true
+    }
+  }
+
+  function getNodeStateStroke(nodeDatum) {
+    if (nodeDatum?.isFavorited && nodeDatum?.isLearned) return '#0b7285'
+    if (nodeDatum?.isLearned) return '#2e7d32'
+    if (nodeDatum?.isFavorited) return '#c77900'
+    if (nodeDatum?.isPartiallyLearned) return '#758b3b'
+    return nodeDatum?.strokeColor || '#000'
+  }
+
+  function getNodeStateStrokeWidth(nodeDatum) {
+    if (nodeDatum?.isFavorited && nodeDatum?.isLearned) return 3.8 / Math.sqrt(currentZoomLevel)
+    if (nodeDatum?.isLearned) return 3.3 / Math.sqrt(currentZoomLevel)
+    if (nodeDatum?.isFavorited) return 2.8 / Math.sqrt(currentZoomLevel)
+    if (nodeDatum?.isPartiallyLearned) return 2.4 / Math.sqrt(currentZoomLevel)
+    return strokeWidth
+  }
+
+  function applyNodeStateOverlay() {
+    if (!node || !labels || !link) return
+    const filterActive = activeNodeFilter.value !== 'all'
+
+    node
+      .style('opacity', d => filterActive ? (matchesNodeFilter(d) ? 1 : 0.12) : 1)
+      .style('visibility', d => {
+        if (filterActive && matchesNodeFilter(d)) return 'visible'
+        return shouldDisplayNode(d.tagLevel, currentZoomLevel) ? 'visible' : 'hidden'
+      })
+      .style('stroke', d => getNodeStateStroke(d))
+      .style('stroke-width', d => getNodeStateStrokeWidth(d))
+
+    labels
+      .style('opacity', d => filterActive ? (matchesNodeFilter(d) ? 1 : 0.12) : 1)
+      .text(d => {
+        if (filterActive && matchesNodeFilter(d)) return d.name
+        return shouldDisplayLabel(d.tagLevel, currentZoomLevel) ? d.name : ''
+      })
+
+    link
+      .style('opacity', d => {
+        if (!filterActive) return 1
+        const source = getNodeDatum(d.source)
+        const target = getNodeDatum(d.target)
+        return source && target && matchesNodeFilter(source) && matchesNodeFilter(target) ? 1 : 0.08
+      })
+      .style('visibility', d => {
+        if (!d.source || !d.target) return 'hidden'
+        const source = getNodeDatum(d.source)
+        const target = getNodeDatum(d.target)
+        if (!source || !target) return 'hidden'
+        if (filterActive && matchesNodeFilter(source) && matchesNodeFilter(target)) {
+          return 'visible'
+        }
+        const sourceVisible = shouldDisplayNode(source.tagLevel, currentZoomLevel)
+        const targetVisible = shouldDisplayNode(target.tagLevel, currentZoomLevel)
+        return sourceVisible && targetVisible ? 'visible' : 'hidden'
+      })
+
+    highlightSelectedNodes(selectedNodes.value)
+  }
+
+  async function refreshNodeStates() {
+    const userId = store.state.currentUserID || store.state.userInfo?.id
+    const nodeIds = nodes.value
+      .map(n => canonicalId(n.id))
+      .filter(Boolean)
+
+    if (!userId || nodeIds.length === 0) {
+      clearNodeStateMarkers()
+      applyNodeStateOverlay()
+      return []
+    }
+
+    try {
+      const [statesResult, favoritesResult, learnedResult] = await Promise.allSettled([
+        apiClient.post('/KnowledgeGraph/Favorites/NodeStates', { nodeIds }),
+        apiClient.get('/KnowledgeGraph/Favorites/MyFavorites'),
+        apiClient.get('/KnowledgeGraph/Favorites/MyDerivedLearned'),
+      ])
+
+      const statesPayload = statesResult.status === 'fulfilled' && Array.isArray(statesResult.value?.data)
+        ? statesResult.value.data
+        : []
+      const stateById = new Map(
+        statesPayload
+          .map(item => [canonicalId(item?.nodeId), item])
+          .filter(([id]) => Boolean(id))
+      )
+
+      const favoritedIds = new Set(
+        (favoritesResult.status === 'fulfilled' && Array.isArray(favoritesResult.value?.data)
+          ? favoritesResult.value.data
+          : []
+        )
+          .map(item => canonicalId(item?.properties?.stableId ?? item?.properties?.id ?? item?.identity))
+          .filter(Boolean)
+      )
+
+      const learnedById = new Map(
+        (learnedResult.status === 'fulfilled' && Array.isArray(learnedResult.value?.data)
+          ? learnedResult.value.data
+          : []
+        )
+          .map(item => {
+            const id = canonicalId(item?.properties?.stableId ?? item?.properties?.id ?? item?.identity)
+            if (!id) return null
+            return [id, item]
+          })
+          .filter(Boolean)
+      )
+
+      nodes.value.forEach(nodeDatum => {
+        const state = stateById.get(nodeDatum.id)
+        const learnedEntry = learnedById.get(nodeDatum.id)
+
+        nodeDatum.isFavorited = state?.isFavorited === true || favoritedIds.has(nodeDatum.id)
+        nodeDatum.isLearned = state?.isLearned === true || Boolean(learnedEntry)
+        nodeDatum.isPartiallyLearned = learnedEntry
+          ? false
+          : state?.isPartiallyLearned === true
+        nodeDatum.totalResourceCount = Number.isFinite(state?.totalResourceCount)
+          ? state.totalResourceCount
+          : Number.isFinite(learnedEntry?.totalResourceCount) ? learnedEntry.totalResourceCount : 0
+        nodeDatum.completedResourceCount = Number.isFinite(state?.completedResourceCount)
+          ? state.completedResourceCount
+          : Number.isFinite(learnedEntry?.completedResourceCount) ? learnedEntry.completedResourceCount : 0
+      })
+
+      applyNodeStateOverlay()
+      return statesPayload
+    } catch (error) {
+      console.error('Error fetching node states:', error)
+      return []
+    }
+  }
+
+  async function setNodeStateFilter(filter = 'all') {
+    beginLoading()
+    try {
+    const userId = store.state.currentUserID || store.state.userInfo?.id
+    if (!userId && filter !== 'all') {
+      activeNodeFilter.value = 'all'
+      applyNodeStateOverlay()
+      return activeNodeFilter.value
+    }
+
+    activeNodeFilter.value = VALID_NODE_FILTERS.has(filter) ? filter : 'all'
+    if (activeNodeFilter.value === 'all') {
+      applyNodeStateOverlay()
+      return activeNodeFilter.value
+    }
+
+    await refreshNodeStates()
+    return activeNodeFilter.value
+    } finally {
+      endLoading()
+    }
+  }
 
   function radiusFor(n) {
     const degree = isNaN(n.degree) ? 0 : n.degree
@@ -389,6 +572,7 @@ export default function useKnowledgeGraph(endpoint) {
     setTimeout(() => simulation.alphaTarget(0), 500)
 
     updateVisibilityBasedOnZoom()
+    applyNodeStateOverlay()
   }
 
   const handleZoom = (event) => {
@@ -422,6 +606,8 @@ export default function useKnowledgeGraph(endpoint) {
       const targetVisible = shouldDisplayNode(target.tagLevel, currentZoomLevel)
       return sourceVisible && targetVisible ? 'visible' : 'hidden'
     })
+
+    applyNodeStateOverlay()
   }
 
   // 分配节点颜色，改为根据 d.tagLevel 判断
@@ -481,6 +667,7 @@ export default function useKnowledgeGraph(endpoint) {
       nodes.value = newNodes
       links.value = newLinks
       updateD3Graph(nodes.value, links.value)
+      await refreshNodeStates()
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -488,7 +675,7 @@ export default function useKnowledgeGraph(endpoint) {
     }
   }
 
-  const loadGraphData = (payload) => {
+  const loadGraphData = async (payload) => {
     showLoading()
     try {
       const newNodes = (payload?.nodes || [])
@@ -506,6 +693,7 @@ export default function useKnowledgeGraph(endpoint) {
       nodes.value = newNodes
       links.value = newLinks
       updateD3Graph(nodes.value, links.value)
+      await refreshNodeStates()
     } finally {
       hideLoadingSoon()
     }
@@ -910,8 +1098,8 @@ export default function useKnowledgeGraph(endpoint) {
   // 更新选中节点的高亮样式
   function highlightSelectedNodes(selectedNodes) {
     if (node && node.style) {
-      node.style('stroke', d => d.strokeColor)
-        .style('stroke-width', strokeWidth)
+      node.style('stroke', d => getNodeStateStroke(d))
+        .style('stroke-width', d => getNodeStateStrokeWidth(d))
       node.filter(d => selectedNodes.some(n => n.id === d.id))
         .style('stroke', highlightColor)
         .style('stroke-width', highlightStrokeWidth / currentZoomLevel ** 0.5)
@@ -1004,9 +1192,8 @@ export default function useKnowledgeGraph(endpoint) {
   }
 
   const resetView = () => {
-    node.style('opacity', 1)
-    labels.style('opacity', 1)
-    link.style('opacity', 1)
+    activeNodeFilter.value = 'all'
+    applyNodeStateOverlay()
     const resetTransform = d3.zoomIdentity
     svg.transition().duration(750).call(zoom.transform, resetTransform)
     store.commit('resetSelectedNodes')
@@ -1075,88 +1262,7 @@ export default function useKnowledgeGraph(endpoint) {
     }
   }
 
-  const showFavoritedNodes = async () => {
-    const userId = store.state.currentUserID || store.state.userInfo?.id
-    if (!userId) {
-      console.warn('Cannot load favorites: user is not authenticated')
-      return
-    }
-    try {
-      beginLoading()
-      const response = await apiClient.get('/KnowledgeGraph/Favorites/MyFavorites')
-      const favoriteData = Array.isArray(response?.data) ? response.data : []
-      // Build id -> tagLevel map from server
-      const idToLevel = new Map()
-      favoriteData.forEach(item => {
-        const id = canonicalId(item?.properties?.stableId ?? item?.properties?.id ?? item?.identity)
-        const lvl = item?.tagLevel || null
-        if (id) idToLevel.set(id, lvl)
-      })
-      const favoritedNodeIds = new Set(
-        favoriteData
-          .map(node =>
-            canonicalId(
-              node?.properties?.stableId ??
-              node?.properties?.id ??
-              node?.identity
-            )
-          )
-          .filter(Boolean)
-      )
-      // Add any favorited nodes that are not yet in the current graph
-      const missingIds = Array.from(favoritedNodeIds).filter(id => !nodeById.has(id))
-      if (missingIds.length) {
-        // Fetch minimal details for display names in parallel (best-effort)
-        const fetchDetail = async (id) => {
-          try {
-            const res = await apiClient.get('/KnowledgeGraph/GetNodeDetails', { params: { nodeId: id } })
-            const body = res?.data || {}
-            return { id, name: body?.name || String(id) }
-          } catch (_) {
-            return { id, name: String(id) }
-          }
-        }
-        const results = await Promise.allSettled(missingIds.map(fetchDetail))
-        const incNodes = results
-          .map((r, i) => {
-            const fallbackId = canonicalId(missingIds[i])
-            const v = r.status === 'fulfilled' ? r.value : { id: fallbackId, name: String(fallbackId) }
-            const id = canonicalId(v.id)
-            const level = idToLevel.get(id) || 'Field'
-            return { id, name: v.name, tagLevel: level, degree: 0 }
-          })
-          .filter(n => n && n.id && !loadedNodeIds.has(n.id))
-
-        // Track and render synchronously so styling applies immediately
-        incNodes.forEach(n => loadedNodeIds.add(n.id))
-        if (incNodes.length) {
-          nodes.value = nodes.value.concat(incNodes)
-          // Immediately update the D3 graph to create DOM elements for new nodes
-          updateD3Graph(nodes.value, links.value)
-        }
-      }
-      node
-        .style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
-        .style('visibility', d => favoritedNodeIds.has(d.id) ? 'visible' : (shouldDisplayNode(d.tagLevel, currentZoomLevel) ? 'visible' : 'hidden'))
-      labels
-        .style('opacity', d => favoritedNodeIds.has(d.id) ? 1 : 0.1)
-      // Force label text visible for favorited nodes
-      labels
-        .filter(d => favoritedNodeIds.has(d.id))
-        .text(d => d.name)
-      link.style('opacity', d =>
-        favoritedNodeIds.has(idOf(d.source)) && favoritedNodeIds.has(idOf(d.target)) ? 1 : 0.1
-      )
-    } catch (error) {
-      if (error?.response?.status === 400) {
-        console.warn('Failed to load favorites (400 Bad Request)', error?.response?.data)
-      } else {
-        console.error('Error fetching favorite nodes:', error)
-      }
-    } finally {
-      endLoading()
-    }
-  }
+  const showFavoritedNodes = async () => setNodeStateFilter('favorited')
 
   const toggleFullScreen = () => {
     if (!svgRef.value) return
@@ -1209,6 +1315,9 @@ export default function useKnowledgeGraph(endpoint) {
     hideContextMenu,
     showContextMenu,
     showFavoritedNodes,
+    refreshNodeStates,
+    setNodeStateFilter,
+    activeNodeFilter,
     beginLoading,
     endLoading,
   }

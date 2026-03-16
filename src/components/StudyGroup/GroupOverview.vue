@@ -9,7 +9,7 @@
     </div>
 
     <!-- Display Mode -->
-    <div v-show="!isEditMode && !loading">
+    <div v-if="!isEditMode && !loading">
       <v-card-subtitle>
         <div v-if="group.description" v-html="sanitizeHtml(group.description)"></div>
         <div v-else>{{ $t('studygroup.groupdescription') }}: -</div>
@@ -19,7 +19,7 @@
     </div>
 
     <!-- Edit Mode -->
-    <div v-show="isEditMode && !loading" class="pa-4">
+    <div v-else-if="isEditMode && !loading" class="pa-4">
       <v-form>
         <v-text-field v-model="groupName" :label="$t('groupSettings.name')"></v-text-field>
         <div class="mb-2 text-subtitle-2">{{ $t('studygroup.groupdescription') }}</div>
@@ -42,16 +42,20 @@
 
 <script>
  import { apiClient } from '@/api'
- import Quill from 'quill'
  import 'quill/dist/quill.snow.css'
  import TagSelector from '@/components/common/TagSelector.vue'
  import TagChips from '@/components/common/TagChips.vue'
  import { sanitizeHtml } from '@/utils/text'
 
+ let QuillCtor = null
+
 export default {
   components: { LoadingSpinner: require('@/components/ui/LoadingSpinner.vue').default, TagSelector, TagChips },
   props: {
     groupId: [String, Number],
+    initialGroup: { type: Object, default: () => ({}) },
+    initialTags: { type: Array, default: () => [] },
+    initialRole: { type: String, default: '' },
   },
   data() {
     return {
@@ -70,13 +74,50 @@ export default {
     }
   },
   async mounted() {
+    if (this.hydrateFromProps()) {
+      this.fetchTags()
+      this.loading = false
+      return
+    }
+
     await this.fetchGroupData()
-    await this.fetchRole()
-    await this.fetchTags()
+    this.fetchTags()
     this.loading = false
-    // Initialize quill like CreateStudyGroup on mount
-    if (this.$refs.quillEditor && !this.quillInstance) {
-      this.quillInstance = new Quill(this.$refs.quillEditor, {
+  },
+  methods: {
+    initQuillIfNeeded() {},
+    sanitizeHtml,
+    hydrateFromProps() {
+      const incomingGroup = this.initialGroup && Object.keys(this.initialGroup).length > 0
+        ? this.initialGroup
+        : null
+
+      if (!incomingGroup) {
+        return false
+      }
+
+      this.group = { ...incomingGroup }
+      this.tags = Array.isArray(this.initialTags) ? [...this.initialTags] : []
+      const role = String(this.initialRole || '').toLowerCase()
+      this.isManager = role === 'owner' || role === 'admin' || role === 'manager'
+      this.groupName = this.group.name || ''
+      this.groupDescription = this.group.description || ''
+      return true
+    },
+    async ensureEditorReady() {
+      if (this.quillInstance || !this.$refs.quillEditor) {
+        if (this.quillInstance) {
+          this.quillInstance.root.innerHTML = this.groupDescription || this.group?.description || ''
+        }
+        return
+      }
+
+      if (!QuillCtor) {
+        const quillModule = await import('quill')
+        QuillCtor = quillModule.default
+      }
+
+      this.quillInstance = new QuillCtor(this.$refs.quillEditor, {
         theme: 'snow',
         placeholder: this.$t('studygroup.create.placeholderDesc'),
         modules: {
@@ -97,17 +138,15 @@ export default {
       this.quillInstance.on('text-change', () => {
         this.groupDescription = this.quillInstance.root.innerHTML
       })
-    }
-  },
-  methods: {
-    initQuillIfNeeded() {},
-    sanitizeHtml,
+    },
     async fetchGroupData() {
       try {
-        const response = await apiClient.get(
-          `/StudyGroup/GetStudyGroupById/${this.groupId}`
-        )
-        this.group = response.data || {}
+        const response = await apiClient.get(`/StudyGroup/Bootstrap/${this.groupId}`)
+        const payload = response?.data || {}
+        this.group = payload.group || {}
+        this.tags = Array.isArray(payload.tags) ? payload.tags : []
+        const role = String(payload.role || '').toLowerCase()
+        this.isManager = role === 'owner' || role === 'admin' || role === 'manager'
         this.groupName = this.group.name || ''
         this.groupDescription = this.group.description || ''
       } catch (error) {
@@ -118,30 +157,15 @@ export default {
       }
     },
     async fetchRole() {
-      try {
-        const resp = await apiClient.get(`/StudyGroup/GetUserRoleInGroup/${this.groupId}`)
-        const role = String(resp?.data || '').toLowerCase()
-        this.isManager = role === 'owner' || role === 'admin' || role === 'manager'
-      } catch (_) {
-        this.isManager = false
-      }
+      return
     },
     async fetchTags() {
-      try {
-        const resp = await apiClient.get(`/StudyGroup/Tags/${this.groupId}`)
-        const list = Array.isArray(resp?.data) ? resp.data : []
-        this.tags = list
-        // Preload for edit mode
-        this.selectedTags = list.map(x => ({ id: x.id || x.Id, name: x.name || x.Name }))
-      } catch (e) {
-        this.tags = []
-      }
+      this.selectedTags = (this.tags || []).map(x => ({ id: x.id || x.Id, name: x.name || x.Name }))
     },
-    enterEditMode() {
+    async enterEditMode() {
       this.isEditMode = true
-      if (this.quillInstance) {
-        this.quillInstance.root.innerHTML = this.groupDescription || this.group?.description || ''
-      }
+      await this.$nextTick()
+      await this.ensureEditorReady()
     },
     async saveSettings() {
       try {
@@ -208,7 +232,31 @@ export default {
     },
     // Tag search removed; TagSelector encapsulates it
   },
-  watch: {}
+  watch: {
+    initialGroup: {
+      deep: true,
+      handler() {
+        if (!this.loading) {
+          this.hydrateFromProps()
+        }
+      },
+    },
+    initialTags: {
+      deep: true,
+      handler(tags) {
+        if (!this.loading) {
+          this.tags = Array.isArray(tags) ? [...tags] : []
+          this.fetchTags()
+        }
+      },
+    },
+    initialRole(role) {
+      if (!this.loading) {
+        const normalized = String(role || '').toLowerCase()
+        this.isManager = normalized === 'owner' || normalized === 'admin' || normalized === 'manager'
+      }
+    },
+  }
 }
 </script>
 

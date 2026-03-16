@@ -117,6 +117,9 @@
 <script>
 import { apiClient } from '@/api'
 import PlanProgressBars from '@/components/common/PlanProgressBars.vue'
+
+const groupPlanCache = new Map()
+
 export default {
   name: 'GroupPlansList',
   props: {
@@ -138,29 +141,19 @@ export default {
       return v <= 1 ? v * 100 : v
     },
     async fetchList() {
+      const cacheKey = String(this.groupId || '')
+      if (groupPlanCache.has(cacheKey)) {
+        this.items = groupPlanCache.get(cacheKey) || []
+        this.loading = false
+        this.$emit('loaded')
+        return
+      }
+
       this.loading = true
       try {
         const res = await apiClient.get(`/Groups/${this.groupId}/CohortPlans`)
         this.items = Array.isArray(res.data) ? res.data : []
-
-        // Enrich with cohort summary (avgProgress, memberCount) when available
-        await Promise.all(this.items.map(async (p) => {
-          try {
-            const sum = await apiClient.get(`/Cohorts/${p.id}/Stats/Summary`)
-            const avg = sum?.data?.avgProgress
-            const members = sum?.data?.memberCount
-            if (typeof avg === 'number') p.avgProgress = avg
-            if (typeof members === 'number' && !p.memberCount) p.memberCount = members
-          } catch (_) { /* ignore per-item summary errors */ }
-        }))
-
-        // fetch roles for each plan
-        await Promise.all(this.items.map(async (p) => {
-          try {
-            const roleRes = await apiClient.get(`/StudyPlans/${p.studyPlanId}/Permissions/Effective`)
-            p.role = roleRes.data.role
-          } catch (_) { p.role = null }
-        }))
+        groupPlanCache.set(cacheKey, this.items)
       } catch (_) {
         this.items = []
       } finally { this.loading = false; this.$emit('loaded') }

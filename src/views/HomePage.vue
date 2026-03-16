@@ -67,14 +67,32 @@
                 </v-tooltip>
               </template>
 
-              <v-tooltip :text="$t('knowledgeGraph.saved')" location="top">
-                <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="showFavoritedNodes"
-                    :disabled="graphActionPending">
-                    <i class="fas fa-star" />
-                  </v-btn>
+              <v-menu location="bottom">
+                <template #activator="{ props }">
+                  <v-tooltip :text="currentGraphFilterLabel" location="top">
+                    <template #activator="{ props: tooltipProps }">
+                      <v-btn
+                        variant="text"
+                        icon
+                        class="mx-0"
+                        v-bind="{ ...props, ...tooltipProps }"
+                        :disabled="graphActionPending"
+                      >
+                        <v-icon :color="graphNodeFilter === 'all' ? undefined : 'primary'">mdi-filter-variant</v-icon>
+                      </v-btn>
+                    </template>
+                  </v-tooltip>
                 </template>
-              </v-tooltip>
+                <v-list density="compact" nav>
+                  <v-list-item
+                    v-for="option in graphFilterOptions"
+                    :key="option.value"
+                    :title="option.title"
+                    :active="graphNodeFilter === option.value"
+                    @click="applyNodeStateFilter(option.value)"
+                  />
+                </v-list>
+              </v-menu>
 
               <v-tooltip :text="$t('knowledgeGraph.reset')" location="top">
                 <template v-slot:activator="{ props }">
@@ -223,6 +241,13 @@ const store = useStore()
 const router = useRouter()
 const { t } = useI18n()
 
+function unwrapExposed(value, fallback) {
+  if (value && typeof value === 'object' && 'value' in value) {
+    return value.value ?? fallback
+  }
+  return value ?? fallback
+}
+
 // 左列控件
 const acKey = ref(0)
 const tagSearch = ref(null)
@@ -247,20 +272,21 @@ const snackOpen = ref(false)
 const snackText = ref('')
 
 // Safely call methods exposed from KnowledgeNetwork via the graph ref
-function callGraphMethod(name) {
+function callGraphMethod(name, ...args) {
   const fn = graph.value?.[name]
   if (typeof fn === 'function') {
-    return fn()
+    return fn(...args)
   } else {
     console.warn(`KnowledgeNetwork method ${name} is not available`, graph.value)
   }
 }
 
 const toggleFavorites = () => callGraphMethod('toggleFavorites')
-const showFavoritedNodes = () => callGraphMethod('showFavoritedNodes')
+const showFavoritedNodes = () => callGraphMethod('setNodeStateFilter', 'favorited')
 const resetGraphView = () => callGraphMethod('resetView')
 const startGraphEditing = () => callGraphMethod('startEditing')
 const submitGraphEditing = () => callGraphMethod('submitEditing')
+const applyNodeStateFilter = (filter) => callGraphMethod('setNodeStateFilter', filter)
 
 async function onToggleFavorites() {
   try {
@@ -280,9 +306,10 @@ async function onToggleFavorites() {
 // Exposed state from KnowledgeNetwork for actions in the title bar
 const selectedNodes = computed(() => store.state.selectedNodes)
 const isEditing = computed(() => store.state.isEditing)
-const isFavorited = computed(() => graph.value?.isFavorited?.value || false)
-const isFavoritedLoading = computed(() => graph.value?.isFavoritedLoading?.value || false)
-const graphActionPending = computed(() => graph.value?.actionPending?.value || false)
+const isFavorited = computed(() => unwrapExposed(graph.value?.isFavorited, false))
+const isFavoritedLoading = computed(() => unwrapExposed(graph.value?.isFavoritedLoading, false))
+const graphActionPending = computed(() => unwrapExposed(graph.value?.actionPending, false))
+const graphNodeFilter = computed(() => unwrapExposed(graph.value?.activeNodeFilter, 'all'))
 const graphHeight = ref(480)
 const graphWidth = ref(800)
 const graphKey = ref(0)
@@ -291,8 +318,17 @@ const filterLoading = ref(false)     // ← 标签筛选（搜索）加载态
 const filterTagStructureLoading = ref(false) // ← 标签结构切换加载态
 const MIN_SPIN = 300                 // 可选：最少展示 300ms，避免闪一下
 const graphEmptyMessage = ref('')
-const isFullScreen = computed(() => graph.value?.isFullScreen?.value || false)
+const isFullScreen = computed(() => unwrapExposed(graph.value?.isFullScreen, false))
 const fullscreenPanelCollapsed = ref(false)
+const graphFilterOptions = computed(() => [
+  { value: 'all', title: t('knowledgeGraph.filterAll') },
+  { value: 'favorited', title: t('knowledgeGraph.filterFavorited') },
+  { value: 'learned', title: t('knowledgeGraph.filterLearned') },
+  { value: 'favorited-or-learned', title: t('knowledgeGraph.filterFavoritedOrLearned') },
+])
+const currentGraphFilterLabel = computed(() =>
+  graphFilterOptions.value.find(option => option.value === graphNodeFilter.value)?.title || t('knowledgeGraph.filterAll')
+)
 
 watch(isFullScreen, (val) => {
   if (!val) {

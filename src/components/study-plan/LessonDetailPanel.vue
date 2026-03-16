@@ -93,6 +93,17 @@ import TagChips from '@/components/common/TagChips.vue'
 import { isMainlandChina } from '@/utils/region'
 import { filterResourcesForChina, isAccessibleInChina } from '@/utils/resourceFilter'
 
+const lessonDetailCache = new Map()
+const lessonDetailInflight = new Map()
+
+function cloneLessonPayload(lesson) {
+  try {
+    return JSON.parse(JSON.stringify(lesson || null))
+  } catch (_) {
+    return lesson ? { ...lesson } : null
+  }
+}
+
 export default {
   name: 'LessonDetailPanel',
   components: { TagChips },
@@ -112,73 +123,102 @@ export default {
     lesson: {
       immediate: true,
       async handler(lesson) {
-        const needFetch = this.planId && this.lessonId && (!lesson || !Array.isArray(lesson.resources) || lesson.resources.length === 0)
-        if (needFetch) {
-          // Avoid flicker: start loading first and set header from incoming lesson
-          this.loadingLesson = true
-          this.resourcesLoaded = false
-          if (lesson) this.current = lesson
-          await this.fetchLessonById()
-          return
-        }
-        this.current = lesson
-        this.resourcesLoaded = true
-        if (lesson) {
-          this.fetchLessonCompletedStatus(lesson)
-          this.fetchLessonTags()
-        }
+        await this.syncLessonState(lesson, this.lessonId)
       },
     },
     lessonId: {
-      immediate: true,
       async handler(id) {
-        if (!id || !this.planId) return
-        const hasResources = Array.isArray(this.current?.resources) && this.current.resources.length > 0
-        const sameId = String(this.current?.id || this.current?.name || '') === String(id)
-        if (!sameId || !hasResources) {
-          this.loadingLesson = true
-          this.resourcesLoaded = false
-          await this.fetchLessonById()
-        }
+        await this.syncLessonState(this.lesson, id)
       },
     },
   },
   methods: {
+    getCacheKey(planId = this.planId, lessonId = this.lessonId) {
+      return `${String(planId || '')}:${String(lessonId || '')}`
+    },
+    hasCompleteLesson(lesson) {
+      return !!lesson
+        && Array.isArray(lesson.resources)
+        && Array.isArray(lesson.tags)
+    },
+    async syncLessonState(lesson, lessonId) {
+      if (!lessonId || !this.planId) {
+        this.current = lesson || null
+        this.resourcesLoaded = !!lesson
+        return
+      }
+
+      if (this.hasCompleteLesson(lesson)) {
+        const normalized = cloneLessonPayload(lesson)
+        this.current = normalized
+        this.resourcesLoaded = true
+        lessonDetailCache.set(this.getCacheKey(this.planId, lessonId), normalized)
+        return
+      }
+
+      if (lesson) {
+        this.current = cloneLessonPayload(lesson)
+      }
+
+      await this.fetchLessonById()
+    },
     async ensureRegion() {
       try { this.isCN = await isMainlandChina() } catch (_) { this.isCN = false }
     },
     async fetchLessonById() {
+      const cacheKey = this.getCacheKey()
+      if (lessonDetailCache.has(cacheKey)) {
+        this.current = cloneLessonPayload(lessonDetailCache.get(cacheKey))
+        this.loadingLesson = false
+        this.resourcesLoaded = true
+        return
+      }
+
+      if (lessonDetailInflight.has(cacheKey)) {
+        this.loadingLesson = true
+        try {
+          const lesson = await lessonDetailInflight.get(cacheKey)
+          this.current = cloneLessonPayload(lesson)
+        } catch (_) {
+          // ignore
+        } finally {
+          this.loadingLesson = false
+          this.resourcesLoaded = true
+        }
+        return
+      }
+
+      const requestedPlanId = this.planId
+      const requestedLessonId = this.lessonId
       try {
         // loadingLesson is set by callers to avoid flicker
         if (!this.loadingLesson) this.loadingLesson = true
         this.resourcesLoaded = false
-        const lid = encodeURIComponent(this.lessonId)
-        const res = await apiClient.get(`/StudyPlans/${this.planId}/Lessons/${lid}`)
-        const lesson = res?.data?.lesson || res?.data
+        const lid = encodeURIComponent(requestedLessonId)
+        const request = apiClient
+          .get(`/StudyPlans/${requestedPlanId}/Lessons/${lid}`)
+          .then((res) => res?.data?.lesson || res?.data || null)
+        lessonDetailInflight.set(cacheKey, request)
+        const lesson = await request
         if (lesson) {
-          this.current = lesson
-          await this.fetchLessonCompletedStatus(lesson)
-          await this.fetchLessonTags()
+          const normalized = cloneLessonPayload(lesson)
+          lessonDetailCache.set(cacheKey, normalized)
+          if (String(this.planId || '') === String(requestedPlanId || '')
+            && String(this.lessonId || '') === String(requestedLessonId || '')) {
+            this.current = cloneLessonPayload(normalized)
+          }
         }
       } catch (_) { /* ignore */ }
-      finally { this.loadingLesson = false; this.resourcesLoaded = true }
+      finally {
+        lessonDetailInflight.delete(cacheKey)
+        this.loadingLesson = false
+        this.resourcesLoaded = true
+      }
     },
     nodeTitle(n) {
       if (!n) return ''
       const p = n.properties || {}
       return p.name || p.Id || p.id || p.link || ''
-    },
-    async fetchLessonTags() {
-      try {
-        const pid = this.planId
-        const lid = this.current?.id || this.lessonId
-        if (!pid || !lid) return
-        const res = await apiClient.get(`/StudyPlanTags/${pid}/Lessons/${encodeURIComponent(lid)}/Tags`)
-        const list = Array.isArray(res?.data) ? res.data : []
-        const tags = list.map(t => ({ id: t.id || t.Id, name: t.name || t.Name })).filter(x => x.name)
-        if (!this.current) this.current = {}
-        this.current.tags = tags
-      } catch (_) { /* ignore */ }
     },
     mergeLessons(lessons) {
       if (!Array.isArray(lessons)) return []
@@ -195,19 +235,6 @@ export default {
         }
       })
       return Array.from(map.values())
-    },
-    async fetchLessonCompletedStatus(lesson) {
-      try {
-        if (!lesson?.resources || lesson.resources.length === 0) return
-        const ids = lesson.resources.map((r) => r.id || r.resourceId).filter(Boolean)
-        if (!ids.length) return
-        const res = await apiClient.post('/resources/completedStatus', { resourceIds: ids })
-        const statusList = Array.isArray(res.data) ? res.data : []
-        const map = new Map(statusList.map((s) => [String(s.resourceId), !!s.completed]))
-        lesson.resources.forEach((r) => { const key = String(r.id || r.resourceId); if (map.has(key)) r.learned = map.get(key) })
-      } catch (e) {
-        // ignore
-      }
     },
     async toggleResource(resource) {
       try {
@@ -261,6 +288,7 @@ export default {
             resourceLink: resource.link,
           })
         }
+        lessonDetailCache.set(this.getCacheKey(), cloneLessonPayload(this.current))
       } catch (e) {
         // rollback
         resource.learned = !resource.learned
