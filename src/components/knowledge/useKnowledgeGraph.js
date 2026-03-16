@@ -45,6 +45,9 @@ export default function useKnowledgeGraph(endpoint) {
   const ALWAYS_VISIBLE_LEVELS = new Set(['Discipline', 'Subject'])
   const VALID_NODE_FILTERS = new Set(['all', 'favorited', 'learned', 'favorited-or-learned'])
   const activeNodeFilter = ref('all')
+  const CHARGE_DISTANCE_MAX = 480
+  const COLLIDE_PADDING = 10
+  let hoveredNodeId = null
 
   const canonicalId = (id) => {
     if (id === null || id === undefined) return null
@@ -80,7 +83,23 @@ export default function useKnowledgeGraph(endpoint) {
     if (!labels) return
     labels
       .filter(l => l.id === nodeDatum.id)
-      .text(l => (shouldDisplayLabel(l.tagLevel, currentZoomLevel) ? l.name : ''))
+      .text(l => getLabelText(l))
+  }
+
+  function clearHoveredNode() {
+    if (!hoveredNodeId) return
+    hoveredNodeId = null
+    if (labels) {
+      labels.text(d => getLabelText(d))
+    }
+  }
+
+  function handleSvgPointerMove(event) {
+    if (!hoveredNodeId) return
+    const hoveredCircle = event.target?.closest?.('circle')
+    if (!hoveredCircle) {
+      clearHoveredNode()
+    }
   }
 
   function getNodeDatum(nodeOrId) {
@@ -129,6 +148,13 @@ export default function useKnowledgeGraph(endpoint) {
     }
   }
 
+  function getLabelText(nodeDatum) {
+    if (!nodeDatum) return ''
+    if (hoveredNodeId && nodeDatum.id === hoveredNodeId) return nodeDatum.name
+    if (activeNodeFilter.value !== 'all' && matchesNodeFilter(nodeDatum)) return nodeDatum.name
+    return shouldDisplayLabel(nodeDatum.tagLevel, currentZoomLevel) ? nodeDatum.name : ''
+  }
+
   function getNodeStateStroke(nodeDatum) {
     if (nodeDatum?.isFavorited && nodeDatum?.isLearned) return '#0b7285'
     if (nodeDatum?.isLearned) return '#2e7d32'
@@ -160,10 +186,7 @@ export default function useKnowledgeGraph(endpoint) {
 
     labels
       .style('opacity', d => filterActive ? (matchesNodeFilter(d) ? 1 : 0.12) : 1)
-      .text(d => {
-        if (filterActive && matchesNodeFilter(d)) return d.name
-        return shouldDisplayLabel(d.tagLevel, currentZoomLevel) ? d.name : ''
-      })
+      .text(d => getLabelText(d))
 
     link
       .style('opacity', d => {
@@ -195,6 +218,7 @@ export default function useKnowledgeGraph(endpoint) {
       .filter(Boolean)
 
     if (!userId || nodeIds.length === 0) {
+      hoveredNodeId = null
       clearNodeStateMarkers()
       applyNodeStateOverlay()
       return []
@@ -255,6 +279,9 @@ export default function useKnowledgeGraph(endpoint) {
           : Number.isFinite(learnedEntry?.completedResourceCount) ? learnedEntry.completedResourceCount : 0
       })
 
+      if (hoveredNodeId && !nodeById.has(hoveredNodeId)) {
+        hoveredNodeId = null
+      }
       applyNodeStateOverlay()
       return statesPayload
     } catch (error) {
@@ -359,6 +386,8 @@ export default function useKnowledgeGraph(endpoint) {
       if (svg) {
         svg.attr('width', width.value).attr('height', height.value)
         simulation
+          .force('x', d3.forceX(width.value / 2).strength(0.02))
+          .force('y', d3.forceY(height.value / 2).strength(0.02))
           .force('center', d3.forceCenter(width.value / 2, height.value / 2))
           .alpha(1)
           .restart()
@@ -430,14 +459,19 @@ export default function useKnowledgeGraph(endpoint) {
       .attr('width', width.value)
       .attr('height', height.value)
       .call(zoom)
+      .on('mousemove', handleSvgPointerMove)
+      .on('mouseleave', clearHoveredNode)
       .on('contextmenu', handleSvgRightClick)
 
     simulation = d3.forceSimulation()
       .force('link', d3.forceLink().id((d) => d.id).strength(1))
-      .force('charge', d3.forceManyBody().strength((d) => -50 - (d.degree || 0) * 10))
+      .force('charge', d3.forceManyBody()
+        .strength((d) => -110 - (d.degree || 0) * 12)
+        .distanceMax(CHARGE_DISTANCE_MAX))
+      .force('collide', d3.forceCollide().radius(d => radiusFor(d) + COLLIDE_PADDING).strength(0.65))
       .force('center', d3.forceCenter(width.value / 2, height.value / 2))
-      .force('x', d3.forceX())
-      .force('y', d3.forceY())
+      .force('x', d3.forceX(width.value / 2).strength(0.02))
+      .force('y', d3.forceY(height.value / 2).strength(0.02))
 
     link = svg.append('g').selectAll('path')
     node = svg.append('g').selectAll('circle')
@@ -468,6 +502,8 @@ export default function useKnowledgeGraph(endpoint) {
 
   // 更新图数据
   const updateD3Graph = (allNodes, allLinks) => {
+    clearHoveredNode()
+
     // —— O(N+M) 计算度数（兼容 link.source/target 为 id 或对象）——
     const deg = new Map()
     for (const e of allLinks) {
@@ -522,19 +558,12 @@ export default function useKnowledgeGraph(endpoint) {
       .join('circle')
       .attr('stroke', d => d.strokeColor)
       .attr('stroke-width', strokeWidth)
-      .attr('r', d => {
-        const degree = isNaN(d.degree) ? 0 : d.degree
-        if (d.tagLevel === 'Discipline') return 16 + degree * 0.6
-        if (d.tagLevel === 'Subject') return 12 + degree * 0.5
-        if (d.tagLevel === 'Field') return 8 + degree * 0.4
-        if (d.tagLevel === 'Topic') return 5 + degree * 0.2
-        return 4 + degree * 0.2
-      })
+      .attr('r', d => radiusFor(d))
       .attr('fill', d => d.color)
       .call(drag(simulation))
       .on('mouseover', (event, d) => {
-        // 显示标签（你原有的行为）
-        labels.filter(l => l.id === d.id).text(l => l.name)
+        hoveredNodeId = d.id
+        updateLabelForNodeDatum(d)
         // 鼠标变成手指
         d3.select(event.currentTarget).style('cursor', 'pointer')
         // // 👉 开始计时：1s 后按 tagLevel 推断下一层并懒加载
@@ -544,7 +573,9 @@ export default function useKnowledgeGraph(endpoint) {
       .on('mouseout', (event, d) => {
         // 变回鼠标
         d3.select(event.currentTarget).style('cursor', 'default')
-        // 恢复缩放级别对应的标签默认显示状态
+        if (hoveredNodeId === d.id) {
+          hoveredNodeId = null
+        }
         updateLabelForNodeDatum(d)
         // // 退出悬停：取消定时器
         // cancelHoverLazyLoad(d)
@@ -593,7 +624,7 @@ export default function useKnowledgeGraph(endpoint) {
       .style('font-weight', 'bold')
       .style('stroke', labelStrokeColor)
       .style('stroke-width', 0.5 / currentZoomLevel)
-      .text(d => (shouldDisplayLabel(d.tagLevel, currentZoomLevel) ? d.name : ''))
+      .text(d => getLabelText(d))
       .attr('alignment-baseline', 'ideographic')
       .attr('dy', d => (d.tagLevel === 'Discipline' || d.tagLevel === 'Subject' || d.tagLevel === 'Field' || d.tagLevel === 'Topic') ? 0 : '-1.2em')
 
@@ -661,6 +692,7 @@ export default function useKnowledgeGraph(endpoint) {
 
       // 种子写入去重缓存（避免后台懒加载重复合入）
       resetLoadedCaches()
+      hoveredNodeId = null
       newNodes.forEach(n => loadedNodeIds.add(n.id))
       newLinks.forEach(l => loadedEdgeKeys.add(edgeKey(l)))
 
@@ -687,6 +719,7 @@ export default function useKnowledgeGraph(endpoint) {
         .filter(l => l.source && l.target)
 
       resetLoadedCaches()
+      hoveredNodeId = null
       newNodes.forEach(n => loadedNodeIds.add(n.id))
       newLinks.forEach(l => loadedEdgeKeys.add(edgeKey(l)))
 

@@ -18,7 +18,14 @@
               @update:menu="onTagMenuChange" @update:modelValue="addTag" @click:prepend-inner="filterByTags">
               <!-- 用 slot 自定义放大镜：点击筛选且可显示 loading 动效 -->
               <template #prepend-inner>
-                <v-btn icon size="small" variant="text" :loading="filterLoading" :disabled="filterLoading"
+                <v-btn
+                  icon
+                  size="small"
+                  variant="text"
+                  class="kgp-filter-trigger"
+                  :class="{ 'kgp-filter-trigger--ready': selectedTags.length > 0 && !filterLoading }"
+                  :loading="filterLoading"
+                  :disabled="filterLoading"
                   @click.stop="filterByTags" :aria-label="$t('home.filterSelectedAria')">
                   <v-icon v-if="!filterLoading">mdi-magnify</v-icon>
                 </v-btn>
@@ -49,9 +56,9 @@
       <!-- 中列：知识网络图 -->
       <v-col class="kgp-col kgp-center" :cols="12" :md="5" :lg="5" :xl="5">
         <v-card class="kgp-card panel-card panel-card--cream" elevation="2" rounded="xl">
-          <v-card-title class="d-flex align-center justify-space-between">
+          <v-card-title class="kgp-card-title d-flex align-center justify-space-between">
             <span class="text-subtitle-1 font-weight-medium">{{ $t('home.knowledgeNetwork') }}</span>
-            <div class="d-flex align-center ga-0">
+            <div class="kgp-toolbar">
               <template v-if="selectedNodes.length > 0">
                 <v-tooltip v-if="!isEditing"
                   :text="isFavorited ? $t('knowledgeGraph.removenode') : $t('knowledgeGraph.savenode')" location="top">
@@ -67,36 +74,33 @@
                 </v-tooltip>
               </template>
 
-              <v-menu location="bottom">
-                <template #activator="{ props }">
-                  <v-tooltip :text="currentGraphFilterLabel" location="top">
-                    <template #activator="{ props: tooltipProps }">
-                      <v-btn
-                        variant="text"
-                        icon
-                        class="mx-0"
-                        v-bind="{ ...props, ...tooltipProps }"
-                        :disabled="graphActionPending"
-                      >
-                        <v-icon :color="graphNodeFilter === 'all' ? undefined : 'primary'">mdi-filter-variant</v-icon>
-                      </v-btn>
-                    </template>
-                  </v-tooltip>
-                </template>
-                <v-list density="compact" nav>
-                  <v-list-item
-                    v-for="option in graphFilterOptions"
-                    :key="option.value"
-                    :title="option.title"
-                    :active="graphNodeFilter === option.value"
-                    @click="applyNodeStateFilter(option.value)"
-                  />
-                </v-list>
-              </v-menu>
+              <div class="kgp-filter-bar" :aria-label="$t('knowledgeGraph.filterLabel')" role="tablist">
+                <v-chip
+                  v-for="option in graphFilterOptions"
+                  :key="option.value"
+                  size="small"
+                  class="kgp-filter-chip"
+                  :class="{ 'kgp-filter-chip--active': graphNodeFilter === option.value }"
+                  :variant="graphNodeFilter === option.value ? 'flat' : 'outlined'"
+                  :disabled="graphActionPending"
+                  @click="applyNodeStateFilter(option.value)"
+                >
+                  {{ option.chipTitle }}
+                </v-chip>
+              </div>
 
-              <v-tooltip :text="$t('knowledgeGraph.reset')" location="top">
+              <v-tooltip :text="$t('knowledgeGraph.centerView')" location="top">
                 <template v-slot:activator="{ props }">
-                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="resetGraphView"
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="centerGraphView"
+                    :disabled="graphActionPending">
+                    <i class="fa-solid fa-location-crosshairs" />
+                  </v-btn>
+                </template>
+              </v-tooltip>
+
+              <v-tooltip :text="$t('knowledgeGraph.refreshGraph')" location="top">
+                <template v-slot:activator="{ props }">
+                  <v-btn variant="text" icon class="mx-0" v-bind="props" @click="reloadKnowledgeGraph"
                     :disabled="graphActionPending">
                     <i class="fas fa-arrows-rotate" />
                   </v-btn>
@@ -283,21 +287,22 @@ function callGraphMethod(name, ...args) {
 
 const toggleFavorites = () => callGraphMethod('toggleFavorites')
 const showFavoritedNodes = () => callGraphMethod('setNodeStateFilter', 'favorited')
-const resetGraphView = () => callGraphMethod('resetView')
+const centerGraphView = () => callGraphMethod('resetView')
 const startGraphEditing = () => callGraphMethod('startEditing')
 const submitGraphEditing = () => callGraphMethod('submitEditing')
 const applyNodeStateFilter = (filter) => callGraphMethod('setNodeStateFilter', filter)
+const reloadKnowledgeGraph = () => refreshGraph()
 
 async function onToggleFavorites() {
   try {
     const result = await callGraphMethod('toggleFavorites')
     if (result && result.success === true) {
-      snackText.value = result.favorited ? t('favoriteAdded') : t('favoriteRemoved')
+      snackText.value = result.favorited ? t('knowledgeGraph.favoriteAdded') : t('knowledgeGraph.favoriteRemoved')
     } else {
-      snackText.value = t('favoriteToggleFailed')
+      snackText.value = t('knowledgeGraph.favoriteToggleFailed')
     }
   } catch (e) {
-    snackText.value = t('favoriteToggleFailed')
+    snackText.value = t('knowledgeGraph.favoriteToggleFailed')
   } finally {
     snackOpen.value = true
   }
@@ -321,14 +326,11 @@ const graphEmptyMessage = ref('')
 const isFullScreen = computed(() => unwrapExposed(graph.value?.isFullScreen, false))
 const fullscreenPanelCollapsed = ref(false)
 const graphFilterOptions = computed(() => [
-  { value: 'all', title: t('knowledgeGraph.filterAll') },
-  { value: 'favorited', title: t('knowledgeGraph.filterFavorited') },
-  { value: 'learned', title: t('knowledgeGraph.filterLearned') },
-  { value: 'favorited-or-learned', title: t('knowledgeGraph.filterFavoritedOrLearned') },
+  { value: 'all', title: t('knowledgeGraph.filterAll'), chipTitle: t('knowledgeGraph.filterAllShort') },
+  { value: 'favorited', title: t('knowledgeGraph.filterFavorited'), chipTitle: t('knowledgeGraph.filterFavoritedShort') },
+  { value: 'learned', title: t('knowledgeGraph.filterLearned'), chipTitle: t('knowledgeGraph.filterLearnedShort') },
+  { value: 'favorited-or-learned', title: t('knowledgeGraph.filterFavoritedOrLearned'), chipTitle: t('knowledgeGraph.filterFavoritedOrLearnedShort') },
 ])
-const currentGraphFilterLabel = computed(() =>
-  graphFilterOptions.value.find(option => option.value === graphNodeFilter.value)?.title || t('knowledgeGraph.filterAll')
-)
 
 watch(isFullScreen, (val) => {
   if (!val) {
@@ -658,6 +660,56 @@ onBeforeUnmount(() => {
   height: calc(100vh - var(--footer-vh, 6vh) - 72px);
 }
 
+.kgp-card-title {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.kgp-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.kgp-filter-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kgp-filter-chip {
+  cursor: pointer;
+  border-radius: 999px !important;
+  min-height: 30px !important;
+  padding-inline: 2px !important;
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(120, 95, 70, 0.16) !important;
+  color: #6c5a49 !important;
+  box-shadow: none !important;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.kgp-filter-chip:hover {
+  background: #fff7ef;
+  border-color: rgba(201, 121, 0, 0.22) !important;
+  color: #8a4b08 !important;
+  transform: translateY(-1px);
+}
+
+.kgp-filter-chip--active {
+  background: #f6dfc3 !important;
+  border-color: #e7b073 !important;
+  color: #8f4700 !important;
+}
+
+.kgp-filter-chip--active:hover {
+  background: #f3d6b4 !important;
+  border-color: #df9d58 !important;
+}
+
 .kgp-center-body {
   flex: 1 1 auto;
   padding: 0 12px 12px;
@@ -832,6 +884,10 @@ onBeforeUnmount(() => {
     /* 小屏不 sticky，避免遮挡 */
     max-height: none;
   }
+
+  .kgp-filter-bar {
+    gap: 6px;
+  }
 }
 
 .highlight-icon {
@@ -844,6 +900,29 @@ onBeforeUnmount(() => {
   right: 0;
   top: 0;
   z-index: 2;
+}
+
+.kgp-filter-trigger {
+  transition: color 0.18s ease, background-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.kgp-filter-trigger--ready {
+  color: #c96c00 !important;
+}
+
+.kgp-filter-trigger--ready :deep(.v-icon) {
+  animation: kgp-filter-ready-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes kgp-filter-ready-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.75;
+  }
 }
 </style>
 
