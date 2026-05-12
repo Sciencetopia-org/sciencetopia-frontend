@@ -277,6 +277,7 @@
         $t('accountsetting.bindwechat')
       }}</v-btn>
     </v-row>
+    <div v-if="weChatSummary" class="text-danger">{{ weChatSummary }}</div>
   </v-container>
   <v-divider></v-divider>
 </template>
@@ -322,6 +323,7 @@ export default {
       changePasswordSummary: '',
       changeEmailSummary: '',
       changePhoneNumberSummary: '',
+      weChatSummary: '',
       fetchedPasswordStrength: '', // 从API获取的当前密码强度
     }
   },
@@ -482,13 +484,23 @@ export default {
       }
     },
     async bindWeChat() {
-      const weChatAppId = 'your-wechat-app-id'
-      const redirectUri = encodeURIComponent(
-        window.location.origin + '/wechat-callback'
-      )
-      const weChatAuthUrl = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${weChatAppId}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_userinfo&state=bindWeChat#wechat_redirect`
-
-      window.location.href = weChatAuthUrl
+      this.weChatSummary = ''
+      this.loading = true
+      try {
+        const response = await apiClient.get('/users/Account/WeChatBindUrl')
+        if (!response.data?.url) {
+          throw new Error('Missing WeChat authorization URL.')
+        }
+        window.location.assign(response.data.url)
+      } catch (error) {
+        this.handleError(
+          error,
+          'weChatSummary',
+          '微信绑定暂不可用，请稍后再试。'
+        )
+      } finally {
+        this.loading = false
+      }
     },
     startCountdown() {
       this.resendDisabled = true
@@ -510,6 +522,13 @@ export default {
   async mounted() {
     await this.fetchUserInfo()
     await this.fetchCurrentPasswordStrength() // 获取当前密码强度
+
+    if (this.$route?.query?.wechatBind === 'success') {
+      alert('微信账号绑定成功！')
+      await this.fetchUserInfo()
+    } else if (this.$route?.query?.wechatBind === 'failed') {
+      this.weChatSummary = this.$route.query.message || '微信账号绑定失败。'
+    }
   },
 }
 </script>

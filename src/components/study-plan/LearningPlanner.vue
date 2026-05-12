@@ -5,16 +5,17 @@
       type="text"
       v-model="learningObjective"
       :placeholder="$t('studyplan.placeholder')"
+      :disabled="loading || $store.state.backgroundGenerating"
       @update:model-value="$emit('dirty')"
     />
-    <button :disabled="!learningObjective || $store.state.backgroundGenerating" @click="generateStudyPlan">
+    <button :disabled="loading || !learningObjective || $store.state.backgroundGenerating" @click="generateStudyPlan">
       {{ $t('studyplan.startcustomizing') }}
     </button>
 
     <!-- Loader Spinner -->
     <div v-if="loading" class="loader">
       {{ $t('studyplan.AIplaceholder') }}
-      <button class="ml-2" @click="runInBackground">后台运行</button>
+      <button class="ml-2" :disabled="!currentRequest || background" @click="runInBackground">后台运行</button>
     </div>
 
     <study-plan
@@ -45,6 +46,7 @@ export default {
   },
   methods: {
     async generateStudyPlan() {
+      if (this.loading) return
       if (!this.learningObjective) return
       if (this.$store.state.backgroundGenerating) {
         alert(this.$t('studyplan.ai.generatingTryLater'))
@@ -108,12 +110,14 @@ export default {
       }
     },
     runInBackground() {
+      if (this.background) return
       if (this.loading && this.currentRequest) {
         this.background = true
         this.$emit('background', this.currentRequest)
       }
     },
     async savePlan() {
+      if (this.loading) return
       if (this.studyPlanData) {
         this.loading = true
         try {

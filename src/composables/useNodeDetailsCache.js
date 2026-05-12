@@ -8,7 +8,7 @@ const MAX_ENTRIES = 1000
 
 const state = reactive({
   cache: new Map(),            // id -> { data, updatedAt, etag, lastAccess }
-  inflightPromises: new Map(), // id -> Promise
+  inflightPromises: new Map(), // id -> { promise, signal }
 })
 
 const now = () => Date.now()
@@ -22,7 +22,7 @@ const evictIfNeeded = () => {
 }
 
 async function getNodeDetail(id, opts = {}) {
-  const { forceRefresh = false, ttlMs = DEFAULT_TTL_MS, revalidate = true } = opts
+  const { forceRefresh = false, ttlMs = DEFAULT_TTL_MS, revalidate = true, signal } = opts
   const cached = state.cache.get(id)
   const fresh = cached && !isExpired(cached, ttlMs)
 
@@ -31,7 +31,14 @@ async function getNodeDetail(id, opts = {}) {
     if (revalidate) void revalidateInBg(id, cached)
     return cached.data
   }
-  if (state.inflightPromises.has(id)) return state.inflightPromises.get(id)
+  const inflight = state.inflightPromises.get(id)
+  if (inflight) {
+    if (inflight.signal?.aborted) {
+      state.inflightPromises.delete(id)
+    } else {
+      return inflight.promise
+    }
+  }
 
   const req = (async () => {
     try {
@@ -42,6 +49,7 @@ async function getNodeDetail(id, opts = {}) {
       const res = await apiClient.get(NODE_DETAIL_ENDPOINT, {
         params: { nodeId: id },
         headers,
+        signal,
         // 有些后端/代理会对 304 做特殊处理；axios 默认把 304 当成功
         validateStatus: s => (s >= 200 && s < 300) || s === 304,
       })
@@ -64,7 +72,7 @@ async function getNodeDetail(id, opts = {}) {
     }
   })()
 
-  state.inflightPromises.set(id, req)
+  state.inflightPromises.set(id, { promise: req, signal })
   return req
 }
 

@@ -8,9 +8,9 @@
             <span class="text-h6">{{ $t('studyplan.myplans') }}</span>
             <v-spacer />
             <v-btn :aria-label="$t('studyplan.create')" icon="mdi-plus" variant="text" @click="openCreateDialog"
-              :disabled="backgroundGenerating" />
+              :disabled="backgroundGenerating || listLoading || detailLoading" />
             <v-btn :aria-label="$t('studyplan.aiGenerate')" icon="mdi-robot-outline" variant="text"
-              @click="openAiDialog" :disabled="backgroundGenerating" />
+              @click="openAiDialog" :disabled="backgroundGenerating || listLoading || detailLoading" />
           </div>
           <v-divider />
           <!-- <v-tabs v-model="listScope" density="compact" class="px-2">
@@ -26,11 +26,14 @@
               hide-details
               clearable
               append-inner-icon="mdi-magnify"
+              :disabled="listLoading || detailLoading"
+              :loading="listLoading"
               @click:append-inner="fetchPlans"
               @keyup.enter="fetchPlans"
               @click:clear="fetchPlans"
             />
             <v-select v-model="sort" :items="sortItems" :label="$t('common.sort')" density="compact" hide-details
+              :disabled="listLoading || detailLoading"
               style="max-width: 200px" @update:model-value="fetchPlans" />
           </div>
           <!-- <v-divider /> -->
@@ -44,6 +47,7 @@
                 :key="plan.studyPlan.id"
                 @click="selectPlan(plan.studyPlan)"
                 class="plan-card"
+                :disabled="listActionLocked"
                 :class="{
                   'selected-plan': currentPlan && currentPlan.id === plan.studyPlan.id,
                 }"
@@ -60,6 +64,7 @@
                       variant="text"
                       density="comfortable"
                       @click.stop="editPlanById(plan.studyPlan.id)"
+                      :disabled="listActionLocked"
                       :aria-label="`编辑 ${plan.studyPlan.title}`"
                     />
                   </div>
@@ -76,10 +81,10 @@
           </template>
           <div v-else class="empty-plan-list text-center px-4">
             <p class="mb-4">{{ $t('studyplan.noPlansYet') }}</p>
-            <v-btn block class="mb-2" color="primary" @click="openCreateDialog" :disabled="backgroundGenerating">
+            <v-btn block class="mb-2" color="primary" @click="openCreateDialog" :disabled="backgroundGenerating || listLoading || detailLoading">
               {{ $t('studyplan.create') }}
             </v-btn>
-            <v-btn block color="secondary" @click="openAiDialog" :disabled="backgroundGenerating">
+            <v-btn block color="secondary" @click="openAiDialog" :disabled="backgroundGenerating || listLoading || detailLoading">
               {{ $t('studyplan.aiGenerate') }}
             </v-btn>
           </div>
@@ -93,11 +98,11 @@
       <!-- Middle + Right (default): Plan and Lesson panels -->
       <template v-if="!showProgressPage">
         <v-col :cols="collapsed ? 6 : 5" class="center-panel">
-          <PlanContextBar v-if="currentPlan?.id" :scope="scope" :groups="affiliations" @change="onScopeChange"
-            @open-group="(gid) => $router.push({ name: 'GroupPlanWorkspace', params: { groupId: gid, planId: currentPlan.id } })" />
+          <!-- <PlanContextBar v-if="currentPlan?.id" :scope="scope" :groups="affiliations" @change="onScopeChange"
+            @open-group="(gid) => $router.push({ name: 'GroupPlanWorkspace', params: { groupId: gid, planId: currentPlan.id } })" /> -->
           <PlanDetailPanel ref="centerPanel" v-if="currentPlan?.id" :planId="currentPlan.id" :scope="scope" :allowEditControls="true"
             @select-lesson="selectLessonById" @open-share="openShareDialog" @open-progress="showProgressPage = true"
-            @updated-plan="onCenterUpdated" />
+            @updated-plan="onCenterUpdated" @loaded="onCenterLoaded" />
           <!-- 未选择计划时不显示占位条 -->
           <template v-else></template>
         </v-col>
@@ -120,7 +125,7 @@
       <!-- ProgressPage occupying middle + right columns -->
       <template v-else>
         <v-col :cols="collapsed ? 11 : 9" class="center-panel">
-          <ProgressPage :planId="currentPlan?.id" @close="showProgressPage = false" />
+          <ProgressPage :planId="currentPlan?.id" @close="showProgressPage = false" @select-lesson="selectLessonFromProgress" />
         </v-col>
       </template>
     </v-row>
@@ -159,6 +164,7 @@
       v-if="currentPlan?.id"
       :planId="currentPlan.id"
       :planStableId="currentPlan.stableId"
+      @permissions-updated="onSharePermissionsUpdated"
     />
 
     <v-snackbar v-model="backgroundSnackbar" :timeout="backgroundLoading ? -1 : 3000">
@@ -225,6 +231,9 @@ export default {
     }
   },
   computed: {
+    listActionLocked() {
+      return this.listLoading || this.detailLoading || this.backgroundGenerating
+    },
     backgroundGenerating() {
       return this.$store.state.backgroundGenerating
     },
@@ -294,6 +303,7 @@ export default {
   },
   methods: {
     async fetchPlans() {
+      if (this.listLoading) return
       this.listLoading = true
       try {
         const res = await apiClient.get('/StudyPlans', {
@@ -303,6 +313,8 @@ export default {
             q: this.q,
             sort: this.sort,
             scope: this.listScope,
+            targetUserId:
+              this.$store.state.currentUserID || this.$store.state.userInfo?.id,
           },
         })
         // Expecting res.data to be an array of lightweight items with id, title, description, role
@@ -448,7 +460,7 @@ export default {
     },
     async fetchPlanDetailsById(planId) {
       // PlanDetailPanel handles fetching by planId; here we set minimal state
-      this.detailLoading = false
+      this.detailLoading = true
       const match = this.studyPlans.find(p => String(p?.studyPlan?.id) === String(planId))
       if (match?.studyPlan) {
         this.currentPlan = { ...match.studyPlan }
@@ -491,6 +503,7 @@ export default {
       return roleAllowsComment(this.getRole(planId))
     },
     async selectPlan(plan) {
+      if (this.listActionLocked || !plan?.id) return
       // Avoid reloading if selecting the same plan again (when not editing)
       if (
         this.currentPlan &&
@@ -516,11 +529,16 @@ export default {
       // If we have the lesson object, pass it to avoid extra API in right panel
       this.currentLesson = lesson || null
     },
+    selectLessonFromProgress(id) {
+      this.showProgressPage = false
+      this.currentLessonId = id
+      this.currentLesson = null
+    },
     onScopeChange(newScope) {
       this.scope = newScope
     },
     openCreateDialog() {
-      if (this.backgroundGenerating) {
+      if (this.backgroundGenerating || this.listLoading || this.detailLoading) {
         alert(this.$t('studyplan.ai.generatingTryLater'))
         return
       }
@@ -562,7 +580,7 @@ export default {
       }
     },
     openAiDialog() {
-      if (this.backgroundGenerating) {
+      if (this.backgroundGenerating || this.listLoading || this.detailLoading) {
         alert(this.$t('studyplan.ai.generatingTryLater'))
         return
       }
@@ -640,7 +658,26 @@ export default {
         try { this.$refs.rightPanel && this.$refs.rightPanel.fetchLessonById && this.$refs.rightPanel.fetchLessonById() } catch (_) {}
       })
     },
+    onCenterLoaded(p) {
+      this.detailLoading = false
+      if (!p || !this.currentPlan?.id) return
+      this.currentPlan = {
+        ...this.currentPlan,
+        ...p,
+        id: p.id || this.currentPlan.id,
+        stableId: p.stableId || this.currentPlan.stableId,
+      }
+    },
+    onSharePermissionsUpdated() {
+      const planId = this.currentPlan?.id
+      if (!planId) return
+      this.refreshEffectiveRole(planId)
+      this.$nextTick(() => {
+        try { this.$refs.centerPanel && this.$refs.centerPanel.refreshRole && this.$refs.centerPanel.refreshRole() } catch (_) {}
+      })
+    },
     async editPlanById(planId) {
+      if (this.listActionLocked) return
       // Ensure user has edit rights and load full details before editing
       if (!this.canEdit(planId)) {
         alert(this.$t('studyplan.dialogs.noEditPermissionShort'))
@@ -652,7 +689,7 @@ export default {
       }
     },
     openShareDialog() {
-      if (!this.currentPlan?.id) return
+      if (this.detailLoading || !this.currentPlan?.id) return
       this.shareDialog = true
     },
     async markResourceAsLearned(resource, lesson) {
@@ -798,4 +835,3 @@ export default {
 
 /* no skeleton styles; show progress only when value exists */
 </style>
-

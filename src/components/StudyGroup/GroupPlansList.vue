@@ -19,10 +19,10 @@
     </div>
     <v-list v-else density="compact" class="plan-list">
       <v-list-item
-        v-for="p in items"
-        :key="p.studyPlanId"
-        :active="String(p.studyPlanId) === String(activePlanId)"
-        @click="$emit('select', p.studyPlanId)"
+        v-for="p in safeDisplayItems"
+        :key="p?.studyPlanId || p?.studyPlanStableId"
+        :active="String(p?.studyPlanId) === String(activePlanId)"
+        @click="selectPlan(p)"
         class="group-plan-item plan-card"
       >
         <div class="d-flex align-center justify-space-between">
@@ -42,8 +42,21 @@
           :showAdvancedSkeleton="false"
         />
         <div v-if="p.memberCount" class="text-caption mt-1">{{ p.memberCount }} 人参与</div>
+        <div v-if="hasCohorts(p)" class="cohort-strip mt-2">
+          <v-chip
+            v-for="c in p.cohorts || []"
+            :key="c.id"
+            size="x-small"
+            label
+            class="mr-1 mb-1"
+            variant="tonal"
+          >
+            {{ c.title || '班级' }}<span v-if="c.memberCount"> · {{ c.memberCount }} 人</span>
+          </v-chip>
+        </div>
       </v-list-item>
-      <div v-if="!items.length" class="text-caption text-medium-emphasis">暂无共享计划</div>
+      <div v-if="errorText" class="text-caption text-error px-2 py-1">{{ errorText }}</div>
+      <div v-if="!hasDisplayItems && !errorText" class="text-caption text-medium-emphasis">暂无共享计划</div>
     </v-list>
   </template>
   <template v-else>
@@ -83,10 +96,10 @@
         </div>
         <v-list v-else density="compact" class="plan-list">
           <v-list-item
-            v-for="p in items"
-            :key="p.studyPlanId"
-            :active="String(p.studyPlanId) === String(activePlanId)"
-            @click="$emit('select', p.studyPlanId)"
+            v-for="p in safeDisplayItems"
+            :key="p?.studyPlanId || p?.studyPlanStableId"
+            :active="String(p?.studyPlanId) === String(activePlanId)"
+            @click="selectPlan(p)"
             class="group-plan-item plan-card"
           >
             <div class="d-flex align-center justify-space-between">
@@ -106,8 +119,21 @@
               class="mt-1"
             />
             <div v-if="p.memberCount" class="text-caption mt-1">{{ p.memberCount }} 人参与</div>
+            <div v-if="hasCohorts(p)" class="cohort-strip mt-2">
+              <v-chip
+                v-for="c in p.cohorts || []"
+                :key="c.id"
+                size="x-small"
+                label
+                class="mr-1 mb-1"
+                variant="tonal"
+              >
+                {{ c.title || '班级' }}<span v-if="c.memberCount"> · {{ c.memberCount }} 人</span>
+              </v-chip>
+            </div>
           </v-list-item>
-          <div v-if="!items.length" class="text-caption text-medium-emphasis">暂无共享计划</div>
+          <div v-if="errorText" class="text-caption text-error px-2 py-1">{{ errorText }}</div>
+          <div v-if="!hasDisplayItems && !errorText" class="text-caption text-medium-emphasis">暂无共享计划</div>
         </v-list>
       </v-card-text>
     </v-card>
@@ -118,8 +144,6 @@
 import { apiClient } from '@/api'
 import PlanProgressBars from '@/components/common/PlanProgressBars.vue'
 
-const groupPlanCache = new Map()
-
 export default {
   name: 'GroupPlansList',
   props: {
@@ -129,7 +153,27 @@ export default {
   },
   emits: ['select', 'loaded'],
   data() {
-    return { items: [], loading: false, q: '' }
+    return { items: [], loading: false, q: '', errorText: '' }
+  },
+  computed: {
+    displayItems() {
+      const keyword = String(this.q || '').trim().toLowerCase()
+      const list = Array.isArray(this.items) ? this.items : []
+      if (!keyword) return list
+      return list.filter((p) => {
+        const planTitle = String(p?.planTitle || '').toLowerCase()
+        const cohortTitle = Array.isArray(p?.cohorts)
+          ? p.cohorts.some((c) => String(c?.title || '').toLowerCase().includes(keyword))
+          : false
+        return planTitle.includes(keyword) || cohortTitle
+      })
+    },
+    safeDisplayItems() {
+      return Array.isArray(this.displayItems) ? this.displayItems : []
+    },
+    hasDisplayItems() {
+      return this.safeDisplayItems.length > 0
+    },
   },
   watch: {
     groupId: { immediate: true, handler() { this.fetchList() } },
@@ -140,23 +184,75 @@ export default {
       if (typeof v !== 'number') return undefined
       return v <= 1 ? v * 100 : v
     },
+    hasCohorts(plan) {
+      return Array.isArray(plan?.cohorts) && plan.cohorts.length > 0
+    },
+    selectPlan(plan) {
+      const planId = plan?.studyPlanId || plan?.studyPlanStableId
+      if (!planId) return
+      this.$emit('select', planId)
+    },
     async fetchList() {
-      const cacheKey = String(this.groupId || '')
-      if (groupPlanCache.has(cacheKey)) {
-        this.items = groupPlanCache.get(cacheKey) || []
-        this.loading = false
-        this.$emit('loaded')
-        return
-      }
-
       this.loading = true
+      this.errorText = ''
       try {
         const res = await apiClient.get(`/Groups/${this.groupId}/CohortPlans`)
         this.items = Array.isArray(res.data) ? res.data : []
-        groupPlanCache.set(cacheKey, this.items)
+        if (!this.items.length) {
+          this.items = await this.fetchBootstrapPlans()
+        }
       } catch (_) {
-        this.items = []
+        this.items = await this.fetchBootstrapPlans()
       } finally { this.loading = false; this.$emit('loaded') }
+    },
+    async fetchBootstrapPlans() {
+      try {
+        const res = await apiClient.get(`/StudyGroup/SettingsBootstrap/${this.groupId}`)
+        const sharedPlans = Array.isArray(res?.data?.sharedPlans) ? res.data.sharedPlans : []
+        const cohorts = Array.isArray(res?.data?.cohorts) ? res.data.cohorts : []
+        const cohortsByStableId = new Map()
+
+        cohorts.forEach((cohort) => {
+          const stableId = cohort?.planStableId || cohort?.studyPlanStableId || cohort?.StudyPlanStableId
+          if (!stableId) return
+          const key = String(stableId)
+          if (!cohortsByStableId.has(key)) cohortsByStableId.set(key, [])
+          cohortsByStableId.get(key).push({
+            id: cohort.id,
+            title: cohort.title,
+            studyPlanId: cohort.planVersionId || cohort.studyPlanId,
+            studyPlanStableId: stableId,
+            enrollMode: cohort.enrollMode,
+            pinnedVersionNumber: cohort.pinnedVersionNumber,
+            memberCount: cohort.memberCount || 0,
+            avgProgress: cohort.avgProgress || 0,
+          })
+        })
+
+        return sharedPlans.map((plan) => {
+          const stableId = plan.studyPlanStableId || plan.StudyPlanStableId || plan.planStableId
+          const planVersionId = plan.planVersionId || plan.PlanVersionId || plan.studyPlanId
+          const planCohorts = stableId ? (cohortsByStableId.get(String(stableId)) || []) : []
+          return {
+            id: planCohorts[0]?.id || null,
+            studyPlanId: planVersionId || planCohorts[0]?.studyPlanId || stableId,
+            studyPlanStableId: stableId,
+            planTitle: plan.title || plan.planTitle || stableId || '未命名学习计划',
+            pinnedVersionNumber: plan.pinnedVersionNumber,
+            memberCount: planCohorts.reduce((sum, c) => sum + (Number(c.memberCount) || 0), 0),
+            avgProgress: planCohorts.length
+              ? planCohorts.reduce((sum, c) => sum + (Number(c.avgProgress) || 0), 0) / planCohorts.length
+              : 0,
+            role: plan.permission || plan.role,
+            cohorts: planCohorts,
+          }
+        })
+      } catch (e) {
+        this.errorText = e?.response?.status === 403
+          ? '你需要先加入该学习小组，才能查看共享计划。'
+          : '共享计划加载失败，请刷新或检查后端服务。'
+        return []
+      }
     },
   },
 }

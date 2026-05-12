@@ -71,11 +71,12 @@ import { isAccessibleInChina } from '@/utils/resourceFilter'
 
 export default {
   name: 'NodeInfo',
+  emits: ['edited', 'node-state-changed'],
   components: {
     LinkPreview,
     ResourceLearnToggle,
   },
-  setup() {
+  setup(_, { emit }) {
     const store = useStore()
     const { detailedSelectedNodes, loading, error } = useSelectedNodeDetails({ revalidate: true })
     const { primeNode } = useNodeDetailsCache()
@@ -126,9 +127,22 @@ export default {
     }
     const onResourceUpdated = (node, resource, event) => {
       updateResourceState(node, resource, event?.completed === true)
+      if (event?.phase === 'confirmed') {
+        emit('node-state-changed', {
+          nodeId: node?.id,
+          resourceId: resource?.id,
+          completed: event?.completed === true,
+        })
+      }
     }
     const onResourceToggleFailed = (node, resource, event) => {
       updateResourceState(node, resource, event?.completed === true)
+      emit('node-state-changed', {
+        nodeId: node?.id,
+        resourceId: resource?.id,
+        completed: event?.completed === true,
+        failed: true,
+      })
       if (event?.error) console.error('Failed to toggle node resource completion', event.error)
     }
     return {

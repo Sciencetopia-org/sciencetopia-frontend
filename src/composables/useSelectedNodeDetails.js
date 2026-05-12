@@ -2,6 +2,7 @@
 import { ref, watch, onBeforeUnmount, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { useNodeDetailsCache } from '@/composables/useNodeDetailsCache'
+import axios from 'axios'
 
 export function useSelectedNodeDetails(options = {}) {
   const { revalidate = true } = options
@@ -13,7 +14,18 @@ export function useSelectedNodeDetails(options = {}) {
   const error = ref(null)
 
   let alive = true
-  onBeforeUnmount(() => { alive = false })
+  let requestSeq = 0
+  let activeController = null
+  const cancelActiveRequest = () => {
+    if (activeController) {
+      activeController.abort()
+      activeController = null
+    }
+  }
+  onBeforeUnmount(() => {
+    alive = false
+    cancelActiveRequest()
+  })
   
   // Refresh node details when language changes (to update localized name/description)
   onMounted(() => {
@@ -24,22 +36,28 @@ export function useSelectedNodeDetails(options = {}) {
   })
 
   async function refreshDetails() {
+    cancelActiveRequest()
     const selected = store.state.selectedNodes || []
     if (!selected.length) {
       detailedSelectedNodes.value = []
+      loading.value = false
+      error.value = null
       return
     }
 
+    const currentRequestId = ++requestSeq
+    activeController = new AbortController()
+    const signal = activeController.signal
     loading.value = true
     error.value = null
 
     try {
       const promises = selected.map(n =>
-        n?.id ? getNodeDetail(n.id, { forceRefresh: true, revalidate }) : Promise.resolve(null)
+        n?.id ? getNodeDetail(n.id, { forceRefresh: true, revalidate, signal }) : Promise.resolve(null)
       )
       const results = await Promise.allSettled(promises)
 
-      if (!alive) return
+      if (!alive || signal.aborted || currentRequestId !== requestSeq) return
       detailedSelectedNodes.value = results.map((r, i) => {
         const fallback = selected[i] || {}
         if (r.status === 'fulfilled' && r.value) {
@@ -57,10 +75,13 @@ export function useSelectedNodeDetails(options = {}) {
         return { id: fallback.id, name: fallback.name, description: '', resources: [], tags: [] }
       })
     } catch (e) {
-      if (!alive) return
+      if (!alive || signal.aborted || currentRequestId !== requestSeq || axios.isCancel(e) || e?.code === 'ERR_CANCELED') return
       error.value = e
     } finally {
-      if (alive) loading.value = false
+      if (activeController?.signal === signal) {
+        activeController = null
+      }
+      if (alive && !signal.aborted && currentRequestId === requestSeq) loading.value = false
     }
   }
 

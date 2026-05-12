@@ -31,7 +31,7 @@
       </div>
       <div v-else-if="filteredResources && filteredResources.length">
         <div v-if="filteredOutCount > 0" class="mb-2">
-          <v-btn variant="text" density="comfortable" @click="showBlocked = !showBlocked" :prepend-icon="showBlocked ? 'mdi-eye-off-outline' : 'mdi-eye-outline'">
+          <v-btn variant="text" density="comfortable" :disabled="loadingLesson" @click="showBlocked = !showBlocked" :prepend-icon="showBlocked ? 'mdi-eye-off-outline' : 'mdi-eye-outline'">
             {{ $t('lessonDetail.regionFiltered', { count: filteredOutCount }) || `部分资源因地区限制未显示（${filteredOutCount}）` }}
           </v-btn>
         </div>
@@ -348,7 +348,7 @@ export default {
     },
   },
   computed: {
-    isInteractable() { return !!this.canInteract && !this.disabled },
+    isInteractable() { return !!this.canInteract && !this.disabled && !this.loadingLesson && this.resourcesLoaded },
     displayName() {
       const l = this.current || {}
       return l.name || l.title || l.lessonName || ''

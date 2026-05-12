@@ -43,7 +43,7 @@
             <v-table density="comfortable">
               <thead>
                 <tr>
-                  <th class="text-left">Cohort</th>
+                  <th class="text-left">{{ $t('groupSettings.class') }}</th>
                   <th class="text-left">{{ $t('groupSettings.plan') }}</th>
                   <th class="text-left">{{ $t('groupSettings.enrollMode') }}</th>
                   <th class="text-left">{{ $t('groupSettings.pinnedVersion') }}</th>
@@ -176,7 +176,7 @@
             <v-table density="comfortable">
               <thead>
                 <tr>
-                  <th class="text-left">Cohort</th>
+                  <th class="text-left">{{ $t('groupSettings.class') }}</th>
                   <th class="text-left">{{ $t('groupSettings.plan') }}</th>
                   <th class="text-left">{{ $t('groupSettings.enrollMode') }}</th>
                   <th class="text-left">{{ $t('groupSettings.pinnedVersion') }}</th>

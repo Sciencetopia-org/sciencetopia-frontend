@@ -170,7 +170,7 @@
                     <div class="kgp-fullscreen-panel__body">
                       <NodeCreationForm v-if="$store.state.displayNodeCreationForm" @submitted="afterEditOrCreate" />
                       <LinkCreationForm v-else-if="$store.state.displayLinkCreationForm" @submitted="afterEditOrCreate" />
-                      <NodeInfo v-else @edited="afterEditOrCreate" />
+                      <NodeInfo v-else @edited="afterEditOrCreate" @node-state-changed="refreshKnowledgeNodeStates" />
                     </div>
                   </div>
                 </transition>
@@ -191,7 +191,7 @@
           <v-card-text class="pt-0">
             <NodeCreationForm v-if="$store.state.displayNodeCreationForm" @submitted="afterEditOrCreate" />
             <LinkCreationForm v-else-if="$store.state.displayLinkCreationForm" @submitted="afterEditOrCreate" />
-            <NodeInfo v-else @edited="afterEditOrCreate" />
+            <NodeInfo v-else @edited="afterEditOrCreate" @node-state-changed="refreshKnowledgeNodeStates" />
           </v-card-text>
         </v-card>
       </v-col>
@@ -855,6 +855,13 @@ function openGraphSearch() {
   }
 }
 
+async function refreshKnowledgeNodeStates() {
+  try {
+    await callGraphMethod('refreshNodeStates')
+  } catch (error) {
+    console.error('Failed to refresh knowledge node states:', error)
+  }
+}
 
 function afterEditOrCreate() {
   refreshGraph()

@@ -4,7 +4,7 @@
       <!-- <h2 class="text-h6">学习小组 · 速度与排行榜</h2> -->
       <v-btn size="small" variant="text" color="primary" @click="$emit('close')">返回学习计划</v-btn>
     </div>
-    <CohortStatsPanel v-if="planId" :planId="planId" />
+    <CohortStatsPanel v-if="planId" :planId="planId" @select-lesson="$emit('select-lesson', $event)" />
   </v-card>
 </template>
 
@@ -14,6 +14,7 @@ import CohortStatsPanel from '@/components/cohort/CohortStatsPanel.vue'
 export default {
   name: 'ProgressPage',
   components: { CohortStatsPanel },
+  emits: ['close', 'select-lesson'],
   props: {
     planId: { type: [String, Number], required: true },
   },

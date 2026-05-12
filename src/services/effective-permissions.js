@@ -70,8 +70,12 @@ function normalizePermissions(raw) {
   const canComment = b(r.CanComment ?? r.canComment) || roleAtLeast(role, 'Commenter')
   const canEdit = b(r.CanEdit ?? r.canEdit ?? r.CanEditPlan ?? r.canEditPlan) || roleAtLeast(role, 'Editor') || role === 'Admin'
   const canPublish = b(r.CanPublish ?? r.canPublish ?? r.CanPublishVersion ?? r.canPublishVersion) || role === 'Owner'
-  const canManageCohort = b(r.CohortManage ?? r.cohortManage ?? r.CanManageCohort ?? r.canManageCohort) || role === 'Admin' || role === 'Owner'
+  const allowCohortSharing = b(r.AllowCohortSharing ?? r.allowCohortSharing)
+  const explicitAdoption = b(r.CanAdoptPlanToCohort ?? r.canAdoptPlanToCohort ?? r.CanSharePlanToCohort ?? r.canSharePlanToCohort)
+  const canAdoptPlanToCohort = explicitAdoption || canEdit || (allowCohortSharing && canView)
+  const canManageCohort = b(r.CohortManage ?? r.cohortManage ?? r.CanManageCohort ?? r.canManageCohort) || role === 'Admin'
   const canInviteCohort = b(r.CohortInvite ?? r.cohortInvite ?? r.CanInviteToCohort ?? r.canInviteToCohort) || canManageCohort
+  const cohortPermission = r.CohortPermission ?? r.cohortPermission ?? null
 
   return {
     role,
@@ -79,15 +83,19 @@ function normalizePermissions(raw) {
     CanComment: canComment,
     CanEdit: canEdit,
     CanPublish: canPublish,
+    AllowCohortSharing: allowCohortSharing,
+    CanAdoptPlanToCohort: canAdoptPlanToCohort,
     CohortManage: canManageCohort,
     CohortInvite: canInviteCohort,
+    CohortPermission: cohortPermission,
     // Legacy aliases used by existing components
     CanViewPlan: canView,
     CanEditPlan: canEdit,
     CanPublishVersion: canPublish,
+    CanSharePlanToCohort: canAdoptPlanToCohort,
     CanManageCohort: canManageCohort,
     CanInviteToCohort: canInviteCohort,
-    CanUpgradeCohortVersion: b(r.CanUpgradeCohortVersion ?? r.canUpgradeCohortVersion) || canManageCohort || canPublish,
+    CanUpgradeCohortVersion: b(r.CanUpgradeCohortVersion ?? r.canUpgradeCohortVersion) || canManageCohort,
   }
 }
 

@@ -460,6 +460,7 @@ export default {
   },
   methods: {
     addLesson(type) {
+      if (this.saving) return
       if (
         this.localStudyPlan[type].length >=
         this[`max${this.capitalize(type)}Length`]
@@ -473,21 +474,25 @@ export default {
       })
     },
     removeLesson(type, index) {
+      if (this.saving) return
       this.localStudyPlan[type].splice(index, 1)
     },
     addResource(type, lessonIndex) {
+      if (this.saving) return
       this.localStudyPlan[type][lessonIndex].resources.push({
         name: '',
         link: '',
       })
     },
     removeResource(type, lessonIndex, resourceIndex) {
+      if (this.saving) return
       this.localStudyPlan[type][lessonIndex].resources.splice(resourceIndex, 1)
     },
     capitalize(str) {
       return str.charAt(0).toUpperCase() + str.slice(1)
     },
     async saveStudyPlan() {
+      if (this.saving) return
       try {
         // Emit tags payload alongside study plan
         const lessonTagNames = {}
@@ -512,6 +517,7 @@ export default {
       }
     },
     async onSuggestPlanTags() {
+      if (this.saving) return
       try {
         const planId = this.localStudyPlan?.id
         if (!planId) return
@@ -539,6 +545,7 @@ export default {
       } catch (_) { /* ignore */ }
     },
     async onSuggestLessonTags(lesson) {
+      if (this.saving) return
       try {
         const planId = this.localStudyPlan?.id
         const lessonId = lesson?.id

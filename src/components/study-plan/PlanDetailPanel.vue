@@ -24,16 +24,38 @@
               <h2 class="plan-title mr-2">{{ plan.title }}</h2>
               <TagChips v-if="planTags.length" :items="planTags" />
             </div>
-            <div class="d-flex align-center">
-              <v-chip v-if="roleLabel" size="x-small" label class="mr-2">{{ roleLabel }}</v-chip>
+            <div class="d-flex align-center flex-wrap justify-end gap-2">
+              <v-chip v-if="roleLabel" size="x-small" label color="blue-grey-lighten-4">
+                Plan: {{ roleLabel }}
+              </v-chip>
+              <v-skeleton-loader v-if="permissionLoading" type="chip" width="120" />
+              <v-chip
+                v-else-if="permissionLoaded"
+                size="x-small"
+                label
+                :color="canAdoptComputed ? 'success' : 'grey'"
+                variant="tonal"
+              >
+                {{ cohortAdoptionLabel }}
+              </v-chip>
               <v-chip v-if="myProgress !== null" size="x-small" label class="mr-2" color="primary">{{
                 $t('studyplan.myProgress', { percent: (typeof myProgress === 'number' ? myProgress.toFixed(2) : myProgress) }) }}</v-chip>
               <template v-if="allowEditControls">
-                <v-btn v-if="isOwnerComputed" class="mr-1" variant="text" @click="$emit('open-share')">{{ $t('studyplan.share') }}</v-btn>
+                <v-btn
+                  v-if="canAdoptComputed || canEditComputed"
+                  class="mr-1"
+                  variant="text"
+                  prepend-icon="mdi-account-group-outline"
+                  :disabled="permissionLoading || !permissionLoaded"
+                  @click="$emit('open-share')"
+                >
+                  采用到小组
+                </v-btn>
                 <v-btn v-if="canEditComputed" icon="mdi-pencil" variant="text" @click="startEdit()"
+                  :disabled="permissionLoading || !permissionLoaded"
                   :aria-label="`${$t('edit')} ${plan.title}`" />
               </template>
-              <v-btn size="small" color="primary" class="ml-2" @click="$emit('open-progress')">
+              <v-btn size="small" color="primary" class="ml-2" :disabled="permissionLoading" @click="$emit('open-progress')">
                 {{ $t('cohort.viewStats') }}
               </v-btn>
             </div>
@@ -93,6 +115,7 @@ import { apiClient } from '@/api'
 import EditStudyPlanForm from '@/components/study-plan/EditStudyPlanForm.vue'
 import TagChips from '@/components/common/TagChips.vue'
 import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit } from '@/services/studyplan-permissions'
+import { fetchEffectivePermissions } from '@/services/effective-permissions'
 
 export default {
   name: 'PlanDetailPanel',
@@ -114,6 +137,10 @@ export default {
       isEditing: false,
       editDraft: null,
       roleLabel: null,
+      permissionLoaded: false,
+      permissionLoading: false,
+      allowCohortSharing: false,
+      canAdoptPlanToCohort: false,
       planTags: [],
       saving: false,
     }
@@ -125,8 +152,15 @@ export default {
     isOwnerComputed() {
       return this.roleLabel === 'Owner'
     },
+    canAdoptComputed() {
+      return this.canAdoptPlanToCohort || this.isOwnerComputed || this.canEditComputed
+    },
     canEditComputed() {
       return roleAllowsEdit(this.roleLabel)
+    },
+    cohortAdoptionLabel() {
+      if (this.canAdoptComputed) return this.allowCohortSharing ? '班级采用开放' : '编辑团队可采用'
+      return '班级采用未开放'
     },
   },
   watch: {
@@ -187,7 +221,7 @@ export default {
       } finally {
         // Ensure loading is cleared in error/empty-plan cases
         if (this.loading) this.loading = false
-        this.$emit('loaded')
+        this.$emit('loaded', this.plan)
       }
     },
     selectFirstUnfinishedLesson() {
@@ -205,10 +239,21 @@ export default {
       }
     },
     refreshRole: async function () {
+      this.permissionLoading = true
       try {
-        const role = await fetchRole(this.planId, { force: true })
+        const [role, perms] = await Promise.all([
+          fetchRole(this.planId, { force: true }),
+          fetchEffectivePermissions({ planId: this.planId, force: true }),
+        ])
         this.roleLabel = role || getCachedRole(this.planId)
-      } catch (_) { }
+        this.permissionLoaded = !!perms
+        this.allowCohortSharing = !!perms?.AllowCohortSharing
+        this.canAdoptPlanToCohort = !!(perms?.CanAdoptPlanToCohort || perms?.CanSharePlanToCohort)
+      } catch (_) {
+        this.permissionLoaded = false
+      } finally {
+        this.permissionLoading = false
+      }
     },
     mergeLessons(lessons) {
       const map = new Map()
@@ -354,6 +399,10 @@ export default {
   text-align: center;
   width: 100%;
   margin-top: 20px;
+}
+
+.gap-2 {
+  gap: 8px;
 }
 
 /* no skeleton styles; progress bars appear only when data is ready */

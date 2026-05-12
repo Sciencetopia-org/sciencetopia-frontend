@@ -6,7 +6,7 @@
         <v-chip v-if="versionText" size="x-small" label color="primary" class="mr-2">{{ versionText }}</v-chip>
       </div>
       <v-chip v-if="activeCohort" class="mr-2" size="small" label>
-        {{ $t('cohortToolbar.yourCohort') }}：{{ activeCohort.title || activeCohort.id }}
+        {{ $t('cohortToolbar.yourCohort') }}：{{ activeCohort.title || $t('cohort.untitledClass') }}
       </v-chip>
       <v-spacer />
 
