@@ -86,6 +86,7 @@ export default {
             response = await apiClient.post(`/resources/${this.resourceId}/complete`, {
               planId,
               lessonId,
+              resourceLink: this.resourceLink,
               source: 'resource-toggle',
               device: 'web',
             })
@@ -93,6 +94,7 @@ export default {
             const params = {}
             if (planId) params.planId = planId
             if (lessonId) params.lessonId = lessonId
+            if (this.resourceLink) params.resourceLink = this.resourceLink
             response = await apiClient.delete(`/resources/${this.resourceId}/complete`, { params })
           }
         } else if (this.allowLegacyLinkFallback && this.resourceLink) {

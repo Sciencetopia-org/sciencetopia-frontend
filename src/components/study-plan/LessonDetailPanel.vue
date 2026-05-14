@@ -48,13 +48,14 @@
           <div class="d-flex align-center mt-1">
             <div class="resource-checkbox-wrap">
               <v-checkbox
-                v-model="resource.learned"
+                :model-value="resource.learned === true"
                 :disabled="!isInteractable || isResourceBusy(resource)"
                 hide-details
                 density="compact"
                 class="resource-status-checkbox"
                 :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
-                @click.stop="toggleResource(resource)"
+                @click.stop
+                @update:model-value="(value) => toggleResource(resource, value)"
                 :label="resource.learned ? $t('lessonDetail.completed') : $t('lessonDetail.notCompleted')"
               />
               <span v-if="isResourceBusy(resource)" class="resource-status-checkbox__spinner">
@@ -84,13 +85,14 @@
             <div class="d-flex align-center mt-1">
               <div class="resource-checkbox-wrap">
                 <v-checkbox
-                  v-model="resource.learned"
+                  :model-value="resource.learned === true"
                   :disabled="!isInteractable || isResourceBusy(resource)"
                   hide-details
                   density="compact"
                   class="resource-status-checkbox"
                   :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
-                  @click.stop="toggleResource(resource)"
+                  @click.stop
+                  @update:model-value="(value) => toggleResource(resource, value)"
                   :label="resource.learned ? $t('lessonDetail.completed') : $t('lessonDetail.notCompleted')"
                 />
                 <span v-if="isResourceBusy(resource)" class="resource-status-checkbox__spinner">
@@ -116,6 +118,7 @@ import { apiClient } from '@/api'
 import TagChips from '@/components/common/TagChips.vue'
 import { isMainlandChina } from '@/utils/region'
 import { filterResourcesForChina, isAccessibleInChina } from '@/utils/resourceFilter'
+import { getResourceId } from '@/utils/resourceProgress'
 
 const lessonDetailCache = new Map()
 const lessonDetailInflight = new Map()
@@ -284,20 +287,23 @@ export default {
         [key]: busy,
       }
     },
-    async toggleResource(resource) {
+    async toggleResource(resource, nextValue) {
       try {
         if (!this.isInteractable || this.isResourceBusy(resource)) return
-        const next = !resource.learned
+        const previous = resource.learned === true
+        const next = nextValue === true
+        if (next === previous) return
         this.setResourceBusy(resource, true)
         // optimistic update
         resource.learned = next
         this.$emit('resource-updated', { completed: next, resource, phase: 'optimistic' })
-        const id = resource.id || resource.resourceId
+        const id = getResourceId(resource)
         if (id) {
           if (next) {
             const resp = await apiClient.post(`/resources/${id}/complete`, {
               planId: this.planId,
               lessonId: this.current?.id,
+              resourceLink: resource.link || resource.url,
               source: 'checkbox',
               device: 'web',
             })
@@ -316,7 +322,7 @@ export default {
               phase: 'confirmed',
             })
           } else {
-            const resp = await apiClient.delete(`/resources/${id}/complete`, { params: { planId: this.planId, lessonId: this.current?.id } })
+            const resp = await apiClient.delete(`/resources/${id}/complete`, { params: { planId: this.planId, lessonId: this.current?.id, resourceLink: resource.link || resource.url } })
             const planProgress = resp?.data?.planProgress
             const lessonProgress = resp?.data?.lessonProgress
             const lessonCompleted = resp?.data?.lessonCompletedCount
@@ -334,7 +340,7 @@ export default {
         } else {
           await apiClient.post('/StudyPlan/LearningLessons/ToggleFinishedLearning', {
             name: this.current?.name,
-            resourceLink: resource.link,
+            link: resource.link || resource.url,
           })
         }
         lessonDetailCache.set(this.getCacheKey(), cloneLessonPayload(this.current))

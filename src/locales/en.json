@@ -204,6 +204,14 @@
     },
     "myProgress": "My progress {percent}%",
     "noPlansYet": "You haven't created any study plans yet",
+    "noInProgressPlans": "You have no study plans in progress",
+    "noCompletedPlans": "You have no completed study plans",
+    "viewInMyPlans": "View in My Study Plans",
+    "filters": {
+      "all": "All",
+      "inProgress": "In Progress",
+      "completed": "Completed"
+    },
     "ai": {
       "plannerTitle": "AI Study Plan Generator",
       "generatingTryLater": "AI is generating a study plan, please try again later.",
@@ -225,7 +233,11 @@
     "sortOptions": {
       "recent": "Recent",
       "created": "Created",
-      "hot": "Hot"
+      "hot": "Hot",
+      "progressDesc": "Progress: High to Low",
+      "progressAsc": "Progress: Low to High",
+      "lastStudiedDesc": "Last Studied",
+      "updatedDesc": "Last Edited"
     },
     "noData": "No data"
   },
@@ -237,7 +249,7 @@
     "noactivity": "No activity yet",
     "join": "Join Class",
     "leave": "Leave Class",
-    "allowShareMetrics": "Share my metrics on leaderboard",
+    "noJoinableClass": "No class available",
     "noPlanGroups": "This study plan has no classes yet. Adopt it into a study group first, then create a class.",
     "avgProgress": "Avg Progress",
     "members": "Members",
@@ -256,6 +268,7 @@
     "rankSecond": "2nd",
     "rankThird": "3rd",
     "positionNotJoined": "Join this class to show your progress here.",
+    "positionEven": "You are right at the class average.",
     "positionAhead": "You are {diff} percentage points ahead of the class average.",
     "positionBehind": "You are {diff} percentage points behind the class average.",
     "nextStepDefault": "Keep working through unfinished resources in this study plan.",

@@ -200,6 +200,14 @@
     "tabs": { "mine": "我的", "shared": "与我共享", "public": "公开" },
     "myProgress": "我的进度 {percent}%",
     "noPlansYet": "你还没有创建学习计划",
+    "noInProgressPlans": "你还没有正在学习的计划",
+    "noCompletedPlans": "你还没有已学完的计划",
+    "viewInMyPlans": "在我的学习计划中查看",
+    "filters": {
+      "all": "全部",
+      "inProgress": "正在学习",
+      "completed": "已学完"
+    },
     "ai": {
       "plannerTitle": "AI 学习计划生成器",
       "generatingTryLater": "AI 正在生成学习计划，请稍后再试",
@@ -221,7 +229,11 @@
     "sortOptions": {
       "recent": "最近学习",
       "created": "创建时间",
-      "hot": "热度"
+      "hot": "热度",
+      "progressDesc": "学习进度最高",
+      "progressAsc": "学习进度最低",
+      "lastStudiedDesc": "最后学习时间",
+      "updatedDesc": "最后编辑时间"
     },
     "noData": "暂无数据"
   },
@@ -233,7 +245,7 @@
     "noactivity": "暂无活动",
     "join": "加入班级",
     "leave": "退出班级",
-    "allowShareMetrics": "允许在排行榜显示我的进度",
+    "noJoinableClass": "暂无可加入班级",
     "noPlanGroups": "这个学习计划还没有开班。可以先采用到学习小组，再创建班级。",
     "avgProgress": "平均进度",
     "members": "成员",
@@ -252,6 +264,7 @@
     "rankSecond": "第2",
     "rankThird": "第3",
     "positionNotJoined": "加入班级后，你的进度会出现在这里。",
+    "positionEven": "你与班级平均进度持平。",
     "positionAhead": "你领先班级平均 {diff} 个百分点。",
     "positionBehind": "你距离班级平均还差 {diff} 个百分点。",
     "nextStepDefault": "继续完成当前学习计划中的未完成资源。",

@@ -190,7 +190,7 @@ export default {
     selectPlan(plan) {
       const planId = plan?.studyPlanId || plan?.studyPlanStableId
       if (!planId) return
-      this.$emit('select', planId)
+      this.$emit('select', planId, plan)
     },
     async fetchList() {
       this.loading = true
@@ -203,7 +203,7 @@ export default {
         }
       } catch (_) {
         this.items = await this.fetchBootstrapPlans()
-      } finally { this.loading = false; this.$emit('loaded') }
+      } finally { this.loading = false; this.$emit('loaded', this.items) }
     },
     async fetchBootstrapPlans() {
       try {

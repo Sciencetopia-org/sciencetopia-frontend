@@ -95,11 +95,12 @@
                   <!-- Checkbox: disable if the user is not the owner -->
                   <div class="resource-checkbox-wrap">
                     <v-checkbox
-                      v-model="resource.learned"
+                      :model-value="resource.learned === true"
                       :disabled="!isOwner || isResourceBusy(resource)"
                       class="resource-status-checkbox"
                       :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
-                      @click.stop="() => markResourceAsLearned(resource, lesson)"
+                      @click.stop
+                      @update:model-value="(value) => markResourceAsLearned(resource, lesson, value)"
                       :label="resource.learned ? '已完成' : '未完成'"
                     >
                     </v-checkbox>
@@ -162,13 +163,12 @@
                       <!-- Checkbox: disable if the user is not the owner -->
                       <div class="resource-checkbox-wrap">
                         <v-checkbox
-                          v-model="resource.learned"
+                          :model-value="resource.learned === true"
                           :disabled="!isOwner || isResourceBusy(resource)"
                           class="resource-status-checkbox"
                           :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
-                          @click.stop="
-                            () => markResourceAsLearned(resource, lesson)
-                          "
+                          @click.stop
+                          @update:model-value="(value) => markResourceAsLearned(resource, lesson, value)"
                           :label="resource.learned ? '已完成' : '未完成'"
                         >
                         </v-checkbox>
@@ -229,13 +229,12 @@
                     <!-- Checkbox: disable if the user is not the owner -->
                     <div class="resource-checkbox-wrap">
                       <v-checkbox
-                        v-model="resource.learned"
+                        :model-value="resource.learned === true"
                         :disabled="!isOwner || isResourceBusy(resource)"
                         class="resource-status-checkbox"
                         :class="{ 'resource-status-checkbox--busy': isResourceBusy(resource) }"
-                        @click.stop="
-                          () => markResourceAsLearned(resource, lesson)
-                        "
+                        @click.stop
+                        @update:model-value="(value) => markResourceAsLearned(resource, lesson, value)"
                         :label="resource.learned ? '已完成' : '未完成'"
                       >
                       </v-checkbox>
@@ -344,12 +343,14 @@ export default {
       return currentKey === keys[0]
     },
 
-    async markResourceAsLearned(resource, lesson) {
+    async markResourceAsLearned(resource, lesson, nextValue) {
       if (this.isResourceBusy(resource)) return
       // Store the initial learned status
-      const wasLearned = resource.learned
+      const wasLearned = resource.learned === true
+      const next = nextValue === true
+      if (next === wasLearned) return
 
-      if (wasLearned) {
+      if (!next) {
         // If trying to unlearn, confirm the action
         const confirmed = confirm(this.$t('studyplan.confirmMarkUnfinished') || 'Are you sure to mark it as not completed?')
         if (!confirmed) {
@@ -363,9 +364,7 @@ export default {
         this.launchConfetti() // Show confetti when marking as learned
       }
 
-      // Update the learned status based on the action
-      // Note: The actual toggling for learning new resources is automatically handled by v-model binding
-      resource.learned = !wasLearned
+      resource.learned = next
       this.setResourceBusy(resource, true)
 
       try {
@@ -374,7 +373,7 @@ export default {
           '/StudyPlan/LearningLessons/ToggleFinishedLearning',
           {
             name: lesson.name,
-            resourceLink: resource.link,
+            link: resource.link,
           }
         )
         // Handle any additional UI updates or state management here

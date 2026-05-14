@@ -4,7 +4,8 @@
       <v-checkbox
         :model-value="completed"
         :disabled="isDisabled"
-        @click.stop="toggle"
+        @click.stop
+        @update:model-value="toggle"
         :aria-label="`完成 ${displayTitle}`"
       />
     </template>
@@ -16,6 +17,7 @@
 
 <script>
 import { apiClient } from '@/api'
+import { getResourceId } from '@/utils/resourceProgress'
 
 export default {
   name: 'ResourceItem',
@@ -37,7 +39,7 @@ export default {
       return this.disabled || this.busy
     },
     id() {
-      return this.resource.id || this.resource.resourceId || null
+      return getResourceId(this.resource)
     },
     link() {
       return this.resource.link || this.resource.url || '#'
@@ -50,9 +52,10 @@ export default {
     },
   },
   methods: {
-    async toggle() {
+    async toggle(nextValue) {
       if (this.busy) return
-      const next = !this.localCompleted
+      const next = nextValue === true
+      if (next === this.localCompleted) return
       // optimistic update
       this.localCompleted = next
       this.busy = true
@@ -63,19 +66,20 @@ export default {
             await apiClient.post(`/resources/${this.id}/complete`, {
               planId: this.planId,
               lessonId: this.lessonId,
+              resourceLink: this.link,
               source: 'checkbox',
               device: 'web',
             })
           } else {
             await apiClient.delete(`/resources/${this.id}/complete`, {
-              params: { planId: this.planId },
+              params: { planId: this.planId, lessonId: this.lessonId, resourceLink: this.link },
             })
           }
         } else {
           // fallback legacy link-based toggle if no id is available
           await apiClient.post('/StudyPlan/LearningLessons/ToggleFinishedLearning', {
             name: this.lessonName || undefined,
-            resourceLink: this.link,
+            link: this.link,
           })
         }
       } catch (e) {

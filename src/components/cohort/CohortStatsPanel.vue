@@ -21,43 +21,44 @@
       />
     </div>
 
-    <div v-if="loadingCohorts" class="mt-3">
-      <v-skeleton-loader type="heading, list-item-two-line, list-item-two-line" />
-    </div>
-    <v-alert v-else-if="!cohorts.length" type="info" variant="tonal" class="mt-3">
-      {{ $t('cohort.noPlanGroups') }}
-    </v-alert>
-    <template v-else>
-      <v-alert v-if="hasNewVersion" type="warning" variant="tonal" class="mt-3">
-        <div class="d-flex align-center">
-          <span>{{ $t('cohort.hasNewVersion') }}</span>
-          <v-spacer />
-          <v-btn
-            v-if="!isGroupScoped"
-            size="small"
-            color="primary"
-            :loading="upgradeBusy"
-            :disabled="actionLocked"
-            @click="upgradeVersion"
-          >{{ $t('cohort.upgrade') }}</v-btn>
-          <v-btn
-            v-else
-            size="small"
-            variant="text"
-            color="primary"
-            :disabled="actionLocked"
-            @click="$router.push({ name: 'studyGroupPage', params: { groupId: activeCohort.studyGroupId } })"
-          >
-            {{ $t('cohort.gotoGroupManage') }}
-          </v-btn>
-        </div>
-      </v-alert>
-
-      <div v-if="loadingDashboard" class="mt-4">
-        <v-skeleton-loader type="card, list-item-two-line, list-item, list-item, list-item" />
+    <div class="stats-content">
+      <div v-if="loadingCohorts" class="mt-3">
+        <v-skeleton-loader type="heading, list-item-two-line, list-item-two-line" />
       </div>
+      <v-alert v-else-if="!cohorts.length" type="info" variant="tonal" class="mt-3">
+        {{ $t('cohort.noPlanGroups') }}
+      </v-alert>
       <template v-else>
-        <div class="summary-grid mt-4">
+        <v-alert v-if="hasNewVersion" type="warning" variant="tonal" class="mt-3">
+          <div class="d-flex align-center">
+            <span>{{ $t('cohort.hasNewVersion') }}</span>
+            <v-spacer />
+            <v-btn
+              v-if="!isGroupScoped"
+              size="small"
+              color="primary"
+              :loading="upgradeBusy"
+              :disabled="actionLocked"
+              @click="upgradeVersion"
+            >{{ $t('cohort.upgrade') }}</v-btn>
+            <v-btn
+              v-else
+              size="small"
+              variant="text"
+              color="primary"
+              :disabled="actionLocked"
+              @click="$router.push({ name: 'studyGroupPage', params: { groupId: activeCohort.studyGroupId } })"
+            >
+              {{ $t('cohort.gotoGroupManage') }}
+            </v-btn>
+          </div>
+        </v-alert>
+
+        <div v-if="loadingDashboard" class="mt-4">
+          <v-skeleton-loader type="card, list-item-two-line, list-item, list-item, list-item" />
+        </div>
+        <template v-else>
+          <div class="summary-grid mt-4">
           <div class="summary-tile">
             <span>{{ $t('cohort.avgProgress') }}</span>
             <strong>{{ formatPct(summary?.avgProgress) }}</strong>
@@ -89,14 +90,6 @@
               <div class="text-caption text-medium-emphasis mt-1">{{ nextStepText }}</div>
             </div>
             <v-spacer />
-            <v-switch
-              v-model="shareMetrics"
-              inset
-              hide-details
-              density="compact"
-              :disabled="actionLocked || !selectedCohortId"
-              :label="$t('cohort.allowShareMetrics')"
-            />
             <v-btn
               size="small"
               color="primary"
@@ -193,9 +186,10 @@
             </v-list>
             <v-alert v-else type="info" variant="tonal" density="comfortable">{{ $t('cohort.noLessonStats') }}</v-alert>
           </v-card>
-        </div>
+          </div>
+        </template>
       </template>
-    </template>
+    </div>
 
     <v-snackbar v-model="errorSnack" timeout="2500">{{ errorText }}</v-snackbar>
   </div>
@@ -219,7 +213,6 @@ export default {
       loadingCohorts: false,
       loadingDashboard: false,
       enrollBusy: false,
-      shareMetrics: true,
       upgradeBusy: false,
       errorSnack: false,
       errorText: '',
@@ -274,7 +267,8 @@ export default {
       const avg = this.normalizePct(this.summary?.avgProgress)
       const mine = this.normalizePct(this.me?.progress)
       const diff = Math.round(mine - avg)
-      if (diff >= 0) return this.$t('cohort.positionAhead', { diff })
+      if (diff === 0) return this.$t('cohort.positionEven')
+      if (diff > 0) return this.$t('cohort.positionAhead', { diff })
       return this.$t('cohort.positionBehind', { diff: Math.abs(diff) })
     },
     nextStepText() {
@@ -349,7 +343,6 @@ export default {
         })
         this.dashboard = res.data || null
         if (this.dashboard?.cohort) this.$store.commit('UPSERT_COHORT', this.dashboard.cohort)
-        this.shareMetrics = this.dashboard?.me?.shareMetrics !== false
       } catch (e) {
         await this.fetchDashboardFallback()
       } finally {
@@ -369,7 +362,7 @@ export default {
         this.dashboard = {
           cohort: this.activeCohort,
           summary: summaryRes.data || { avgProgress: 0, memberCount: 0 },
-          me: { isEnrolled: false, progress: 0, rank: null, shareMetrics: true },
+          me: { isEnrolled: false, progress: 0, rank: null },
           leaderboard,
           lessons: Array.isArray(lessonsRes.data) ? lessonsRes.data : [],
         }
@@ -385,7 +378,6 @@ export default {
       this.enrollBusy = true
       try {
         await apiClient.post(`/cohorts/${this.selectedCohortId}/enroll`, {
-          shareMetrics: this.shareMetrics,
           role: 'member',
         })
         await this.fetchDashboard()
@@ -439,12 +431,29 @@ export default {
 <style scoped>
 .cohort-stats {
   background-color: transparent;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .stats-toolbar,
 .section-header,
 .position-row {
   display: flex;
   align-items: center;
+}
+.stats-toolbar {
+  flex: 0 0 auto;
+  gap: 12px;
+}
+.stats-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  padding-bottom: 4px;
 }
 .cohort-select {
   max-width: 280px;
@@ -475,10 +484,32 @@ export default {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
+  align-items: stretch;
+  min-height: 0;
 }
 .section-card {
   padding: 12px;
   border-radius: 8px;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.section-card :deep(.v-list) {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: min(38vh, 420px);
+  padding: 2px 0;
+}
+.section-card :deep(.v-list-item) {
+  min-height: 48px;
+}
+.section-header {
+  flex: 0 0 auto;
+  gap: 8px;
+  min-height: 34px;
+  margin-bottom: 4px;
 }
 .top-select {
   max-width: 120px;
@@ -535,6 +566,9 @@ export default {
   }
   .cohort-select {
     max-width: none;
+  }
+  .section-card :deep(.v-list) {
+    max-height: 320px;
   }
 }
 </style>

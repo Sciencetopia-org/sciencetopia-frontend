@@ -81,10 +81,15 @@ export function roleAllowsComment(role) {
   return role === 'Owner' || role === 'Editor' || role === 'Commenter' || role === 'Admin' || role === 'Member'
 }
 
+export function roleAllowsProgress(role) {
+  return role === 'Owner' || role === 'Editor' || role === 'Commenter' || role === 'Viewer' || role === 'Admin' || role === 'Member'
+}
+
 export default {
   fetchEffectiveRole,
   getRole,
   invalidateRole,
   roleAllowsEdit,
   roleAllowsComment,
+  roleAllowsProgress,
 }

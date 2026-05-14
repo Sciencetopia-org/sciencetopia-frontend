@@ -24,23 +24,51 @@
               <h2 class="plan-title mr-2">{{ plan.title }}</h2>
               <TagChips v-if="planTags.length" :items="planTags" />
             </div>
-            <div class="d-flex align-center flex-wrap justify-end gap-2">
-              <v-chip v-if="roleLabel" size="x-small" label color="blue-grey-lighten-4">
-                Plan: {{ roleLabel }}
-              </v-chip>
-              <v-skeleton-loader v-if="permissionLoading" type="chip" width="120" />
-              <v-chip
-                v-else-if="permissionLoaded"
-                size="x-small"
-                label
-                :color="canAdoptComputed ? 'success' : 'grey'"
-                variant="tonal"
-              >
-                {{ cohortAdoptionLabel }}
-              </v-chip>
-              <v-chip v-if="myProgress !== null" size="x-small" label class="mr-2" color="primary">{{
-                $t('studyplan.myProgress', { percent: (typeof myProgress === 'number' ? myProgress.toFixed(2) : myProgress) }) }}</v-chip>
-              <template v-if="allowEditControls">
+            <div class="plan-header-actions d-flex align-center flex-wrap justify-end gap-2">
+              <template v-if="headerMode === 'groupShared'">
+                <v-btn
+                  v-if="groupPlanActionState.isEnrolled"
+                  size="small"
+                  color="primary"
+                  variant="flat"
+                  prepend-icon="mdi-book-open-page-variant-outline"
+                  :loading="groupPlanActionState.loading"
+                  :disabled="groupPlanActionState.loading"
+                  @click="$emit('open-my-plan')"
+                >
+                  {{ $t('studyplan.viewInMyPlans') }}
+                </v-btn>
+                <v-btn
+                  v-else
+                  size="small"
+                  color="primary"
+                  variant="flat"
+                  prepend-icon="mdi-account-plus-outline"
+                  :loading="groupPlanActionState.loading"
+                  :disabled="groupPlanActionState.loading || groupPlanActionState.disabled"
+                  @click="$emit('enroll-cohort')"
+                >
+                  {{ groupPlanActionState.disabled ? $t('cohort.noJoinableClass') : $t('cohort.join') }}
+                </v-btn>
+              </template>
+              <template v-else>
+                <v-chip v-if="roleLabel" size="x-small" label color="blue-grey-lighten-4">
+                  Plan: {{ roleLabel }}
+                </v-chip>
+                <v-skeleton-loader v-if="permissionLoading" type="chip" width="120" />
+                <v-chip
+                  v-else-if="permissionLoaded"
+                  size="x-small"
+                  label
+                  :color="canAdoptComputed ? 'success' : 'grey'"
+                  variant="tonal"
+                >
+                  {{ cohortAdoptionLabel }}
+                </v-chip>
+                <v-chip v-if="myProgress !== null" size="x-small" label class="mr-2" color="primary">{{
+                  $t('studyplan.myProgress', { percent: (typeof myProgress === 'number' ? myProgress.toFixed(2) : myProgress) }) }}</v-chip>
+              </template>
+              <template v-if="allowEditControls && headerMode !== 'groupShared'">
                 <v-btn
                   v-if="canAdoptComputed || canEditComputed"
                   class="mr-1"
@@ -55,7 +83,7 @@
                   :disabled="permissionLoading || !permissionLoaded"
                   :aria-label="`${$t('edit')} ${plan.title}`" />
               </template>
-              <v-btn size="small" color="primary" class="ml-2" :disabled="permissionLoading" @click="$emit('open-progress')">
+              <v-btn v-if="headerMode !== 'groupShared'" size="small" color="primary" class="ml-2" :disabled="permissionLoading" @click="$emit('open-progress')">
                 {{ $t('cohort.viewStats') }}
               </v-btn>
             </div>
@@ -124,8 +152,13 @@ export default {
     planId: { type: [String, Number], required: true },
     scope: { type: Object, default: () => ({ type: 'me' }) },
     allowEditControls: { type: Boolean, default: true },
+    headerMode: { type: String, default: 'default' },
+    groupPlanActionState: {
+      type: Object,
+      default: () => ({ isEnrolled: false, loading: false, disabled: true }),
+    },
   },
-  emits: ['select-lesson', 'open-share', 'updated-plan', 'open-progress', 'loaded'],
+  emits: ['select-lesson', 'open-share', 'updated-plan', 'open-progress', 'loaded', 'enroll-cohort', 'open-my-plan'],
   data() {
     return {
       loading: false,
@@ -403,6 +436,10 @@ export default {
 
 .gap-2 {
   gap: 8px;
+}
+
+.plan-header-actions {
+  min-height: 32px;
 }
 
 /* no skeleton styles; progress bars appear only when data is ready */

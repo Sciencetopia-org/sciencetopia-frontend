@@ -34,7 +34,27 @@
             />
             <v-select v-model="sort" :items="sortItems" :label="$t('common.sort')" density="compact" hide-details
               :disabled="listLoading || detailLoading"
-              style="max-width: 200px" @update:model-value="fetchPlans" />
+              style="max-width: 200px" @update:model-value="onListControlsChanged" />
+          </div>
+          <div class="px-3 pb-2">
+            <v-btn-toggle
+              v-model="progressStatus"
+              mandatory
+              density="compact"
+              class="plan-progress-filter"
+              :disabled="listLoading || detailLoading"
+              @update:model-value="onListControlsChanged"
+            >
+              <v-btn value="all" size="small" prepend-icon="mdi-view-grid-outline">
+                {{ $t('studyplan.filters.all') }}
+              </v-btn>
+              <v-btn value="inProgress" size="small" prepend-icon="mdi-play-circle-outline">
+                {{ $t('studyplan.filters.inProgress') }}
+              </v-btn>
+              <v-btn value="completed" size="small" prepend-icon="mdi-check-circle-outline">
+                {{ $t('studyplan.filters.completed') }}
+              </v-btn>
+            </v-btn-toggle>
           </div>
           <!-- <v-divider /> -->
           <template v-if="listLoading">
@@ -80,7 +100,7 @@
             </v-list>
           </template>
           <div v-else class="empty-plan-list text-center px-4">
-            <p class="mb-4">{{ $t('studyplan.noPlansYet') }}</p>
+            <p class="mb-4">{{ $t(emptyPlanMessageKey) }}</p>
             <v-btn block class="mb-2" color="primary" @click="openCreateDialog" :disabled="backgroundGenerating || listLoading || detailLoading">
               {{ $t('studyplan.create') }}
             </v-btn>
@@ -115,8 +135,8 @@
             :lesson="currentLesson"
             :lessonId="currentLessonId"
             :scope="scope"
-            :canInteract="canCommentOrProgress(currentPlan?.id)"
-            :disabled="!canCommentOrProgress(currentPlan?.id)"
+            :canInteract="canProgressOnCurrentPlan"
+            :disabled="!canProgressOnCurrentPlan"
             @resource-updated="onResourceUpdated"
           />
         </v-col>
@@ -189,7 +209,7 @@ import ShareStudyPlanDialog from '@/components/study-plan/ShareStudyPlanDialog.v
 import EditStudyPlanForm from '@/components/study-plan/EditStudyPlanForm.vue'
 import { eventBus } from '@/eventBus'
 import { connection } from '@/services/signalr-service'
-import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit, roleAllowsComment } from '@/services/studyplan-permissions'
+import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit, roleAllowsProgress } from '@/services/studyplan-permissions'
 import confetti from 'canvas-confetti'
 
 export default {
@@ -218,7 +238,8 @@ export default {
       page: 1,
       pageSize: 20,
       q: null,
-      sort: null,
+      sort: 'lastStudiedDesc',
+      progressStatus: 'all',
       listScope: 'mine',
       // my progress now handled in PlanDetailPanel
       roleMap: {},
@@ -234,14 +255,23 @@ export default {
     listActionLocked() {
       return this.listLoading || this.detailLoading || this.backgroundGenerating
     },
+    canProgressOnCurrentPlan() {
+      return !!this.currentPlan?.id && !this.listLoading
+    },
+    emptyPlanMessageKey() {
+      if (this.progressStatus === 'inProgress') return 'studyplan.noInProgressPlans'
+      if (this.progressStatus === 'completed') return 'studyplan.noCompletedPlans'
+      return 'studyplan.noPlansYet'
+    },
     backgroundGenerating() {
       return this.$store.state.backgroundGenerating
     },
     sortItems() {
       return [
-        { title: this.$t('common.sortOptions.recent'), value: 'recent' },
-        { title: this.$t('common.sortOptions.created'), value: 'created' },
-        { title: this.$t('common.sortOptions.hot'), value: 'hot' },
+        { title: this.$t('common.sortOptions.progressDesc'), value: 'progressDesc' },
+        { title: this.$t('common.sortOptions.progressAsc'), value: 'progressAsc' },
+        { title: this.$t('common.sortOptions.lastStudiedDesc'), value: 'lastStudiedDesc' },
+        { title: this.$t('common.sortOptions.updatedDesc'), value: 'updatedDesc' },
       ]
     },
   },
@@ -313,6 +343,7 @@ export default {
             q: this.q,
             sort: this.sort,
             scope: this.listScope,
+            progressStatus: this.progressStatus,
             targetUserId:
               this.$store.state.currentUserID || this.$store.state.userInfo?.id,
           },
@@ -327,6 +358,8 @@ export default {
           const isCurrent = item.isCurrent ?? item.IsCurrent ?? (versionNumber === currentVersionNumber)
           const hasUpgrade = item.hasUpgrade ?? item.HasUpgrade ?? (!isCurrent && versionNumber < latestVersionNumber)
           const description = item.description ?? item.Description ?? ''
+          const lastStudiedAt = item.lastStudiedAt ?? item.LastStudiedAt ?? null
+          const updatedAt = item.updatedAt ?? item.UpdatedAt ?? null
 
           return {
             studyPlan: {
@@ -340,6 +373,8 @@ export default {
               status: item.status || item.Status || (isCurrent ? 'Current' : 'Archived'),
               title: item.title || item.Title,
               introduction: description ? { description } : null,
+              updatedAt,
+              lastStudiedAt,
               progress: typeof item.progress === 'number'
                 ? (item.progress <= 1 ? item.progress * 100 : item.progress)
                 : undefined,
@@ -365,6 +400,10 @@ export default {
       } finally {
         this.listLoading = false
       }
+    },
+    onListControlsChanged() {
+      this.page = 1
+      this.fetchPlans()
     },
     async refreshPlanProgress(planId, { silent } = { silent: false }) {
       // Preferred: use backend endpoint; Fallback: local compute if unavailable
@@ -500,7 +539,7 @@ export default {
       return roleAllowsEdit(this.getRole(planId))
     },
     canCommentOrProgress(planId) {
-      return roleAllowsComment(this.getRole(planId))
+      return roleAllowsProgress(this.getRole(planId))
     },
     async selectPlan(plan) {
       if (this.listActionLocked || !plan?.id) return
@@ -692,27 +731,6 @@ export default {
       if (this.detailLoading || !this.currentPlan?.id) return
       this.shareDialog = true
     },
-    async markResourceAsLearned(resource, lesson) {
-      const wasLearned = resource.learned
-      resource.learned = !wasLearned
-      try {
-        await apiClient.post(
-          '/StudyPlan/LearningLessons/ToggleFinishedLearning',
-          {
-            name: lesson.name,
-            resourceLink: resource.link,
-          }
-        )
-        this.$store.commit('SET_LEARNING_STATUS', {
-          lessonName: lesson.name,
-          resourceLink: resource.link,
-          learned: resource.learned,
-        })
-      } catch (e) {
-        console.error('Error updating resource learned status:', e)
-        resource.learned = wasLearned
-      }
-    },
     onResourceUpdated({ completed, resource, planProgress, lessonProgress, phase }) {
       // keep local model in sync
       resource.learned = completed
@@ -735,7 +753,10 @@ export default {
       if (typeof planProgress === 'number') {
         if (panel) panel.myProgress = Math.round((planProgress <= 1 ? planProgress * 100 : planProgress) * 100) / 100
         const idx = this.studyPlans.findIndex(sp => String(sp?.studyPlan?.id) === String(planId))
-        if (idx >= 0) this.studyPlans[idx].studyPlan.progress = Math.round((planProgress <= 1 ? planProgress * 100 : planProgress))
+        if (idx >= 0) {
+          this.studyPlans[idx].studyPlan.progress = Math.round((planProgress <= 1 ? planProgress * 100 : planProgress))
+          if (completed) this.studyPlans[idx].studyPlan.lastStudiedAt = new Date().toISOString()
+        }
       } else if (panel && typeof panel.fetchMyProgress === 'function') {
         panel.fetchMyProgress()
       }
@@ -818,6 +839,42 @@ export default {
 }
 
 .empty-plan-list { margin-top: 40px; }
+
+.plan-progress-filter {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(48, 78, 117, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.plan-progress-filter :deep(.v-btn) {
+  min-width: 0;
+  height: 32px;
+  border-radius: 6px !important;
+  color: rgba(48, 78, 117, 0.78);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.plan-progress-filter :deep(.v-btn__content) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plan-progress-filter :deep(.v-btn--active) {
+  background: #304e75;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(48, 78, 117, 0.22);
+}
+
+.plan-progress-filter :deep(.v-btn--disabled) {
+  opacity: 0.72;
+}
 
 /* Center panel header for the selected plan */
 .plan-header {
