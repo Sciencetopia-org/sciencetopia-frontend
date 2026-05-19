@@ -1,5 +1,4 @@
 <template>
-  <GlobalLoader />
   <v-container>
     <div class="group-nav-bar">
       <div class="nav-items">
@@ -31,8 +30,8 @@
 
           <!-- 纵向列表建议 -->
           <ul v-if="showSuggestions" class="search-suggestions">
-            <li v-for="s in suggestions" :key="s.id" class="suggestion-item" @click="selectSuggestion(s.name)">
-              {{ s.name }}
+            <li v-for="s in suggestions" :key="`${s.type}-${s.id || s.value}`" class="suggestion-item" @click="selectSuggestion(s.value)">
+              {{ s.value }}
             </li>
           </ul>
         </div>
@@ -66,36 +65,13 @@
 
     <div v-else ref="masonryContainer" class="masonry-container">
       <div v-for="group in filteredGroups" :key="group.id" class="masonry-item">
-        <!-- 下面保持不变 -->
-        <v-card class="st-card">
-          <v-img class="group-image" @click="toGroupPage(group.id)" :src="resolveGroupImage(group.imageUrl)" aspect-ratio="16/9" cover />
-          <v-card-title>
-            <button @click="toGroupPage(group.id)" class="group-name">
-              {{ group.name }}
-            </button>
-          </v-card-title>
-          <v-card-text class="group-description">
-            {{ stripHtml(group.description) }}
-          </v-card-text>
-          <v-card-text class="group-members">
-            {{ $t('studygroup.groupmember') }}{{ $t(':') }}
-            <div class="member-list">
-              <v-btn v-for="member in group.members" :key="member.id" icon class="default-avatar"
-                @click="navigateToProfile(member.id)" size="38">
-                <v-avatar size="36">
-                  <img :src="member.avatarUrl" :alt="$t('user.useravatar')" />
-                </v-avatar>
-              </v-btn>
-            </div>
-          </v-card-text>
-          <v-card-actions>
-            <v-btn v-if="group.isMember" color="primary" text disabled>{{ $t('studygroup.joined') }}</v-btn>
-            <template v-else>
-              <v-btn color="primary" text @click="applyToJoin(group.id)">{{ $t('studygroup.applytojoin') }}</v-btn>
-              <v-btn color="primary" text @click="follow(group.id)">{{ $t('studygroup.follow') }}</v-btn>
-          </template>
-          </v-card-actions>
-        </v-card>
+        <StudyGroupCard
+          :group="group"
+          action-mode="join"
+          @open="toGroupPage"
+          @apply="applyToJoin"
+          @profile="navigateToProfile"
+        />
       </div>
       <div ref="infiniteSentinel" style="height: 1px;"></div>
       <div v-if="loadingMore" class="infinite-loading"><LoadingSpinner /></div>
@@ -103,20 +79,16 @@
   </v-container>
 </template>
 <script>
-import { useGlobalLoading } from '@/components/ui/GlobalLoader.vue'
 import { mapActions } from 'vuex'
 import { apiClient } from '@/api'
 import Masonry from 'masonry-layout'
 import imagesLoaded from 'imagesloaded'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+import StudyGroupCard from '@/components/StudyGroup/StudyGroupCard.vue'
 
 export default {
   name: 'StudyGroupList',
-  components: { LoadingSpinner },
-  setup() {
-    const { isLoading, showLoading, hideLoading } = useGlobalLoading()
-    return { isLoading, showLoading, hideLoading }
-  },
+  components: { LoadingSpinner, StudyGroupCard },
   data() {
     return {
       groups: [],
@@ -131,6 +103,10 @@ export default {
       pageSize: 20,
       hasMore: true,
       loadingMore: false,
+      requestId: null,
+      suggestionsList: [],
+      suggestionTimer: null,
+      memberPreviewLoadingIds: new Set(),
     }
   },
   computed: {
@@ -138,22 +114,15 @@ export default {
       return [
         { label: this.$t('studygroup.list.nav.recommend'), value: 'recommend' },
         { label: this.$t('studygroup.list.nav.joined'), value: 'joined' },
-        { label: this.$t('studygroup.list.nav.follow'), value: 'follow' },
         { label: this.$t('studygroup.list.nav.popular'), value: 'popular' },
-        { label: this.$t('studygroup.list.nav.coding'), value: 'coding' },
-        { label: this.$t('studygroup.list.nav.philosophy'), value: 'philosophy' },
-        { label: this.$t('studygroup.list.nav.more'), value: 'more' },
+        { label: this.$t('studygroup.list.nav.latest'), value: 'latest' },
       ]
     },
     filteredGroups() {
-      if (!this.searchTerm) return this.groups
-      const query = this.searchTerm.toLowerCase()
-      return this.groups.filter((g) => g.name.toLowerCase().includes(query))
+      return this.groups
     },
     suggestions() {
-      if (!this.searchQuery) return []
-      const query = this.searchQuery.toLowerCase()
-      return this.groups.filter((g) => g.name.toLowerCase().includes(query))
+      return this.suggestionsList
     },
     hasQuery() {
       return !!this.searchQuery?.length
@@ -161,44 +130,47 @@ export default {
   },
   methods: {
     ...mapActions(['goToProfile']),
-    resolveGroupImage(imageUrl) {
-      if (!imageUrl) return require('@/assets/images/default_study_group.png')
-      const src = String(imageUrl).trim()
-      if (/^(https?:)?\/\//i.test(src) || src.startsWith('data:image/')) return src
-      try {
-        return require(`@/assets/images/${src}`)
-      } catch (_) {
-        return require('@/assets/images/default_study_group.png')
-      }
-    },
-    stripHtml(html) {
-      try { return (require('@/utils/text.js').stripHtml)(html) } catch (_) {
-        try {
-          const div = document.createElement('div')
-          div.innerHTML = String(html || '')
-          return (div.textContent || div.innerText || '').trim()
-        } catch { return String(html || '') }
-      }
-    },
-
     setActiveNav(value) {
       this.activeNav = value
+      this.searchTerm = ''
+      this.searchQuery = ''
+      this.showSuggestions = false
+      this.fetchGroups(true)
     },
     onSearchInput() {
       this.showSuggestions = !!this.searchQuery
+      clearTimeout(this.suggestionTimer)
+      const q = this.searchQuery.trim()
+      if (!q) {
+        this.suggestionsList = []
+        return
+      }
+      this.suggestionTimer = setTimeout(() => this.fetchSuggestions(q), 220)
     },
     performSearch() {
       this.searchTerm = this.searchQuery.trim()
       this.showSuggestions = false
+      this.fetchGroups(true)
     },
     clearSearch() {
       this.searchQuery = ''
       this.searchTerm = ''
       this.showSuggestions = false
+      this.suggestionsList = []
+      this.fetchGroups(true)
     },
-    selectSuggestion(name) {
-      this.searchQuery = name
+    selectSuggestion(value) {
+      this.searchQuery = value
       this.performSearch()
+    },
+    async fetchSuggestions(q) {
+      try {
+        const res = await apiClient.get('/StudyGroup/SearchSuggestions', { params: { q, limit: 8 } })
+        this.suggestionsList = Array.isArray(res?.data?.items) ? res.data.items : []
+        this.showSuggestions = this.suggestionsList.length > 0
+      } catch (_) {
+        this.suggestionsList = []
+      }
     },
 
     initMasonry() {
@@ -224,24 +196,41 @@ export default {
 
     async fetchGroups(reset = false) {
       try {
-        if (reset) { this.page = 1; this.hasMore = true; this.groups = [] }
+        if (reset) { this.page = 1; this.hasMore = true; this.groups = []; this.memberPreviewLoadingIds.clear() }
         const isFirst = this.page === 1
         if (isFirst) this.loadingGroups = true; else this.loadingMore = true
-        const res = await apiClient.get('/StudyGroup/List', { params: { page: this.page, pageSize: this.pageSize } })
-        const list = Array.isArray(res?.data) ? res.data : res?.data?.items || []
-        const mapped = list.map(g => ({
-          id: g.id,
-          name: g.name,
-          description: g.description,
-          imageUrl: g.imageUrl || g.imageurl || null,
-          members: g.members || g.memberIds || [],
-          isMember: !!g.isMember,
-        }))
+        const res = this.activeNav === 'joined'
+          ? await apiClient.get('/StudyGroup/GetStudyGroup')
+          : await apiClient.get('/StudyGroup/Recommendations', { params: this.recommendationParams() })
+        const data = res?.data || {}
+        let list = this.activeNav === 'joined'
+          ? (Array.isArray(data) ? data : [])
+          : (Array.isArray(data.items) ? data.items : [])
+        if (this.activeNav !== 'joined') this.requestId = data.requestId || null
+        if (this.activeNav !== 'joined' && !this.searchTerm && isFirst && list.length === 0) {
+          const fallback = await apiClient.get('/StudyGroup/List', { params: { page: this.page, pageSize: this.pageSize } })
+          list = Array.isArray(fallback?.data) ? fallback.data : []
+          this.requestId = null
+        }
+        const mapped = list.map(g => this.mapGroup(g))
         this.groups = [...this.groups, ...mapped]
+        this.hydrateMissingMemberPreviews(mapped)
         if (list.length < this.pageSize) this.hasMore = false; else this.page += 1
       } catch (e) {
-        // keep already loaded groups in case of paging errors
         console.warn('fetchGroups failed', e)
+        if (this.activeNav !== 'joined' && !this.searchTerm && this.page === 1) {
+          try {
+            const fallback = await apiClient.get('/StudyGroup/List', { params: { page: 1, pageSize: this.pageSize } })
+            const list = Array.isArray(fallback?.data) ? fallback.data : []
+            this.groups = list.map(g => this.mapGroup(g))
+            this.hydrateMissingMemberPreviews(this.groups)
+            this.hasMore = list.length >= this.pageSize
+            if (this.hasMore) this.page = 2
+            return
+          } catch (_) {
+            // keep already loaded groups in case of paging errors
+          }
+        }
         if (reset) this.groups = []
         this.hasMore = false
       } finally {
@@ -250,6 +239,76 @@ export default {
       }
       // ensure masonry initializes after DOM updates
       this.$nextTick(() => this.initMasonry())
+    },
+    recommendationParams() {
+      const sortMode = {
+        recommend: 'personalized',
+        popular: 'popular',
+        latest: 'latest',
+      }[this.activeNav] || 'personalized'
+      return {
+        page: this.page,
+        pageSize: this.pageSize,
+        scene: this.searchTerm ? 'search' : 'discover',
+        sortMode: this.searchTerm ? 'relevance' : sortMode,
+        q: this.searchTerm || undefined,
+        excludeJoined: false,
+      }
+    },
+    normalizeMembers(members) {
+      return Array.isArray(members)
+        ? members.map(member => ({
+            id: member?.id || member?.Id || '',
+            userName: member?.userName || member?.UserName || member?.name || member?.Name || '',
+            avatarUrl: member?.avatarUrl || member?.AvatarUrl || '',
+            role: member?.role || member?.Role || '',
+          })).filter(member => member.id || member.userName || member.avatarUrl)
+        : []
+    },
+    mapGroup(g) {
+      const tags = Array.isArray(g.tags)
+        ? g.tags.map(t => ({ id: t.id || t.Id, name: t.name || t.Name || '' })).filter(t => t.name)
+        : []
+      const reasons = g.recommendation?.reasons || g.Recommendation?.Reasons || []
+      const members = g.members || g.Members || g.memberIds || g.MemberIds || []
+      return {
+        id: g.id || g.Id,
+        name: g.name || g.Name || '',
+        description: g.description || g.Description || '',
+        imageUrl: g.imageUrl || g.ImageUrl || g.imageurl || null,
+        members: this.normalizeMembers(members),
+        memberCount: typeof g.memberCount === 'number' ? g.memberCount : undefined,
+        isMember: !!(g.isMember || g.IsMember || this.activeNav === 'joined'),
+        hasApplied: !!(g.hasApplied || g.HasApplied),
+        tags,
+        recommendationReason: reasons[0]?.text || reasons[0]?.Text || '',
+      }
+    },
+    async hydrateMissingMemberPreviews(groups) {
+      const targets = groups
+        .filter(group => group?.id && (!Array.isArray(group.members) || group.members.length === 0))
+        .filter(group => !this.memberPreviewLoadingIds.has(String(group.id)))
+
+      if (targets.length === 0) return
+
+      await Promise.all(targets.map(async (group) => {
+        const groupId = String(group.id)
+        this.memberPreviewLoadingIds.add(groupId)
+        try {
+          const res = await apiClient.get(`/StudyGroup/Bootstrap/${groupId}`)
+          const previewGroup = res?.data?.group || res?.data?.Group || res?.data || {}
+          const members = this.normalizeMembers(previewGroup.memberIds || previewGroup.MemberIds || previewGroup.members || previewGroup.Members)
+          if (members.length === 0) return
+          this.groups = this.groups.map(existing => String(existing.id) === groupId ? { ...existing, members } : existing)
+        } catch (_) {
+          // Keep the card visible; member avatars are an enhancement for recommendation results.
+        } finally {
+          this.memberPreviewLoadingIds.delete(groupId)
+          this.$nextTick(() => {
+            if (this.masonryInstance) this.masonryInstance.layout()
+          })
+        }
+      }))
     },
     setupInfiniteScroll() {
       const sentinel = this.$refs.infiniteSentinel
@@ -285,13 +344,19 @@ export default {
     async applyToJoin(groupId) {
       try {
         await apiClient.post('/StudyGroup/ApplyToJoin', { studyGroupId: String(groupId) })
+        this.groups = this.groups.map(g => String(g.id) === String(groupId) ? { ...g, hasApplied: true } : g)
+        if (this.requestId) {
+          apiClient.post('/StudyGroup/RecommendationFeedback', {
+            requestId: this.requestId,
+            groupId,
+            action: 'apply_join',
+            scene: this.searchTerm ? 'search' : 'discover',
+          }).catch(() => {})
+        }
         this.$toast?.success?.('Application submitted.')
       } catch (_) {
         this.$toast?.error?.(this.$t('operationfailed'))
       }
-    },
-    follow() {
-      this.$toast?.info?.('Follow is not available yet.')
     },
     async navigateToProfile(userId) {
       this.goToProfile({ userId, router: this.$router })
@@ -313,12 +378,11 @@ export default {
   beforeUnmount() {
     if (this.masonryInstance) this.masonryInstance.destroy()
     try { this._io && this._io.disconnect() } catch (_) {}
+    clearTimeout(this.suggestionTimer)
   },
 }
 </script>
 <style scoped>
-@import '../../assets/css/avatar.css';
-
 /* Top navigation bar */
 .group-nav-bar {
   display: flex;
@@ -483,41 +547,6 @@ export default {
 :host,
 .v-container {
   overflow: visible;
-}
-
-.group-image {
-  border-radius: 4px 4px 0 0;
-  margin-bottom: 8px;
-  cursor: pointer;
-}
-
-.group-name {
-  font-weight: bold;
-  font-size: 1.2rem;
-  color: #1c2b42;
-  text-align: left;
-  margin: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-
-.group-name:hover {
-  color: #304e75;
-}
-
-.group-description {
-  font-size: 0.9rem;
-  color: #304e75;
-}
-
-.group-members {
-  color: #4a4a4a;
-}
-
-.member-list {
-  display: flex;
-  gap: 5px;
 }
 
 .create-group-btn {

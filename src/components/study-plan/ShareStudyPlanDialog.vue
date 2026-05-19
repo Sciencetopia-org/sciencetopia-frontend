@@ -1,6 +1,6 @@
 <template>
   <v-dialog v-model="internal" max-width="720" persistent>
-    <v-card rounded="xl">
+    <v-card class="sc-dialog-card" rounded="xl">
       <v-card-title class="pb-2">
         <div class="d-flex align-center justify-space-between">
           <div>
@@ -10,7 +10,7 @@
           <v-btn icon="mdi-close" variant="text" :disabled="syncingShare || unsharing || creating || savingSharingSettings" @click="close" />
         </div>
       </v-card-title>
-      <v-card-text class="pt-2">
+      <v-card-text class="sc-dialog-body pt-2">
         <v-skeleton-loader v-if="initialLoading" type="list-item-two-line, list-item-two-line" class="mb-4" />
         <v-alert v-else :type="simpleStatusType" variant="tonal" density="comfortable" class="mb-4">
           <div class="font-weight-medium">{{ simpleStatusTitle }}</div>
@@ -157,8 +157,8 @@
         </v-expand-transition>
       </v-card-text>
 
-      <v-card-actions class="justify-end">
-        <v-btn variant="text" :disabled="syncingShare || unsharing || creating || savingSharingSettings" @click="close">{{ $t('close') }}</v-btn>
+      <v-card-actions class="sc-form-actions sc-form-actions--end">
+        <v-btn class="sc-action-btn" variant="text" :disabled="syncingShare || unsharing || creating || savingSharingSettings" @click="close">{{ $t('close') }}</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

@@ -1,11 +1,18 @@
 <template>
-  <div v-if="internalDialog" class="custom-overlay" @click.self="triggerWink">
+  <v-dialog
+    v-model="internalDialog"
+    class="edit-guide-dialog"
+    max-width="960"
+    z-index="20000"
+    persistent
+    @click:outside="triggerWink"
+  >
     <v-card
-      :class="['overlay-content', { wink: isWinking }]"
+      :class="['sc-dialog-card', 'edit-guide-card', { wink: isWinking }]"
       @animationend="isWinking = false"
     >
-      <v-card-title class="text-h5">编辑指南</v-card-title>
-      <v-card-text class="scrollable-content">
+      <v-card-title class="text-h5 edit-guide-title">编辑指南</v-card-title>
+      <v-card-text class="sc-dialog-body edit-guide-body">
         <p>在编辑之前，请阅读我们的编辑指南。</p>
         <v-container fluid>
           <h4>1. 创建新的知识节点</h4>
@@ -82,23 +89,21 @@
             </v-col>
           </v-row>
         </v-container>
-        <v-card-text
-          style="padding-left: 8%; padding-right: 8%; padding-top: 2%"
-        >
+        <div class="edit-guide-note">
           请确保您已经阅读并理解了为知识网络添加新节点和节点间的边的操作。Scienetopia知识网络是公开的、共享的知识网络，您所添加的节点和边将会被录入这个知识库里，向所有学习者公开。请对您所添加的知识节点和边负有责任，我们期待您做出高质量的贡献，让我们一起营造一个更好的Sicentopia共享知识网络和更好的Sciencetopia社区。
           <v-checkbox
             v-model="agreed"
             label="我已阅读、知晓并同意"
           ></v-checkbox>
-        </v-card-text>
+        </div>
       </v-card-text>
-      <v-card-actions>
+      <v-card-actions class="sc-form-actions sc-form-actions--end edit-guide-actions">
         <v-spacer></v-spacer>
-        <v-btn color="grey darken-1" text @click="cancel">取消</v-btn>
-        <v-btn color="primary" :disabled="!agreed" @click="confirm">确认</v-btn>
+        <v-btn class="sc-action-btn" color="primary" variant="tonal" @click="cancel">取消</v-btn>
+        <v-btn class="sc-action-btn" color="primary" variant="flat" :disabled="!agreed" @click="confirm">确认</v-btn>
       </v-card-actions>
     </v-card>
-  </div>
+  </v-dialog>
 </template>
 
 <script>
@@ -153,36 +158,49 @@ export default {
   height: 200px;
 }
 
-.custom-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200000;
+.edit-guide-dialog :deep(.v-overlay__content) {
+  width: min(960px, calc(100vw - 64px)) !important;
+  max-height: calc(100dvh - 64px) !important;
+  margin: 32px !important;
 }
 
-.overlay-content {
-  max-height: 90vh;
+.edit-guide-card {
   background: white;
-  padding: 20px;
-  width: 60vw;
+  width: 100%;
+  border-radius: 8px !important;
   text-align: center;
   transition: transform 0.2s ease-in-out;
-  display: flex;
-  flex-direction: column;
 }
 
-.scrollable-content {
-  max-height: 70vh;
-  /* Adjust the height as needed */
-  overflow-y: auto;
-  padding-right: 10px;
-  /* Optional for better scrolling experience */
+.edit-guide-title {
+  padding: 24px 28px 12px !important;
+}
+
+.edit-guide-body {
+  padding: 0 28px 12px !important;
+}
+
+.edit-guide-note {
+  padding: 2% 8% 0;
+}
+
+.edit-guide-actions {
+  padding: 12px 28px 24px !important;
+}
+
+@media (max-width: 600px) {
+  .edit-guide-dialog :deep(.v-overlay__content) {
+    width: calc(100vw - 32px) !important;
+    max-height: calc(100dvh - 32px) !important;
+    margin: 16px !important;
+  }
+
+  .edit-guide-title,
+  .edit-guide-body,
+  .edit-guide-actions {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
 }
 
 .wink {

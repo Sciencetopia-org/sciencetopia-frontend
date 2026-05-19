@@ -20,22 +20,25 @@
 
       <!-- Study Plans Section -->
       <v-col cols="12" md="5" class="study-plan-container">
-        <template v-if="loadingPlans">
-          <v-skeleton-loader type="heading" class="mb-4" />
-          <v-skeleton-loader type="list-item-two-line" class="mb-2" />
-          <v-skeleton-loader type="list-item-two-line" class="mb-2" />
-          <v-skeleton-loader type="list-item-two-line" />
-        </template>
         <StudyPlanList
-          v-else
           :isCurrentUser="isCurrentUser"
           :studyPlanDataList="studyPlanDataList"
-        />
+          :progressStatus="progressStatus"
+          :loading="loadingPlans"
+        >
+          <template #actions>
+            <StudyPlanProgressFilter
+              v-model="progressStatus"
+              :disabled="loadingPlans"
+              @update:model-value="onProgressStatusChanged"
+            />
+          </template>
+        </StudyPlanList>
       </v-col>
 
       <!-- Study Groups Section -->
       <v-col cols="12" md="4" class="study-group-container">
-        <v-container>
+        <v-container class="study-group-section">
           <v-card-title class="study-group-title">
             {{ isCurrentUser ? $t('usercenter.my') : $t('usercenter.their')
             }}{{ $t('wordbreaker') }}{{ $t('usercenter.studygroup') }}
@@ -64,38 +67,13 @@
               :key="group.id"
               cols="12"
               sm="6"
-              md="6"
             >
-              <v-card class="st-card">
-                <v-card-title>
-                  {{ group.name }}
-                </v-card-title>
-                <!-- eslint-disable-next-line vue/no-v-text-v-html-on-component -->
-                <v-card-subtitle v-html="group.description"></v-card-subtitle>
-                <v-card-text>
-                  <v-chip
-                    class="ma-1"
-                    size="small"
-                    variant="outlined"
-                    label
-                  >{{ group.role }}</v-chip>
-                  <v-chip
-                    class="ma-1"
-                    size="small"
-                    variant="outlined"
-                    v-if="group.status === 'pending_approval'"
-                    color="red"
-                    label
-                  >
-                    {{ group.status }}
-                  </v-chip>
-                </v-card-text>
-                <v-card-actions>
-                  <v-btn text @click="toGroupPage(group.id)">
-                    {{ $t('showdetail') }}
-                  </v-btn>
-                </v-card-actions>
-              </v-card>
+              <StudyGroupCard
+                :group="normalizePersonalGroup(group)"
+                action-mode="detail"
+                @open="toGroupPage"
+                @profile="navigateToProfile"
+              />
             </v-col>
           </v-row>
         </v-container>
@@ -107,12 +85,16 @@
 <script>
 import PersonalInformation from './PersonalInformation.vue'
 import StudyPlanList from '@/components/study-plan/StudyPlanList.vue'
+import StudyPlanProgressFilter from '@/components/study-plan/StudyPlanProgressFilter.vue'
+import StudyGroupCard from '@/components/StudyGroup/StudyGroupCard.vue'
 import { apiClient } from '@/api'
 
 export default {
   components: {
     PersonalInformation,
     StudyPlanList,
+    StudyPlanProgressFilter,
+    StudyGroupCard,
   },
   props: {
     userId: {
@@ -133,6 +115,7 @@ export default {
       pageSize: 20,
       q: null,
       sort: null,
+      progressStatus: 'all',
     }
   },
   created() {
@@ -145,40 +128,9 @@ export default {
   },
   methods: {
     async fetchDataForUser() {
-      this.loadingPlans = true
       this.loadingGroups = true
       // Fetch study plans and study groups in parallel, but resolve and render independently
-      const plansPromise = apiClient
-        .get(`/StudyPlans`, {
-          params: {
-            page: this.page,
-            pageSize: this.pageSize,
-            q: this.q,
-            sort: this.sort,
-            ...(this.userId ? { targetUserId: this.userId } : {}),
-          },
-        })
-        .then((studyPlanResponse) => {
-          const items = Array.isArray(studyPlanResponse.data)
-            ? studyPlanResponse.data
-            : studyPlanResponse.data?.items || []
-          this.studyPlanDataList = items.map((item) => ({
-            effectiveRole: item.role || null,
-            studyPlan: {
-              id: item.id,
-              title: item.title,
-              introduction: item.description
-                ? { description: item.description }
-                : null,
-            },
-          }))
-        })
-        .catch((error) => {
-          console.error('Error fetching study plans:', error)
-        })
-        .finally(() => {
-          this.loadingPlans = false
-        })
+      const plansPromise = this.fetchStudyPlansForUser()
 
       const groupsPromise = apiClient
         .get(`/StudyGroup/GetStudyGroup`, {
@@ -221,8 +173,73 @@ export default {
     async handleResourceUpdated() {
       await this.fetchDataForUser()
     },
+    async onProgressStatusChanged() {
+      this.page = 1
+      await this.fetchStudyPlansForUser()
+    },
+    async fetchStudyPlansForUser() {
+      this.loadingPlans = true
+      try {
+        const studyPlanResponse = await apiClient.get(`/StudyPlans`, {
+          params: {
+            page: this.page,
+            pageSize: this.pageSize,
+            q: this.q,
+            sort: this.sort,
+            progressStatus: this.progressStatus,
+            ...(this.userId ? { targetUserId: this.userId } : {}),
+          },
+        })
+        const items = Array.isArray(studyPlanResponse.data)
+          ? studyPlanResponse.data
+          : studyPlanResponse.data?.items || []
+        this.studyPlanDataList = items.map((item) => ({
+          effectiveRole: item.role || null,
+          studyPlan: {
+            id: item.id,
+            title: item.title,
+            introduction: item.description
+              ? { description: item.description }
+              : null,
+            progress: typeof item.progress === 'number'
+              ? (item.progress <= 1 ? item.progress * 100 : item.progress)
+              : undefined,
+            advancedProgress: (() => {
+              const val =
+                (typeof item.advancedTopicProgressPercentage === 'number' ? item.advancedTopicProgressPercentage : undefined) ??
+                (typeof item.advancedProgress === 'number' ? item.advancedProgress : undefined)
+              if (typeof val !== 'number') return 0
+              return val <= 1 ? val * 100 : val
+            })(),
+          },
+        }))
+      } catch (error) {
+        console.error('Error fetching study plans:', error)
+      } finally {
+        this.loadingPlans = false
+      }
+    },
     toGroupPage(groupId) {
       this.$router.push({ name: 'studyGroupPage', params: { groupId } })
+    },
+    normalizePersonalGroup(group) {
+      return {
+        ...group,
+        id: group.id || group.Id,
+        name: group.name || group.Name || '',
+        description: group.description || group.Description || '',
+        imageUrl: group.imageUrl || group.ImageUrl || null,
+        role: group.role || group.Role || '',
+        status: group.status || group.Status || '',
+        members: Array.isArray(group.members || group.Members)
+          ? (group.members || group.Members)
+          : [],
+        isMember: true,
+      }
+    },
+    navigateToProfile(userId) {
+      if (!userId) return
+      this.$router.push({ name: 'personalcenter', params: { userId } })
     },
     async startOrLoadConversation(otherUserId) {
       const currentUserId = this.currentUserId
@@ -271,7 +288,7 @@ export default {
   padding-bottom: 20px;
 }
 
-.group-chip {
-  /* deprecated: replaced by standard chip style (ma-1, size=small, outlined) */
+.study-group-section {
+  padding: 0;
 }
 </style>

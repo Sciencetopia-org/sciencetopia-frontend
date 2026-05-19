@@ -37,24 +37,11 @@
               style="max-width: 200px" @update:model-value="onListControlsChanged" />
           </div>
           <div class="px-3 pb-2">
-            <v-btn-toggle
+            <StudyPlanProgressFilter
               v-model="progressStatus"
-              mandatory
-              density="compact"
-              class="plan-progress-filter"
               :disabled="listLoading || detailLoading"
               @update:model-value="onListControlsChanged"
-            >
-              <v-btn value="all" size="small" prepend-icon="mdi-view-grid-outline">
-                {{ $t('studyplan.filters.all') }}
-              </v-btn>
-              <v-btn value="inProgress" size="small" prepend-icon="mdi-play-circle-outline">
-                {{ $t('studyplan.filters.inProgress') }}
-              </v-btn>
-              <v-btn value="completed" size="small" prepend-icon="mdi-check-circle-outline">
-                {{ $t('studyplan.filters.completed') }}
-              </v-btn>
-            </v-btn-toggle>
+            />
           </div>
           <!-- <v-divider /> -->
           <template v-if="listLoading">
@@ -120,7 +107,7 @@
         <v-col :cols="collapsed ? 6 : 5" class="center-panel">
           <!-- <PlanContextBar v-if="currentPlan?.id" :scope="scope" :groups="affiliations" @change="onScopeChange"
             @open-group="(gid) => $router.push({ name: 'GroupPlanWorkspace', params: { groupId: gid, planId: currentPlan.id } })" /> -->
-          <PlanDetailPanel ref="centerPanel" v-if="currentPlan?.id" :planId="currentPlan.id" :scope="scope" :allowEditControls="true"
+          <PlanDetailPanel ref="centerPanel" v-if="currentPlan?.id" :key="`plan:${currentPlan.id}`" :planId="currentPlan.id" :scope="scope" :allowEditControls="true"
             @select-lesson="selectLessonById" @open-share="openShareDialog" @open-progress="showProgressPage = true"
             @updated-plan="onCenterUpdated" @loaded="onCenterLoaded" />
           <!-- 未选择计划时不显示占位条 -->
@@ -131,6 +118,7 @@
         <v-col :cols="collapsed ? 5 : 4" class="right-panel">
           <LessonDetailPanel ref="rightPanel"
             v-if="currentLesson || currentLessonId"
+            :key="`lesson:${currentPlan?.id || 'none'}:${currentLessonId || currentLesson?.id || currentLesson?.name || 'selected'}`"
             :planId="currentPlan?.id"
             :lesson="currentLesson"
             :lessonId="currentLessonId"
@@ -207,6 +195,7 @@ import LessonDetailPanel from '@/components/study-plan/LessonDetailPanel.vue'
 import ProgressPage from '@/components/study-plan/ProgressPage.vue'
 import ShareStudyPlanDialog from '@/components/study-plan/ShareStudyPlanDialog.vue'
 import EditStudyPlanForm from '@/components/study-plan/EditStudyPlanForm.vue'
+import StudyPlanProgressFilter from '@/components/study-plan/StudyPlanProgressFilter.vue'
 import { eventBus } from '@/eventBus'
 import { connection } from '@/services/signalr-service'
 import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit, roleAllowsProgress } from '@/services/studyplan-permissions'
@@ -214,7 +203,7 @@ import confetti from 'canvas-confetti'
 
 export default {
   name: 'StudyPlanWorkspace',
-  components: { LearningPlanner, PlanContextBar, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage, EditStudyPlanForm, PlanProgressBars },
+  components: { LearningPlanner, PlanContextBar, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage, EditStudyPlanForm, PlanProgressBars, StudyPlanProgressFilter },
   data() {
     return {
       studyPlans: [],
@@ -332,9 +321,10 @@ export default {
     this.unsubscribers.forEach((fn) => fn && fn())
   },
   methods: {
-    async fetchPlans() {
+    async fetchPlans({ reconcileSelection = false } = {}) {
       if (this.listLoading) return
       this.listLoading = true
+      let loaded = false
       try {
         const res = await apiClient.get('/StudyPlans', {
           params: {
@@ -394,16 +384,43 @@ export default {
           const id = item.id || item.Id
           if (id && item?.role) this.roleMap[id] = item.role
         })
+        loaded = true
 
       } catch (e) {
         console.error('Error fetching study plans:', e)
       } finally {
         this.listLoading = false
       }
+      if (loaded && reconcileSelection) {
+        await this.reconcileSelectionAfterListRefresh()
+      }
     },
-    onListControlsChanged() {
+    async onListControlsChanged() {
       this.page = 1
-      this.fetchPlans()
+      await this.fetchPlans({ reconcileSelection: true })
+    },
+    async reconcileSelectionAfterListRefresh() {
+      const currentId = this.currentPlan?.id
+      const visibleCurrent = currentId
+        ? this.studyPlans.find((p) => String(p?.studyPlan?.id) === String(currentId))
+        : null
+
+      if (visibleCurrent?.studyPlan) {
+        this.currentPlan = { ...this.currentPlan, ...visibleCurrent.studyPlan }
+        return
+      }
+
+      this.currentPlan = null
+      this.currentLesson = null
+      this.currentLessonId = null
+      this.showProgressPage = false
+      this.affiliations = []
+
+      const first = this.studyPlans[0]?.studyPlan
+      if (first?.id) {
+        await this.selectPlan(first)
+        await this.refreshEffectiveRole(first.id)
+      }
     },
     async refreshPlanProgress(planId, { silent } = { silent: false }) {
       // Preferred: use backend endpoint; Fallback: local compute if unavailable
@@ -839,42 +856,6 @@ export default {
 }
 
 .empty-plan-list { margin-top: 40px; }
-
-.plan-progress-filter {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid rgba(48, 78, 117, 0.14);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.62);
-}
-
-.plan-progress-filter :deep(.v-btn) {
-  min-width: 0;
-  height: 32px;
-  border-radius: 6px !important;
-  color: rgba(48, 78, 117, 0.78);
-  font-size: 12px;
-  letter-spacing: 0;
-}
-
-.plan-progress-filter :deep(.v-btn__content) {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.plan-progress-filter :deep(.v-btn--active) {
-  background: #304e75;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(48, 78, 117, 0.22);
-}
-
-.plan-progress-filter :deep(.v-btn--disabled) {
-  opacity: 0.72;
-}
 
 /* Center panel header for the selected plan */
 .plan-header {

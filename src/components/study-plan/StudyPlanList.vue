@@ -1,15 +1,24 @@
 <template>
   <v-card class="study-plan-card">
-    <v-row>
-      <v-col cols="12">
+    <v-row class="study-plan-header" align="center">
+      <v-col cols="12" lg="5">
         <v-card-title class="study-plan-title">
           {{ isCurrentUser ? $t('usercenter.my') : $t('usercenter.their')
           }}{{ $t('wordbreaker') }}{{ $t('usercenter.studyplan') }}
         </v-card-title>
       </v-col>
+      <v-col v-if="$slots.actions" cols="12" lg="7" class="study-plan-actions">
+        <slot name="actions" />
+      </v-col>
     </v-row>
 
-    <v-row>
+    <template v-if="loading">
+      <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+      <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+      <v-skeleton-loader type="list-item-two-line" />
+    </template>
+
+    <v-row v-else>
       <v-col
         v-for="sp in plans"
         :key="sp.studyPlan.id"
@@ -67,11 +76,11 @@
         </v-card>
       </v-col>
     </v-row>
-    <div v-if="studyPlanDataList.length === 0">
+    <div v-if="!loading && studyPlanDataList.length === 0">
       <v-container>
         <v-card class="d-flex align-center justify-center">
           <v-card-title>
-            {{ isCurrentUser ? $t('studyplan.noprogress_my') : $t('studyplan.noprogress_their') }}
+            {{ $t(emptyMessageKey) }}
           </v-card-title>
         </v-card>
       </v-container>
@@ -92,6 +101,26 @@ export default {
   props: {
     isCurrentUser: Boolean,
     studyPlanDataList: Array,
+    progressStatus: {
+      type: String,
+      default: 'all',
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  computed: {
+    emptyMessageKey() {
+      if (this.isCurrentUser) {
+        if (this.progressStatus === 'inProgress') return 'studyplan.noInProgressPlans'
+        if (this.progressStatus === 'completed') return 'studyplan.noCompletedPlans'
+        return 'studyplan.noPlansYet'
+      }
+      if (this.progressStatus === 'completed') return 'studyplan.noCompletedPlansTheir'
+      if (this.progressStatus === 'inProgress') return 'studyplan.noprogress_their'
+      return 'studyplan.noPlansTheir'
+    },
   },
   watch: {
     studyPlanDataList: {
@@ -179,8 +208,23 @@ export default {
   /* font-weight: bold; */
 }
 
+.study-plan-header {
+  margin-bottom: 8px;
+}
+
+.study-plan-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .study-plan-tab {
   color: #304e75;
   font-size: 18px;
+}
+
+@media (max-width: 1279px) {
+  .study-plan-actions {
+    justify-content: stretch;
+  }
 }
 </style>

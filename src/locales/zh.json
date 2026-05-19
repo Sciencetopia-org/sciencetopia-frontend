@@ -10,6 +10,7 @@
   "submit": "提交",
   "search": "搜索",
   "reset": "重置",
+  "retry": "重试",
   "unknown": "未知",
   "weak": "弱",
   "medium": "中",
@@ -200,8 +201,10 @@
     "tabs": { "mine": "我的", "shared": "与我共享", "public": "公开" },
     "myProgress": "我的进度 {percent}%",
     "noPlansYet": "你还没有创建学习计划",
+    "noPlansTheir": "TA还没有学习计划",
     "noInProgressPlans": "你还没有正在学习的计划",
     "noCompletedPlans": "你还没有已学完的计划",
+    "noCompletedPlansTheir": "TA还没有已学完的计划",
     "viewInMyPlans": "在我的学习计划中查看",
     "filters": {
       "all": "全部",
@@ -366,6 +369,7 @@
     "studygroup": "学习小组",
     "select": "选择小组",
     "joined": "已加入",
+    "applied": "已申请",
     "applytojoin": "申请加入",
     "follow": "关注",
     "unfollow": "取消关注",
@@ -408,10 +412,10 @@
         "recommend": "推荐",
         "joined": "已加入",
         "follow": "关注",
-        "popular": "科普",
+        "popular": "热门",
+        "latest": "最新",
         "coding": "编程",
-        "philosophy": "哲学",
-        "more": "更多"
+        "philosophy": "哲学"
       }
     },
     "create": {

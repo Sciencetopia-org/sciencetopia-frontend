@@ -233,13 +233,17 @@ export default {
           const stableId = plan.studyPlanStableId || plan.StudyPlanStableId || plan.planStableId
           const planVersionId = plan.planVersionId || plan.PlanVersionId || plan.studyPlanId
           const planCohorts = stableId ? (cohortsByStableId.get(String(stableId)) || []) : []
+          const rawMemberCount = plan.memberCount ?? plan.MemberCount ?? plan.uniqueMemberCount ?? plan.UniqueMemberCount
+          const providedMemberCount = Number(rawMemberCount)
           return {
             id: planCohorts[0]?.id || null,
             studyPlanId: planVersionId || planCohorts[0]?.studyPlanId || stableId,
             studyPlanStableId: stableId,
             planTitle: plan.title || plan.planTitle || stableId || '未命名学习计划',
             pinnedVersionNumber: plan.pinnedVersionNumber,
-            memberCount: planCohorts.reduce((sum, c) => sum + (Number(c.memberCount) || 0), 0),
+            memberCount: Number.isFinite(providedMemberCount)
+              ? providedMemberCount
+              : planCohorts.reduce((sum, c) => sum + (Number(c.memberCount) || 0), 0),
             avgProgress: planCohorts.length
               ? planCohorts.reduce((sum, c) => sum + (Number(c.avgProgress) || 0), 0) / planCohorts.length
               : 0,

@@ -10,6 +10,7 @@
   "submit": "Submit",
   "search": "Search",
   "reset": "Reset",
+  "retry": "Retry",
   "unknown": "Unknown",
   "weak": "Weak",
   "medium": "Medium",
@@ -204,8 +205,10 @@
     },
     "myProgress": "My progress {percent}%",
     "noPlansYet": "You haven't created any study plans yet",
+    "noPlansTheir": "They have no study plans",
     "noInProgressPlans": "You have no study plans in progress",
     "noCompletedPlans": "You have no completed study plans",
+    "noCompletedPlansTheir": "They have no completed study plans",
     "viewInMyPlans": "View in My Study Plans",
     "filters": {
       "all": "All",
@@ -353,6 +356,7 @@
     "studygroup": "Study Group",
     "select": "Select Group",
     "joined": "Joined",
+    "applied": "Applied",
     "applytojoin": "Apply to Join",
     "follow": "Follow",
     "unfollow": "Unfollow",
@@ -396,9 +400,9 @@
         "joined": "Joined",
         "follow": "Following",
         "popular": "Popular",
+        "latest": "Latest",
         "coding": "Coding",
-        "philosophy": "Philosophy",
-        "more": "More"
+        "philosophy": "Philosophy"
       }
     },
     "create": {

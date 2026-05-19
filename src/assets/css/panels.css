@@ -21,6 +21,32 @@
 .panel-card--beige { background-color: #F1E9D7 !important; }
 .panel-card--cream { background-color: #FBF8F2 !important; }
 
+/* Shared bounded dialog layout. Keeps large modal content inside viewport. */
+.sc-dialog-card {
+  display: flex !important;
+  flex-direction: column !important;
+  max-height: min(calc(100dvh - 48px), 860px) !important;
+  overflow: hidden !important;
+}
+
+.sc-dialog-body {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+}
+
+.sc-form-actions {
+  gap: 10px;
+  padding-inline: 0;
+}
+
+.sc-form-actions--end {
+  justify-content: flex-end;
+}
+
+.sc-action-btn {
+  min-width: 96px;
+}
+
 /* Card-like list items */
 .plan-list .v-list-item.plan-card,
 .plan-card {

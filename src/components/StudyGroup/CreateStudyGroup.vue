@@ -20,9 +20,26 @@
           />
           <!-- Placeholder for Quill Editor -->
           <div ref="quillEditor" class="quill-editor"></div>
-          <v-card-actions>
-            <v-btn type="submit" variant="text" :disabled="creating" :loading="creating">{{ $t('studygroup.create.create') }}</v-btn>
-            <v-btn @click="cancel" variant="text" color="red">{{ $t('cancel') }}</v-btn>
+          <v-card-actions class="sc-form-actions sc-form-actions--end create-studygroup-actions">
+            <v-btn
+              type="submit"
+              class="sc-action-btn"
+              color="primary"
+              variant="flat"
+              :disabled="creating"
+              :loading="creating"
+            >
+              {{ $t('studygroup.create.create') }}
+            </v-btn>
+            <v-btn
+              class="sc-action-btn"
+              color="primary"
+              variant="tonal"
+              :disabled="creating"
+              @click="cancel"
+            >
+              {{ $t('cancel') }}
+            </v-btn>
           </v-card-actions>
         </v-form>
       </v-card-text>
@@ -250,5 +267,9 @@ export default {
 .quill-editor {
   height: 400px;
   /* Adjust based on your needs */
+}
+
+.create-studygroup-actions {
+  margin-top: 16px;
 }
 </style>

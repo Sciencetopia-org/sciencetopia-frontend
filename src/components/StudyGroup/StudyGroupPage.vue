@@ -10,6 +10,16 @@
               <v-skeleton-loader type="text, text" class="mb-2" />
               <v-skeleton-loader type="avatar, avatar, avatar" />
             </template>
+            <template v-else-if="groupLoadError">
+              <v-alert type="error" variant="tonal" class="ma-4">
+                {{ groupLoadError }}
+              </v-alert>
+              <v-card-actions class="justify-end">
+                <v-btn color="primary" variant="tonal" @click="reloadGroup(groupId)">
+                  {{ $t('retry') }}
+                </v-btn>
+              </v-card-actions>
+            </template>
             <template v-else>
               <div align="center" style="padding-top: 10px; padding-bottom: 10px">
                 <v-img
@@ -61,9 +71,6 @@
                 <template v-else>
                   <v-btn color="primary" text @click="applyToJoin(group.id)">{{
                     $t('studygroup.applytojoin')
-                  }}</v-btn>
-                  <v-btn color="primary" text @click="follow(group.id)">{{
-                    $t('studygroup.follow')
                   }}</v-btn>
                 </template>
                 <template v-if="isMember && !isManager">
@@ -243,6 +250,7 @@ export default {
       tags: [],
       bootstrapRequestToken: 0,
       plansPanelReady: false,
+      groupLoadError: '',
     }
   },
   watch: {
@@ -322,6 +330,7 @@ export default {
       this.pendingJoinRequests = 0
       this.tags = []
       this.plansPanelReady = false
+      this.groupLoadError = ''
     },
 
     normalizeBootstrapPayload(payload) {
@@ -379,8 +388,18 @@ export default {
         }
       } catch (error) {
         console.error('Error fetching group bootstrap:', error)
-        throw error
+        if (!error?.response) {
+          this.groupLoadError = '无法连接到后端服务，请确认 API 服务正在运行。'
+        } else if (error.response.status === 404) {
+          this.groupLoadError = '没有找到这个学习小组。'
+        } else if (error.response.status === 401 || error.response.status === 403) {
+          this.groupLoadError = '你没有权限查看这个学习小组。'
+        } else {
+          this.groupLoadError = '学习小组加载失败，请稍后重试。'
+        }
+        return false
       }
+      return true
     },
     async reloadGroup(groupId) {
       const token = ++this.bootstrapRequestToken
@@ -390,8 +409,9 @@ export default {
 
       try {
         if (!groupId) return
-        await this.fetchBootstrap(groupId)
+        const loaded = await this.fetchBootstrap(groupId)
         if (token !== this.bootstrapRequestToken) return
+        if (!loaded) return
         await this.$nextTick()
         if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
           await new Promise((resolve) => window.requestAnimationFrame(resolve))
@@ -494,9 +514,6 @@ export default {
       } catch (_) {
         this.$toast?.error?.(this.$t('operationfailed'))
       }
-    },
-    follow() {
-      this.$toast?.info?.('Follow is not available yet.')
     },
   },
   mounted() {
