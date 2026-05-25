@@ -6,7 +6,96 @@
     <!-- <div
             style="position: absolute; width: 100vw; height: 100vh; position: absolute; top:6vh; background-color: rgba(232, 218, 189, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);">
         </div> -->
-    <v-container class="message-center">
+    <div v-if="isPhone" class="mobile-message-center">
+      <div class="mobile-message-header">
+        <v-btn
+          v-if="mobileView === 'chat'"
+          icon="mdi-chevron-left"
+          variant="text"
+          @click="mobileView = 'conversations'"
+        />
+        <div class="mobile-message-title">
+          {{ mobileView === 'chat' && selectedConversation ? selectedConversation.partnerName : $t('message.privatemessage') }}
+        </div>
+      </div>
+      <v-tabs v-if="mobileView !== 'chat'" v-model="activeTab" density="compact" grow class="mobile-message-tabs">
+        <v-tab value="directMessages" @click="setMobileRoute('directMessages')">
+          {{ $t('message.privatemessage') }}
+        </v-tab>
+        <v-tab value="notifications" @click="setMobileRoute('notifications')">
+          {{ $t('message.notification') }}
+        </v-tab>
+      </v-tabs>
+
+      <div v-if="activeTab === 'notifications' && mobileView !== 'chat'" class="mobile-message-body">
+        <SystemNotifications />
+      </div>
+
+      <div v-else-if="mobileView === 'conversations'" class="mobile-message-body">
+        <div v-if="loadingConversations" class="pa-4 d-flex justify-center align-center mobile-message-fill">
+          <LoadingSpinner />
+        </div>
+        <v-list v-else class="mobile-conversation-list">
+          <v-list-item
+            v-for="conversation in conversations"
+            :key="conversation.conversationId"
+            class="mobile-conversation-item"
+            @click="selectConversation(conversation); mobileView = 'chat'"
+          >
+            <template #prepend>
+              <v-avatar size="48" style="border: 1px solid #000">
+                <img :src="conversation.partnerAvatarUrl" alt="Avatar" />
+              </v-avatar>
+            </template>
+            <v-list-item-title>{{ conversation.partnerName }}</v-list-item-title>
+            <v-list-item-subtitle>{{ getLastMessage(conversation) }}</v-list-item-subtitle>
+            <template #append>
+              <v-badge
+                v-if="conversationMessageCount[conversation.conversationId] > 0"
+                color="red"
+                :content="conversationMessageCount[conversation.conversationId]"
+              />
+            </template>
+          </v-list-item>
+        </v-list>
+      </div>
+
+      <div v-else class="mobile-chat">
+        <template v-if="loadingConversation">
+          <div class="pa-4 d-flex justify-center align-center mobile-message-fill">
+            <LoadingSpinner />
+          </div>
+        </template>
+        <template v-else-if="selectedConversation">
+          <MessageList
+            ref="messageList"
+            class="mobile-chat__list"
+            :messages="selectedConversation.messages"
+            :userId="userId"
+            :userAvatarUrl="userAvatarUrl"
+          />
+          <div class="mobile-chat__composer">
+            <input ref="imageInput" type="file" accept="image/*" style="display:none" @change="onImageSelected" />
+            <v-btn icon="mdi-image-outline" variant="text" :disabled="sendingImage" @click="triggerImagePicker" />
+            <v-textarea
+              v-model="selectedConversation.newMessage"
+              :label="$t('message.editing')"
+              variant="solo-filled"
+              density="compact"
+              rows="1"
+              auto-grow
+              hide-details
+              @dragenter.prevent
+              @dragover.prevent
+              @drop.prevent="onFileDrop"
+            />
+            <v-btn icon="mdi-send" color="primary" :disabled="isSendDisabled" @click="sendMessage(selectedConversation)" />
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <v-container v-else class="message-center">
       <v-row>
         <v-col cols="auto" class="sidebar">
           <div style="height: 100%">
@@ -188,6 +277,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import { mapState } from 'vuex'
 import { DateTime } from 'luxon'
 import 'emoji-picker-element'
+import { isPhoneDevice, phoneDeviceRevision } from '@/utils/device'
 
 export default {
   components: { MessageList, SystemNotifications, LoadingSpinner }, // Include the new component
@@ -203,6 +293,7 @@ export default {
       loadingConversation: true,
       sendingImage: false,
       sendingText: false,
+      mobileView: 'conversations',
     }
   },
   computed: {
@@ -216,6 +307,10 @@ export default {
       const message = this.selectedConversation.newMessage
       const emptyMessage = typeof message !== 'string' || message.trim() === ''
       return this.sendingText || this.sendingImage || emptyMessage
+    },
+    isPhone() {
+      phoneDeviceRevision.value
+      return isPhoneDevice()
     },
   },
   watch: {
@@ -315,6 +410,11 @@ export default {
       } else if (this.$route.name === 'notifications') {
         this.activeTab = 'notifications'
       }
+    },
+    setMobileRoute(name) {
+      this.activeTab = name
+      if (!this.userId) return
+      this.$router.push({ name, params: { userId: this.userId } })
     },
     async fetchConversations() {
       const userId = this.userId || this.$store.state.currentUserID
@@ -585,6 +685,94 @@ export default {
   -webkit-backdrop-filter: blur(10px);
   /* background-image: url('../../assets/images/design.png');
     background-size: cover; */
+}
+
+.mobile-message-center {
+  width: 100%;
+  max-width: 100%;
+  height: calc(100dvh - 82px - env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.mobile-message-header {
+  min-height: 54px;
+  padding: calc(6px + env(safe-area-inset-top)) 4px 6px 52px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mobile-message-header .v-btn {
+  margin-left: -44px;
+}
+
+.mobile-message-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-message-tabs {
+  flex: 0 0 auto;
+}
+
+.mobile-message-tabs :deep(.v-tab) {
+  min-width: 0;
+  letter-spacing: 0;
+}
+
+.mobile-message-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-message-fill {
+  height: 100%;
+}
+
+.mobile-conversation-list {
+  background: transparent;
+  padding: 8px;
+}
+
+.mobile-conversation-item {
+  min-height: 72px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: #f4eee1;
+}
+
+.mobile-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mobile-chat__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.mobile-chat__composer {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 40px 1fr 44px;
+  gap: 6px;
+  align-items: end;
+  padding: 8px;
+  background: #fbf8f2;
+  border-top: 1px solid rgba(48, 78, 117, 0.12);
 }
 
 .sidebar {

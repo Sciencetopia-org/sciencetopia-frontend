@@ -1,5 +1,5 @@
 <template>
-  <v-app id="app" :class="pageBackground" :style="{ '--footer-vh': smAndDown ? '8vh' : '6vh' }">
+  <v-app id="app" :class="pageBackground" :style="{ '--footer-vh': isPhone ? '8vh' : '6vh' }">
     <component :is="layout">
       <router-view />
     </component>
@@ -11,6 +11,7 @@ import LayOut from './components/layout/LayOut.vue'
 import SimplestLayOut from './components/layout/SimplestLayOut.vue'
 import 'bootstrap/dist/css/bootstrap.css'
 import 'quill/dist/quill.snow.css' // for snow theme
+import { installPhoneDeviceListeners, isPhoneDevice, phoneDeviceRevision } from '@/utils/device'
 
 export default {
   name: 'App',
@@ -25,14 +26,18 @@ export default {
       if (layout === 'simplest') return 'SimplestLayOut' // Render directly without layout
       return 'LayOut' // Default layout for all other cases
     },
-    smAndDown() {
-      return this.$vuetify.display.smAndDown
+    isPhone() {
+      phoneDeviceRevision.value
+      return isPhoneDevice()
     },
     pageBackground() {
       const background = this.$route.meta.background
       if (background === 'lighter') return 'background-lighter'
       return 'background-darker'
     }
+  },
+  mounted() {
+    installPhoneDeviceListeners()
   },
 }
 </script>

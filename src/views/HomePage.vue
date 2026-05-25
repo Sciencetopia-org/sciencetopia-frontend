@@ -1,7 +1,104 @@
 <template>
   <!-- 建议本组件被放置在 App.vue 的 <v-main> 里，自动在左侧全局导航右边渲染 -->
-  <v-container class="kgp-container" fluid>
-    <v-row class="kgp-row g-3">
+  <v-container class="kgp-container" :class="{ 'kgp-container--mobile': isMobile }" fluid>
+    <div v-if="isMobile" class="kgp-mobile">
+      <div class="kgp-mobile__topbar">
+        <div>
+          <div class="kgp-mobile__eyebrow">{{ $t('home.knowledgeNetwork') }}</div>
+          <div class="kgp-mobile__title">
+            {{ selectedNodes.length ? selectedNodes[0]?.name : $t('knowledgeGraph.knowledgeGraph') }}
+          </div>
+        </div>
+        <div class="kgp-mobile__topbar-actions">
+          <v-btn icon="mdi-filter-variant" variant="text" @click="mobileFilterSheet = true" />
+          <v-btn icon="mdi-information-outline" variant="text" @click="mobileNodeSheet = true" />
+        </div>
+      </div>
+
+      <v-card class="kgp-mobile__card panel-card panel-card--cream" elevation="1">
+        <v-card-title class="kgp-mobile__card-title">
+          <div class="kgp-mobile__actions">
+            <v-btn icon="mdi-map-search" variant="text" size="small" @click="openGraphSearch" />
+            <v-btn icon="mdi-crosshairs-gps" variant="text" size="small" :disabled="graphActionPending" @click="centerGraphView" />
+            <v-btn icon="mdi-refresh" variant="text" size="small" :disabled="graphActionPending" @click="reloadKnowledgeGraph" />
+            <v-btn
+              :icon="isFavorited ? 'mdi-heart-minus' : 'mdi-heart-plus'"
+              variant="text"
+              size="small"
+              :disabled="selectedNodes.length === 0 || graphActionPending || isFavoritedLoading"
+              :loading="isFavoritedLoading"
+              @click="onToggleFavorites"
+            />
+          </div>
+        </v-card-title>
+        <v-card-text class="kgp-mobile__graph-body">
+          <div ref="graphWrap" class="kgp-mobile__graph-wrap knowledgegraph-container">
+            <KnowledgeNetwork ref="graph" class="kgp-graph" :zoom-level="zoomLevel" @ready="onGraphReady" />
+            <div v-if="graphEmptyMessage" class="kgp-empty-overlay">
+              <i class="fas fa-circle-info kgp-empty-icon"></i>
+              <span>{{ graphEmptyMessage }}</span>
+            </div>
+          </div>
+        </v-card-text>
+      </v-card>
+
+      <v-bottom-sheet v-model="mobileNodeSheet">
+        <v-card class="kgp-mobile__sheet">
+          <v-card-title class="kgp-mobile__sheet-title">
+            <span>{{ $t('home.nodePanel') }}</span>
+            <v-btn icon="mdi-close" variant="text" size="small" @click="mobileNodeSheet = false" />
+          </v-card-title>
+          <v-card-text class="kgp-mobile__sheet-scroll">
+            <NodeCreationForm v-if="$store.state.displayNodeCreationForm" @submitted="afterEditOrCreate" />
+            <LinkCreationForm v-else-if="$store.state.displayLinkCreationForm" @submitted="afterEditOrCreate" />
+            <NodeInfo v-else @edited="afterEditOrCreate" @node-state-changed="refreshKnowledgeNodeStates" />
+          </v-card-text>
+        </v-card>
+      </v-bottom-sheet>
+
+      <v-bottom-sheet v-model="mobileFilterSheet">
+        <v-card class="kgp-mobile__sheet">
+          <v-card-title>{{ $t('knowledgeGraph.filterLabel') }}</v-card-title>
+          <v-card-text class="kgp-mobile__sheet-scroll">
+            <div class="kgp-filter-bar">
+              <v-chip
+                v-for="option in graphFilterOptions"
+                :key="option.value"
+                size="small"
+                class="kgp-filter-chip"
+                :class="{ 'kgp-filter-chip--active': graphNodeFilterDisplay === option.value }"
+                :variant="graphNodeFilterDisplay === option.value ? 'flat' : 'outlined'"
+                :disabled="graphActionPending || graphFilterLoading"
+                @click="applyNodeStateFilter(option.value); mobileFilterSheet = false"
+              >
+                {{ option.title }}
+              </v-chip>
+            </div>
+            <v-divider class="my-4" />
+            <div class="text-subtitle-2 mb-2">{{ $t('home.tagsIndex') }}</div>
+            <v-autocomplete :key="acKey" v-model="tagSearch" v-model:search="tagSearchQuery" v-model:menu="tagMenuOpen"
+              :items="tagSuggestions" density="comfortable" variant="outlined" hide-details clearable
+              :placeholder="$t('home.searchTagsPlaceholder')" :loading="tagLoading" @update:search="onTagSearch"
+              @update:menu="onTagMenuChange" @update:modelValue="addTag" />
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <v-chip size="small" v-for="t in selectedTags" :key="t" closable @click:close="removeTag(t)">{{ t }}</v-chip>
+            </div>
+            <v-btn block color="primary" class="mt-3" :loading="filterLoading" @click="filterByTags">
+              {{ $t('home.filterSelectedAria') }}
+            </v-btn>
+            <v-divider class="my-4" />
+            <div class="text-subtitle-2 mb-2">{{ $t('home.tagsStructure') }}</div>
+            <v-list class="kgp-filter-group plan-list" nav>
+              <v-list-item class="group-plan-item plan-card kgp-list-item" v-for="(sys, i) in tagSystems" :key="sys" :title="sys"
+                :active="activeTagSystem === i" :disabled="filterTagStructureLoading && loadingTagSystemIndex === i"
+                @click="selectTagSystem(i)" />
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-bottom-sheet>
+    </div>
+
+    <v-row v-else class="kgp-row g-3">
 
       <!-- 左列：标签索引 + 结构筛选（卡片组） -->
       <v-col class="kgp-col kgp-left d-flex flex-column gap-4" :cols="12" :md="3" :lg="3" :xl="3">
@@ -74,7 +171,7 @@
                 </v-tooltip>
               </template>
 
-              <div class="kgp-filter-bar" :aria-label="$t('knowledgeGraph.filterLabel')" role="tablist">
+              <div class="kgp-filter-bar" :aria-label="$t('knowledgeGraph.filterLabel')" role="group">
                 <v-chip
                   v-for="option in graphFilterOptions"
                   :key="option.value"
@@ -240,10 +337,15 @@ import { useRouter } from 'vue-router'
 import { eventBus } from '@/eventBus'
 import { apiClient } from '@/api'
 import { useI18n } from 'vue-i18n'
+import { isPhoneDevice, phoneDeviceRevision } from '@/utils/device'
 
 const store = useStore()
 const router = useRouter()
 const { t } = useI18n()
+const isMobile = computed(() => {
+  phoneDeviceRevision.value
+  return isPhoneDevice()
+})
 
 function unwrapExposed(value, fallback) {
   if (value && typeof value === 'object' && 'value' in value) {
@@ -267,6 +369,8 @@ const loadingTagSystemIndex = ref(null)
 const zoomLevel = ref('Field')
 const leftDrawer = ref(false)
 const rightDrawer = ref(false)
+const mobileFilterSheet = ref(false)
+const mobileNodeSheet = ref(false)
 
 // 中心图尺寸控制
 const graphWrap = ref(null)
@@ -390,6 +494,12 @@ const graphFilterOptions = computed(() => [
 watch(isFullScreen, (val) => {
   if (!val) {
     fullscreenPanelCollapsed.value = false
+  }
+})
+
+watch(selectedNodes, (nodes) => {
+  if (isMobile.value && Array.isArray(nodes) && nodes.length > 0) {
+    mobileNodeSheet.value = true
   }
 })
 
@@ -893,6 +1003,134 @@ onBeforeUnmount(() => {
 .kgp-container {
   padding: 10px;
   /* width: calc(100% - 10px); */
+}
+
+.kgp-container--mobile {
+  width: 100vw;
+  max-width: 100vw !important;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding: 0 !important;
+}
+
+.kgp-mobile {
+  width: 100vw;
+  max-width: 100vw;
+  height: calc(100dvh - 82px - env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: calc(4px + env(safe-area-inset-top));
+}
+
+.kgp-mobile__topbar {
+  min-height: 54px;
+  padding: 0 4px 6px 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kgp-mobile__eyebrow {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.58);
+  line-height: 1.2;
+}
+
+.kgp-mobile__title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: calc(100vw - 116px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kgp-mobile__topbar-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.kgp-mobile__card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  max-width: 100vw;
+  border-radius: 0 !important;
+  overflow: hidden;
+}
+
+.kgp-mobile__card-title {
+  min-height: 44px;
+  padding: 6px 10px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kgp-mobile__actions {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.kgp-mobile__graph-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+}
+
+.kgp-mobile__graph-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100vw;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.kgp-mobile__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 16px;
+}
+
+.kgp-mobile__sheet {
+  border-radius: 16px 16px 0 0 !important;
+  max-height: min(78dvh, 620px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.kgp-mobile__sheet-title {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 12px;
+  font-size: 16px;
+}
+
+.kgp-mobile__sheet-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* 行满高布局，列内各卡片使用 sticky 以在滚动时固定标题 */

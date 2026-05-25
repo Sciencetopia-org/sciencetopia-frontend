@@ -1,5 +1,5 @@
 <template>
-  <div class="layout-wrapper">
+  <div class="layout-wrapper" :class="{ 'phone-layout': isSmallScreen }">
     <!-- 顶部搜索条（可选） -->
     <SearchBar v-if="searchBarVisible" />
 
@@ -8,13 +8,14 @@
       <!-- 仅占位，不渲染内容。真正的 HeaderBar 是固定定位，独立于文档流。 -->
       <div class="sidebar-slot"></div>
 
-      <!-- 固定定位的最左侧全局导航 -->
-      <HeaderBar @showStudyPlanDialog="handleDialogClick" />
+      <!-- 固定定位的最左侧全局导航：手机端完全不挂载，避免隐藏的桌面侧栏残留边缘 -->
+      <HeaderBar v-if="!isSmallScreen" @showStudyPlanDialog="handleDialogClick" />
 
-      <!-- 移动端汉堡按钮 -->
-      <div v-if="isSmallScreen" class="menu-toggle" @click="toggleMobileMenu">
-        <v-icon>{{ mobileMenuOpen ? 'mdi-close' : 'mdi-menu' }}</v-icon>
-      </div>
+      <div
+        v-if="isSmallScreen && !mobileMenuOpen"
+        class="mobile-edge-swipe-zone"
+        aria-hidden="true"
+      ></div>
 
       <!-- 右侧主内容：自动占据除侧栏之外的剩余宽度 -->
       <main class="main-content" :class="{ 'mobile-content': isSmallScreen }">
@@ -26,8 +27,8 @@
     <v-dialog
       v-model="dialog"
       persistent
-      :max-width="$vuetify.display.smAndDown ? '100%' : '800px'"
-      :fullscreen="$vuetify.display.smAndDown"
+      :max-width="isSmallScreen ? '100%' : '800px'"
+      :fullscreen="isSmallScreen"
     >
       <v-card>
         <v-card-title>{{ $t('header.studyplan') }}</v-card-title>
@@ -72,7 +73,7 @@
     </v-snackbar>
 
     <!-- 底部 -->
-    <div class="footer-container">
+    <div v-if="!isSmallScreen" class="footer-container">
       <transition name="footer-transition">
         <v-footer app v-if="!showFinalFooter" class="dynamic-footer">
           <FooterBar />
@@ -82,7 +83,14 @@
       <!-- <DefaultFooterBar /> -->
     </div>
 
-    <ScrollToTopButton />
+    <ScrollToTopButton v-if="!isSmallScreen" />
+    <MobileDrawerMenu
+      v-if="isSmallScreen"
+      v-model="mobileMenuOpen"
+      @search="showSearchBar"
+      @toggle-language="toggleLanguage"
+    />
+    <MobileBottomNav v-if="isSmallScreen" />
   </div>
 </template>
 
@@ -93,8 +101,11 @@ import SearchBar from '@/components/search/SearchBar.vue'
 import FooterBar from './FooterBar.vue'
 // import DefaultFooterBar from './DefaultFooterBar.vue'
 import ScrollToTopButton from '@/components/ui/ScrollToTopButton.vue'
+import MobileBottomNav from '@/components/mobile/MobileBottomNav.vue'
+import MobileDrawerMenu from '@/components/mobile/MobileDrawerMenu.vue'
 import { eventBus } from '@/eventBus'
 import { apiClient } from '@/api'
+import { isPhoneDevice, phoneDeviceRevision } from '@/utils/device'
 
 export default {
   name: 'LayOut',
@@ -105,6 +116,8 @@ export default {
     SearchBar,
     // DefaultFooterBar,
     ScrollToTopButton,
+    MobileBottomNav,
+    MobileDrawerMenu,
   },
   data() {
     return {
@@ -113,8 +126,16 @@ export default {
       showStudyPlan: false,
       showFinalFooter: false,
       isSmallScreen:
-        typeof window !== 'undefined' ? window.innerWidth <= 600 : false,
+        typeof window !== 'undefined' ? isPhoneDevice() : false,
       mobileMenuOpen: false,
+      mobileSwipe: {
+        tracking: false,
+        startedFromEdge: false,
+        startX: 0,
+        startY: 0,
+        currentX: 0,
+        currentY: 0,
+      },
       searchBarVisible: false,
       backgroundSnackbar: false,
       backgroundMessage: '',
@@ -125,6 +146,10 @@ export default {
   },
   mounted() {
     window.addEventListener('resize', this.handleResize)
+    window.addEventListener('touchstart', this.handleMobileTouchStart, { passive: true })
+    window.addEventListener('touchmove', this.handleMobileTouchMove, { passive: false })
+    window.addEventListener('touchend', this.handleMobileTouchEnd, { passive: true })
+    window.addEventListener('touchcancel', this.handleMobileTouchEnd, { passive: true })
     this.handleResize()
 
     eventBus.on('show-search-bar', this.showSearchBar)
@@ -132,31 +157,88 @@ export default {
     eventBus.on('background-plan', this.handleBackground)
 
     document.body.classList.add('sidebar-layout')
+    document.body.classList.toggle('phone-layout', this.isSmallScreen)
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.handleResize)
+    window.removeEventListener('touchstart', this.handleMobileTouchStart)
+    window.removeEventListener('touchmove', this.handleMobileTouchMove)
+    window.removeEventListener('touchend', this.handleMobileTouchEnd)
+    window.removeEventListener('touchcancel', this.handleMobileTouchEnd)
     eventBus.off('show-search-bar', this.showSearchBar)
     eventBus.off('hide-search-bar', this.hideSearchBar)
     eventBus.off('background-plan', this.handleBackground)
     document.body.classList.remove('sidebar-layout')
+    document.body.classList.remove('phone-layout')
+  },
+  computed: {
+    phoneDeviceRevisionValue() {
+      return phoneDeviceRevision.value
+    },
+  },
+  watch: {
+    phoneDeviceRevisionValue() {
+      this.handleResize()
+    },
   },
   methods: {
     handleResize() {
-      this.isSmallScreen = window.innerWidth <= 600
+      this.isSmallScreen = isPhoneDevice()
+      document.body.classList.toggle('phone-layout', this.isSmallScreen)
 
-      const header = document.querySelector('.large-header')
-      if (header) {
-        if (this.isSmallScreen && this.mobileMenuOpen)
-          header.classList.add('menu-open')
-        else header.classList.remove('menu-open')
+      if (!this.isSmallScreen) this.mobileMenuOpen = false
+    },
+    handleMobileTouchStart(event) {
+      if (!this.isSmallScreen || !event.touches?.length) return
+
+      const touch = event.touches[0]
+      const drawerWidth = Math.min(310, window.innerWidth * 0.86)
+      const startedFromEdge = touch.clientX <= 24
+      const startedInsideOpenDrawer = this.mobileMenuOpen && touch.clientX <= drawerWidth
+
+      if (!startedFromEdge && !startedInsideOpenDrawer) return
+
+      this.mobileSwipe = {
+        tracking: true,
+        startedFromEdge,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        currentX: touch.clientX,
+        currentY: touch.clientY,
       }
     },
-    toggleMobileMenu() {
-      this.mobileMenuOpen = !this.mobileMenuOpen
-      const header = document.querySelector('.large-header')
-      const logo = document.querySelector('.logo-island')
-      if (header) header.classList.toggle('menu-open')
-      if (logo) logo.classList.toggle('menu-open')
+    handleMobileTouchMove(event) {
+      if (!this.mobileSwipe.tracking || !event.touches?.length) return
+
+      const touch = event.touches[0]
+      this.mobileSwipe.currentX = touch.clientX
+      this.mobileSwipe.currentY = touch.clientY
+
+      const deltaX = this.mobileSwipe.currentX - this.mobileSwipe.startX
+      const deltaY = this.mobileSwipe.currentY - this.mobileSwipe.startY
+      const horizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY) + 8
+
+      if (!horizontalSwipe) return
+
+      if (this.mobileSwipe.startedFromEdge && deltaX > 34) {
+        event.preventDefault()
+        this.mobileMenuOpen = true
+      } else if (this.mobileMenuOpen && deltaX < -48) {
+        event.preventDefault()
+        this.mobileMenuOpen = false
+      }
+    },
+    handleMobileTouchEnd() {
+      if (!this.mobileSwipe.tracking) return
+
+      this.mobileSwipe = {
+        tracking: false,
+        startedFromEdge: false,
+        startX: 0,
+        startY: 0,
+        currentX: 0,
+        currentY: 0,
+      }
     },
     triggerSavePlan() {
       this.$refs.learningPlanner?.savePlan?.()
@@ -177,6 +259,7 @@ export default {
     },
     showSearchBar() {
       this.searchBarVisible = true
+      this.mobileMenuOpen = false
     },
     hideSearchBar() {
       this.searchBarVisible = false
@@ -217,6 +300,18 @@ export default {
           this.backgroundLoading = false
           this.$store.commit('SET_BACKGROUND_GENERATING', false)
         })
+    },
+    toggleLanguage() {
+      const options = ['zh', 'en']
+      const current = this.$i18n.locale
+      const currentValue = typeof current === 'object' && 'value' in current ? current.value : current
+      const next = options[(options.indexOf(currentValue) + 1) % options.length] || 'zh'
+      if (typeof current === 'object' && 'value' in current) current.value = next
+      else this.$i18n.locale = next
+      try { this.$vuetify.locale.current = next === 'zh' ? 'zhHans' : 'en' } catch (_) {}
+      try { localStorage.setItem('locale', next) } catch (_) {}
+      try { window.dispatchEvent(new CustomEvent('app:lang-changed', { detail: next })) } catch (_) {}
+      this.mobileMenuOpen = false
     },
     onBackgroundSnackbarClick() {
       if (this.backgroundLoading) return
@@ -290,39 +385,94 @@ export default {
 }
 
 /* 移动端：主内容全宽，不再预留侧栏 */
-@media (max-width: 600px) {
-  .body-wrapper {
-    flex-direction: column;
-  }
-  .sidebar-slot {
-    display: none;
-  }
-  .main-content {
-    --content-padding: 8px;
-    width: 100%;
-  }
+.layout-wrapper.phone-layout {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
 
-/* 移动端汉堡按钮（保留你的样式） */
-.menu-toggle {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 1001;
-  background-color: rgba(232, 218, 189, 0.8);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
+.layout-wrapper.phone-layout .body-wrapper {
+  min-height: 100dvh;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
-@media (max-width: 600px) {
-  .menu-toggle {
-    display: flex;
-  }
+
+.layout-wrapper.phone-layout .sidebar-slot {
+  display: none;
+}
+
+.layout-wrapper.phone-layout .main-content {
+  --content-padding: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100dvh;
+  padding: 8px 8px calc(72px + env(safe-area-inset-bottom));
+  overflow-x: hidden;
+}
+
+:global(html:has(body.phone-layout)),
+:global(body.phone-layout),
+:global(body.phone-layout #app),
+:global(body.phone-layout .v-application),
+:global(body.phone-layout .v-application__wrap) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-left: 0;
+  margin-right: 0;
+  overflow-x: hidden;
+}
+
+:global(body.phone-layout .v-container) {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+:global(body.phone-layout .v-window),
+:global(body.phone-layout .v-window__container),
+:global(body.phone-layout .v-window-item),
+:global(body.phone-layout .v-window-item__content) {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+}
+
+:global(body.phone-layout .v-window-item) {
+  flex: 0 0 100% !important;
+}
+
+:global(body.phone-layout .v-card),
+:global(body.phone-layout .panel-card),
+:global(body.phone-layout .left-panel),
+:global(body.phone-layout .v-sheet),
+:global(body.phone-layout .v-window),
+:global(body.phone-layout .v-window__container),
+:global(body.phone-layout .mobile-plan-card),
+:global(body.phone-layout .mobile-group-card),
+:global(body.phone-layout .kgp-mobile__card),
+:global(body.phone-layout .mobile-profile),
+:global(body.phone-layout .mobile-message-center),
+:global(body.phone-layout .mobile-group-page),
+:global(body.phone-layout .mobile-plan-workspace),
+:global(body.phone-layout .mobile-plan-page) {
+  border-radius: 0 !important;
+  clip-path: none !important;
+}
+
+.mobile-edge-swipe-zone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 998;
+  width: 24px;
+  height: 100dvh;
+  touch-action: pan-y;
+  pointer-events: none;
 }
 
 /* 底部动画与配色（保持原样） */

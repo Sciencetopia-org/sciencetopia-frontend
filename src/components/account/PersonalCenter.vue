@@ -1,6 +1,85 @@
 <template>
   <v-container class="personal-center-container" fluid>
-    <v-row>
+    <div v-if="isPhone" class="mobile-profile">
+      <div class="mobile-profile__header">
+        <div class="mobile-profile__title">
+          {{ isCurrentUser ? $t('usercenter.my') : $t('usercenter.their') }}{{ $t('wordbreaker') }}{{ $t('usercenter.profile') || 'Profile' }}
+        </div>
+      </div>
+      <v-tabs v-model="mobileTab" density="compact" grow class="mobile-profile__tabs">
+        <v-tab value="profile">{{ $t('usercenter.profile') || 'Profile' }}</v-tab>
+        <v-tab value="plans">{{ $t('usercenter.studyplan') }}</v-tab>
+        <v-tab value="groups">{{ $t('usercenter.studygroup') }}</v-tab>
+        <v-tab value="more">{{ $t('more') || 'More' }}</v-tab>
+      </v-tabs>
+      <v-window v-model="mobileTab" touch class="mobile-profile__window">
+        <v-window-item value="profile" class="mobile-profile__pane">
+          <div class="mobile-profile__scroll">
+            <PersonalInformation :userId="userId">
+              <v-btn
+                block
+                variant="outlined"
+                :style="{ backgroundColor: 'white' }"
+                prepend-icon="mdi-email-outline"
+                @click="startOrLoadConversation(userId)"
+              >
+                {{ $t('message.sendmessage') }}
+              </v-btn>
+            </PersonalInformation>
+          </div>
+        </v-window-item>
+        <v-window-item value="plans" class="mobile-profile__pane">
+          <div class="mobile-profile__scroll">
+            <StudyPlanList
+              :isCurrentUser="isCurrentUser"
+              :studyPlanDataList="studyPlanDataList"
+              :progressStatus="progressStatus"
+              :loading="loadingPlans"
+            >
+              <template #actions>
+                <StudyPlanProgressFilter
+                  v-model="progressStatus"
+                  :disabled="loadingPlans"
+                  @update:model-value="onProgressStatusChanged"
+                />
+              </template>
+            </StudyPlanList>
+          </div>
+        </v-window-item>
+        <v-window-item value="groups" class="mobile-profile__pane">
+          <div class="mobile-profile__scroll">
+            <template v-if="loadingGroups">
+              <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+              <v-skeleton-loader type="list-item-two-line" class="mb-2" />
+            </template>
+            <v-card v-else-if="studyGroupList.length === 0" class="pa-4">
+              {{ isCurrentUser ? $t('studygroup.nogroup_my') : $t('studygroup.nogroup_their') }}
+            </v-card>
+            <StudyGroupCard
+              v-for="group in studyGroupList"
+              :key="group.id"
+              :group="normalizePersonalGroup(group)"
+              action-mode="detail"
+              class="mb-3"
+              @open="toGroupPage"
+              @profile="navigateToProfile"
+            />
+          </div>
+        </v-window-item>
+        <v-window-item value="more" class="mobile-profile__pane">
+          <v-list class="mobile-profile__more" density="comfortable" nav>
+            <v-list-subheader>Sciencetopia</v-list-subheader>
+            <v-list-item prepend-icon="mdi-information-outline" :title="$t('footer.about')" :to="{ path: '/about' }" />
+            <v-list-item prepend-icon="mdi-email-outline" :title="$t('footer.contact')" :to="{ path: '/contact' }" />
+            <v-list-item prepend-icon="mdi-hand-heart-outline" :title="$t('footer.donate')" :to="{ path: '/support' }" />
+            <v-divider class="my-2" />
+            <v-list-item prepend-icon="mdi-account-cog-outline" :title="$t('usercenter.account') || 'Account'" :to="{ name: 'accountcenter', params: { userId } }" />
+          </v-list>
+        </v-window-item>
+      </v-window>
+    </div>
+
+    <v-row v-else>
       <!-- Personal Information -->
       <v-col cols="12" md="3" class="profile-container">
         <PersonalInformation :userId="userId">
@@ -88,6 +167,7 @@ import StudyPlanList from '@/components/study-plan/StudyPlanList.vue'
 import StudyPlanProgressFilter from '@/components/study-plan/StudyPlanProgressFilter.vue'
 import StudyGroupCard from '@/components/StudyGroup/StudyGroupCard.vue'
 import { apiClient } from '@/api'
+import { isPhoneDevice, phoneDeviceRevision } from '@/utils/device'
 
 export default {
   components: {
@@ -116,6 +196,7 @@ export default {
       q: null,
       sort: null,
       progressStatus: 'all',
+      mobileTab: 'profile',
     }
   },
   created() {
@@ -124,6 +205,10 @@ export default {
   computed: {
     isCurrentUser() {
       return this.userId === this.currentUserId
+    },
+    isPhone() {
+      phoneDeviceRevision.value
+      return isPhoneDevice()
     },
   },
   methods: {
@@ -267,6 +352,69 @@ export default {
 <style scoped>
 .personal-center-container {
   padding: 16px;
+}
+
+.mobile-profile {
+  width: 100%;
+  max-width: 100%;
+  height: calc(100dvh - 82px - env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mobile-profile__header {
+  min-height: 54px;
+  padding: calc(8px + env(safe-area-inset-top)) 4px 8px 52px;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-profile__title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.mobile-profile__tabs {
+  flex: 0 0 auto;
+}
+
+.mobile-profile__tabs :deep(.v-tab) {
+  min-width: 0;
+  letter-spacing: 0;
+}
+
+.mobile-profile__window {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.mobile-profile__pane,
+.mobile-profile__pane :deep(.v-window-item__content) {
+  height: 100%;
+  min-height: 0;
+}
+
+.mobile-profile__scroll {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px;
+}
+
+.mobile-profile__more {
+  height: 100%;
+  overflow-y: auto;
+  background: transparent;
+  padding: 8px;
+}
+
+:global(body.phone-layout) .personal-center-container {
+  padding: 0;
 }
 
 @media (min-width: 960px) {

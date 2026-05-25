@@ -1,6 +1,143 @@
 <template>
   <v-container fluid class="study-plan-workspace">
-    <v-row>
+    <div v-if="isMobile" class="mobile-plan-workspace">
+      <div class="mobile-plan-header">
+        <div>
+          <div class="mobile-plan-eyebrow">{{ $t('studyplan.myplans') }}</div>
+          <div class="mobile-plan-title">{{ currentPlan?.title || $t('studyplan.myplans') }}</div>
+        </div>
+        <div class="mobile-plan-header__actions">
+          <v-btn icon="mdi-plus" variant="text" size="small" @click="openCreateDialog"
+            :disabled="backgroundGenerating || listLoading || detailLoading" />
+          <v-btn icon="mdi-robot-outline" variant="text" size="small" @click="openAiDialog"
+            :disabled="backgroundGenerating || listLoading || detailLoading" />
+        </div>
+      </div>
+
+      <div class="mobile-plan-swipe-indicator" :aria-label="mobileTabLabel">
+        <button
+          v-for="item in mobileSwipeItems"
+          :key="item.value"
+          type="button"
+          class="mobile-plan-dot"
+          :class="{ 'mobile-plan-dot--active': mobileTab === item.value }"
+          @click="goToMobileTab(item.value)"
+          :aria-label="item.label"
+        />
+      </div>
+
+      <div
+        class="mobile-plan-window"
+        @touchstart.passive="onMobileSwipeStart"
+        @touchmove.passive="onMobileSwipeMove"
+        @touchend="onMobileSwipeEnd"
+        @touchcancel="onMobileSwipeCancel"
+      >
+        <div
+          class="mobile-plan-track"
+          :class="{ 'mobile-plan-track--dragging': mobileSwipeDragging }"
+          :style="mobileTrackStyle"
+        >
+        <section class="mobile-plan-pane">
+          <v-card class="mobile-plan-card" rounded="lg" elevation="1">
+            <div class="mobile-plan-controls">
+              <v-text-field
+                v-model="q"
+                :label="$t('common.search')"
+                density="compact"
+                hide-details
+                clearable
+                append-inner-icon="mdi-magnify"
+                :disabled="listLoading || detailLoading"
+                :loading="listLoading"
+                @click:append-inner="fetchPlans"
+                @keyup.enter="fetchPlans"
+                @click:clear="fetchPlans"
+              />
+              <StudyPlanProgressFilter
+                v-model="progressStatus"
+                :disabled="listLoading || detailLoading"
+                @update:model-value="onListControlsChanged"
+              />
+            </div>
+            <div class="mobile-plan-scroll">
+              <template v-if="listLoading">
+                <v-skeleton-loader type="list-item" v-for="n in 4" :key="n" />
+              </template>
+              <v-list v-else-if="studyPlans.length" density="compact" class="plan-list">
+                <v-list-item
+                  v-for="plan in studyPlans"
+                  :key="plan.studyPlan.id"
+                  @click="selectPlan(plan.studyPlan); goToMobileTab('lessons')"
+                  class="plan-card"
+                  :disabled="listActionLocked"
+                  :class="{ 'selected-plan': currentPlan && currentPlan.id === plan.studyPlan.id }"
+                >
+                  <div class="title">{{ plan.studyPlan.title }}</div>
+                  <PlanProgressBars
+                    :loading="progressLoading[plan.studyPlan.id]"
+                    :primaryProgress="plan.studyPlan.progress"
+                    :advancedProgress="plan.studyPlan.advancedProgress"
+                    :primaryTooltip="`学习进度：${Math.round(plan.studyPlan.progress || 0)} %`"
+                    :advancedTooltip="`额外学习了${Math.round(plan.studyPlan.advancedProgress || 0)} %的进阶内容`"
+                  />
+                </v-list-item>
+              </v-list>
+              <div v-else class="empty-plan-list text-center px-4">
+                <p class="mb-4">{{ $t(emptyPlanMessageKey) }}</p>
+                <v-btn block class="mb-2" color="primary" @click="openCreateDialog" :disabled="backgroundGenerating || listLoading || detailLoading">
+                  {{ $t('studyplan.create') }}
+                </v-btn>
+                <v-btn block color="secondary" @click="openAiDialog" :disabled="backgroundGenerating || listLoading || detailLoading">
+                  {{ $t('studyplan.aiGenerate') }}
+                </v-btn>
+              </div>
+            </div>
+          </v-card>
+        </section>
+
+        <section class="mobile-plan-pane">
+          <div class="mobile-plan-scroll">
+            <PlanDetailPanel ref="centerPanel" v-if="currentPlan?.id" :key="`m-plan:${currentPlan.id}`" :planId="currentPlan.id" :scope="scope" :allowEditControls="true"
+              @select-lesson="selectLessonById" @open-share="openShareDialog" @open-progress="mobileProgressSheet = true"
+              @updated-plan="onCenterUpdated" @loaded="onCenterLoaded" />
+          </div>
+        </section>
+
+        <section class="mobile-plan-pane">
+          <div class="mobile-plan-scroll">
+            <LessonDetailPanel ref="rightPanel"
+              v-if="currentLesson || currentLessonId"
+              :key="`m-lesson:${currentPlan?.id || 'none'}:${currentLessonId || currentLesson?.id || currentLesson?.name || 'selected'}`"
+              :planId="currentPlan?.id"
+              :lesson="currentLesson"
+              :lessonId="currentLessonId"
+              :scope="scope"
+              :canInteract="canProgressOnCurrentPlan"
+              :disabled="!canProgressOnCurrentPlan"
+              @resource-updated="onResourceUpdated"
+            />
+            <v-card v-else class="panel-card panel-card--beige pa-4" rounded="lg" elevation="1">
+              <div class="placeholder">{{ $t('lessonDetail.selectLesson') }}</div>
+            </v-card>
+          </div>
+        </section>
+        </div>
+      </div>
+
+      <v-bottom-sheet v-model="mobileProgressSheet" class="mobile-progress-sheet">
+        <div class="mobile-progress-sheet__content">
+          <ProgressPage
+            v-if="currentPlan?.id"
+            :planId="currentPlan?.id"
+            @close="mobileProgressSheet = false"
+            @select-lesson="selectLessonFromProgress"
+          />
+        </div>
+      </v-bottom-sheet>
+    </div>
+
+    <v-row v-else>
       <!-- Left: study plan list -->
       <v-col :cols="collapsed ? 1 : 3" class="pa-0">
         <v-card rounded="xl" elevation="2" class="left-panel">
@@ -199,6 +336,7 @@ import StudyPlanProgressFilter from '@/components/study-plan/StudyPlanProgressFi
 import { eventBus } from '@/eventBus'
 import { connection } from '@/services/signalr-service'
 import { fetchEffectiveRole as fetchRole, getRole as getCachedRole, roleAllowsEdit, roleAllowsProgress } from '@/services/studyplan-permissions'
+import { isPhoneDevice, phoneDeviceRevision } from '@/utils/device'
 import confetti from 'canvas-confetti'
 
 export default {
@@ -210,6 +348,12 @@ export default {
       currentPlan: null,
       currentLesson: null,
       currentLessonId: null,
+      mobileTab: 'plans',
+      mobileProgressSheet: false,
+      mobileSwipeStartX: 0,
+      mobileSwipeStartY: 0,
+      mobileSwipeDeltaX: 0,
+      mobileSwipeDragging: false,
       drawer: true,
       collapsed: false,
       openSections: [0, 1, 2],
@@ -230,6 +374,7 @@ export default {
       sort: 'lastStudiedDesc',
       progressStatus: 'all',
       listScope: 'mine',
+      scope: { type: 'me' },
       // my progress now handled in PlanDetailPanel
       roleMap: {},
       unsubscribers: [],
@@ -255,6 +400,10 @@ export default {
     backgroundGenerating() {
       return this.$store.state.backgroundGenerating
     },
+    isMobile() {
+      phoneDeviceRevision.value
+      return isPhoneDevice()
+    },
     sortItems() {
       return [
         { title: this.$t('common.sortOptions.progressDesc'), value: 'progressDesc' },
@@ -262,6 +411,27 @@ export default {
         { title: this.$t('common.sortOptions.lastStudiedDesc'), value: 'lastStudiedDesc' },
         { title: this.$t('common.sortOptions.updatedDesc'), value: 'updatedDesc' },
       ]
+    },
+    mobileSwipeItems() {
+      return [
+        { value: 'plans', label: this.$t('studyplan.myplans') },
+        { value: 'lessons', label: this.$t('studyplan.lessons') || 'Lessons' },
+        { value: 'resource', label: this.$t('studyplan.resource') || 'Resource' },
+      ]
+    },
+    mobileTabLabel() {
+      return this.mobileSwipeItems.find((item) => item.value === this.mobileTab)?.label || ''
+    },
+    mobileTabIndex() {
+      return Math.max(0, this.mobileSwipeItems.findIndex((item) => item.value === this.mobileTab))
+    },
+    mobileTrackStyle() {
+      const pagePercent = 100 / Math.max(1, this.mobileSwipeItems.length)
+      const base = -this.mobileTabIndex * pagePercent
+      const drag = this.mobileSwipeDragging ? this.mobileSwipeDeltaX : 0
+      return {
+        transform: `translate3d(calc(${base}% + ${drag}px), 0, 0)`,
+      }
     },
   },
   async created() {
@@ -321,6 +491,50 @@ export default {
     this.unsubscribers.forEach((fn) => fn && fn())
   },
   methods: {
+    goToMobileTab(value) {
+      if (!this.mobileSwipeItems.some((item) => item.value === value)) return
+      this.mobileTab = value
+      this.mobileSwipeDragging = false
+      this.mobileSwipeDeltaX = 0
+    },
+    onMobileSwipeStart(event) {
+      const touch = event.touches?.[0]
+      if (!touch) return
+      this.mobileSwipeStartX = touch.clientX
+      this.mobileSwipeStartY = touch.clientY
+      this.mobileSwipeDeltaX = 0
+      this.mobileSwipeDragging = true
+    },
+    onMobileSwipeMove(event) {
+      if (!this.mobileSwipeDragging) return
+      const touch = event.touches?.[0]
+      if (!touch) return
+      const deltaX = touch.clientX - this.mobileSwipeStartX
+      const deltaY = touch.clientY - this.mobileSwipeStartY
+      if (Math.abs(deltaY) > Math.abs(deltaX) * 1.2) {
+        this.mobileSwipeDeltaX = 0
+        return
+      }
+      const atFirst = this.mobileTabIndex === 0 && deltaX > 0
+      const atLast = this.mobileTabIndex === this.mobileSwipeItems.length - 1 && deltaX < 0
+      this.mobileSwipeDeltaX = atFirst || atLast ? deltaX * 0.28 : deltaX
+    },
+    onMobileSwipeEnd() {
+      if (!this.mobileSwipeDragging) return
+      const threshold = 64
+      const index = this.mobileTabIndex
+      if (this.mobileSwipeDeltaX <= -threshold && index < this.mobileSwipeItems.length - 1) {
+        this.mobileTab = this.mobileSwipeItems[index + 1].value
+      } else if (this.mobileSwipeDeltaX >= threshold && index > 0) {
+        this.mobileTab = this.mobileSwipeItems[index - 1].value
+      }
+      this.mobileSwipeDragging = false
+      this.mobileSwipeDeltaX = 0
+    },
+    onMobileSwipeCancel() {
+      this.mobileSwipeDragging = false
+      this.mobileSwipeDeltaX = 0
+    },
     async fetchPlans({ reconcileSelection = false } = {}) {
       if (this.listLoading) return
       this.listLoading = true
@@ -584,11 +798,14 @@ export default {
       this.currentLessonId = id
       // If we have the lesson object, pass it to avoid extra API in right panel
       this.currentLesson = lesson || null
+      if (this.isMobile) this.mobileTab = 'resource'
     },
     selectLessonFromProgress(id) {
       this.showProgressPage = false
+      this.mobileProgressSheet = false
       this.currentLessonId = id
       this.currentLesson = null
+      if (this.isMobile) this.mobileTab = 'resource'
     },
     onScopeChange(newScope) {
       this.scope = newScope
@@ -848,6 +1065,137 @@ export default {
 .study-plan-workspace {
   height: calc(100vh - 64px);
   overflow: hidden;
+}
+
+.mobile-plan-workspace {
+  width: 100%;
+  max-width: 100%;
+  height: calc(100dvh - 82px - env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mobile-plan-header {
+  min-height: 54px;
+  padding: calc(4px + env(safe-area-inset-top)) 4px 6px 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobile-plan-eyebrow {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.58);
+}
+
+.mobile-plan-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: calc(100vw - 132px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-plan-header__actions {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-plan-swipe-indicator {
+  flex: 0 0 auto;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 2px 0 8px;
+}
+
+.mobile-plan-dot {
+  width: 8px;
+  height: 8px;
+  border: 0;
+  padding: 0;
+  background: rgba(48, 78, 117, 0.28);
+  cursor: pointer;
+}
+
+.mobile-plan-dot--active {
+  width: 22px;
+  background: #304e75;
+}
+
+.mobile-plan-window {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.mobile-plan-track {
+  width: 300%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  will-change: transform;
+  transition: transform 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.mobile-plan-track--dragging {
+  transition: none;
+}
+
+.mobile-plan-pane {
+  flex: 0 0 calc(100% / 3);
+  width: calc(100% / 3);
+  max-width: calc(100% / 3);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.mobile-plan-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f4eee1;
+}
+
+.mobile-plan-controls {
+  flex: 0 0 auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-plan-scroll {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px;
+}
+
+.mobile-progress-sheet__content {
+  height: min(84dvh, 720px);
+  min-height: 0;
+  background: #fbf8f2;
+  overflow: hidden;
+}
+
+:global(body.phone-layout) .study-plan-workspace {
+  height: auto;
+  padding: 0;
 }
 
 /* Make the row fill the container's height */

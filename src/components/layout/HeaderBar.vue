@@ -437,41 +437,17 @@ export default {
   font-size: 0.8rem;
 }
 
-/* 移动端显示的汉堡菜单按钮 */
-.menu-toggle {
-  display: none;
+:global(body.phone-layout) .large-header,
+:global(body.phone-layout) .logo-island {
+  transform: translateX(-100px);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-@media (max-width: 600px) {
-
-  .large-header,
-  .logo-island {
-    transform: translateX(-100px);
-    opacity: 0;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-  }
-
-  .large-header.menu-open,
-  .logo-island.menu-open {
-    transform: translateX(0);
-    opacity: 1;
-  }
-
-  .menu-toggle {
-    display: block;
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    z-index: 1001;
-    background-color: rgba(232, 218, 189, 0.8);
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  }
+:global(body.phone-layout) .large-header.menu-open,
+:global(body.phone-layout) .logo-island.menu-open {
+  transform: translateX(0);
+  opacity: 1;
 }
 
 /* 按钮激活态样式 */

@@ -1,6 +1,93 @@
 <template>
   <div class="group-page">
-    <v-container v-if="activeTab === 'studyGroupSpace'">
+    <div v-if="isPhone" class="mobile-group-page">
+      <div class="mobile-group-header">
+        <div>
+          <div class="mobile-group-eyebrow">{{ $t('studygroup.studygroupspace') }}</div>
+          <div class="mobile-group-title">{{ group.name || $t('studygroup.studygroup') }}</div>
+        </div>
+      </div>
+      <v-tabs v-model="mobileTab" density="compact" grow class="mobile-group-tabs">
+        <v-tab value="overview">{{ $t('overview') || 'Overview' }}</v-tab>
+        <v-tab value="plans">{{ $t('studygroup.studypath') }}</v-tab>
+        <v-tab value="members">{{ $t('studygroup.groupmember') }}</v-tab>
+        <v-tab v-if="isManager" value="admin">{{ $t('studygroup.managerboard') }}</v-tab>
+      </v-tabs>
+      <v-window v-model="mobileTab" touch class="mobile-group-window">
+        <v-window-item value="overview" class="mobile-group-pane">
+          <div class="mobile-group-scroll">
+            <v-card class="mobile-group-card" rounded="lg" elevation="1">
+              <template v-if="loadingGroup">
+                <v-skeleton-loader type="image" class="mb-4" />
+                <v-skeleton-loader type="heading" class="mb-2" />
+                <v-skeleton-loader type="text, text" />
+              </template>
+              <template v-else-if="groupLoadError">
+                <v-alert type="error" variant="tonal">{{ groupLoadError }}</v-alert>
+              </template>
+              <template v-else>
+                <v-img aspect-ratio="16/9" cover :src="groupImageSrc" />
+                <v-card-title>{{ group.name }}</v-card-title>
+                <v-card-subtitle v-html="group.bio"></v-card-subtitle>
+                <v-card-text>
+                  <span v-html="sanitizeHtml(group.description)"></span>
+                  <div class="mt-2">
+                    <v-chip v-for="t in tags" :key="t.id || t.Id || t" class="ma-1" size="small" label>
+                      {{ t.name || t.Name || t }}
+                    </v-chip>
+                  </div>
+                </v-card-text>
+                <v-card-actions class="justify-end">
+                  <v-btn v-if="isMember" color="primary" text disabled>{{ $t('studygroup.joined') }}</v-btn>
+                  <v-btn v-else color="primary" text @click="applyToJoin(group.id)">{{ $t('studygroup.applytojoin') }}</v-btn>
+                </v-card-actions>
+              </template>
+            </v-card>
+          </div>
+        </v-window-item>
+        <v-window-item value="plans" class="mobile-group-pane">
+          <div class="mobile-group-scroll">
+            <v-card class="mobile-group-card" rounded="lg" elevation="1">
+              <v-card-title>{{ $t('studygroup.studypath') }}</v-card-title>
+              <v-card-text>
+                <GroupPlansList v-if="plansPanelReady" :groupId="groupId" :bare="true" @select="goToGroupPlan" />
+                <v-skeleton-loader v-else type="list-item, list-item, list-item" />
+              </v-card-text>
+            </v-card>
+          </div>
+        </v-window-item>
+        <v-window-item value="members" class="mobile-group-pane">
+          <div class="mobile-group-scroll">
+            <v-list class="mobile-group-card" density="comfortable">
+              <v-list-item
+                v-for="member in displayMembers"
+                :key="member.id"
+                :title="member.userName || member.id"
+                :subtitle="member.role"
+                @click="navigateToProfile(member.id)"
+              >
+                <template #prepend>
+                  <v-avatar size="42"><img :src="member.avatarUrl" :alt="$t('user.useravatar')" /></v-avatar>
+                </template>
+              </v-list-item>
+            </v-list>
+          </div>
+        </v-window-item>
+        <v-window-item v-if="isManager" value="admin" class="mobile-group-pane">
+          <div class="mobile-group-scroll">
+            <ManagePanel
+              :groupId="groupId"
+              :role="role"
+              :group="group"
+              :tags="tags"
+              :pendingJoinRequests="pendingJoinRequests"
+            />
+          </div>
+        </v-window-item>
+      </v-window>
+    </div>
+
+    <v-container v-else-if="activeTab === 'studyGroupSpace'">
       <v-row>
         <v-col cols="auto" class="group-info-container">
           <v-card class="group-info-card">
@@ -232,6 +319,7 @@ import { apiClient } from '@/api'
 import ManagePanel from './ManagePanel.vue'
 import GroupPlansList from '@/components/StudyGroup/GroupPlansList.vue'
 import { mapActions } from 'vuex'
+import { isPhoneDevice, phoneDeviceRevision } from '@/utils/device'
 
 export default {
   props: {
@@ -247,6 +335,7 @@ export default {
       leaveDialog: false, // Show confirmation dialog when leaving group
       enteredGroupName: '', // Entered group name for confirmation
       pendingJoinRequests: 0, // Number of pending join requests
+      mobileTab: 'overview',
       tags: [],
       bootstrapRequestToken: 0,
       plansPanelReady: false,
@@ -284,6 +373,10 @@ export default {
     },
     isManager() {
       return this.normalizedRole === 'owner' || this.normalizedRole === 'admin'
+    },
+    isPhone() {
+      phoneDeviceRevision.value
+      return isPhoneDevice()
     },
     displayMembers() {
       const members = this.group?.memberIds || this.group?.MemberIds
@@ -533,6 +626,75 @@ export default {
 .group-page {
   position: relative;
   top: -2vh;
+}
+
+.mobile-group-page {
+  width: 100%;
+  max-width: 100%;
+  height: calc(100dvh - 82px - env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mobile-group-header {
+  min-height: 54px;
+  padding: calc(6px + env(safe-area-inset-top)) 4px 6px 52px;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-group-eyebrow {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.58);
+}
+
+.mobile-group-title {
+  max-width: calc(100vw - 76px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.mobile-group-tabs {
+  flex: 0 0 auto;
+}
+
+.mobile-group-tabs :deep(.v-tab) {
+  min-width: 0;
+  letter-spacing: 0;
+}
+
+.mobile-group-window {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.mobile-group-pane,
+.mobile-group-pane :deep(.v-window-item__content) {
+  height: 100%;
+  min-height: 0;
+}
+
+.mobile-group-scroll {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px;
+}
+
+.mobile-group-card {
+  background: #f4eee1;
+}
+
+:global(body.phone-layout) .group-page {
+  top: 0;
 }
 
 .group-info-container {

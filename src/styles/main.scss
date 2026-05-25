@@ -264,3 +264,42 @@
 .v-ripple__container {
   display: none !important;
 }
+
+body.phone-layout .v-window {
+  contain: none !important;
+  overflow: visible !important;
+}
+
+body.phone-layout .v-window__container {
+  display: block !important;
+  height: 100% !important;
+  transform: none !important;
+  overflow: visible !important;
+}
+
+body.phone-layout .v-window-item {
+  display: none !important;
+  position: static !important;
+  transform: none !important;
+  transition: none !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+}
+
+body.phone-layout .v-window-item--active {
+  display: block !important;
+  height: 100% !important;
+}
+
+body.phone-layout .v-window-x-transition-enter-active,
+body.phone-layout .v-window-x-transition-leave-active,
+body.phone-layout .v-window-x-reverse-transition-enter-active,
+body.phone-layout .v-window-x-reverse-transition-leave-active,
+body.phone-layout .v-window-y-transition-enter-active,
+body.phone-layout .v-window-y-transition-leave-active,
+body.phone-layout .v-window-y-reverse-transition-enter-active,
+body.phone-layout .v-window-y-reverse-transition-leave-active {
+  transition: none !important;
+  transform: none !important;
+}
