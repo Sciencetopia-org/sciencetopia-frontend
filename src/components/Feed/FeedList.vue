@@ -1,44 +1,50 @@
-`<template>
-  <v-container>
-    <div class="feed-list">
-      <v-row>
-        <v-col cols="12" sm="6" md="4" v-for="feed in feeds" :key="feed.id">
-          <v-card class="st-card feed-card" @click="toFeedDetail(feed.id)">
-            <v-img
-              v-if="feed.cover"
-              :src="feed.cover"
-              class="feed-image"
-              height="200"
-              cover
-            ></v-img>
-            <v-card-title>{{ feed.title }}</v-card-title>
-            <v-card-subtitle>
-              <v-row>
-                <v-col cols="auto">
-                  <v-btn
-                    icon="dots-vertical"
-                    size="40"
-                    class="justify-center align-center default-avatar"
-                    @click.stop="navigateToProfile(feed.authorId)"
-                  >
-                    <v-avatar size="38">
-                      <img :src="feed.authorAvatar" alt="作者头像" />
-                    </v-avatar>
-                  </v-btn>
-                </v-col>
-                <v-col>
-                  {{ feed.author }}
-                  <div class="text-caption">{{ feed.date }}</div>
-                </v-col>
-              </v-row>
-            </v-card-subtitle>
-            <v-card-text v-if="feed.description">
+<template>
+  <v-container fluid class="feed-page">
+    <header class="feed-page__header">
+      <div>
+        <div class="feed-page__eyebrow">{{ $t('header.trend') }}</div>
+        <h1 class="feed-page__title">{{ $t('header.trend') }}</h1>
+      </div>
+    </header>
+
+    <v-row class="feed-grid" dense>
+      <v-col v-for="feed in feeds" :key="feed.id" cols="12" sm="6" lg="4">
+        <v-card class="st-card feed-card" @click="toFeedDetail(feed.id)">
+          <v-img
+            v-if="feed.cover"
+            :src="feed.cover"
+            class="feed-card__image"
+            cover
+          />
+
+          <div class="feed-card__body">
+            <v-card-title class="feed-card__title">{{ feed.title }}</v-card-title>
+
+            <div class="feed-card__meta">
+              <v-btn
+                icon
+                size="40"
+                class="default-avatar feed-card__avatar"
+                @click.stop="navigateToProfile(feed.authorId)"
+                :aria-label="feed.author"
+              >
+                <v-avatar size="38">
+                  <img :src="feed.authorAvatar" alt="" />
+                </v-avatar>
+              </v-btn>
+              <div class="feed-card__author">
+                <div>{{ feed.author }}</div>
+                <div class="text-caption">{{ feed.date }}</div>
+              </div>
+            </div>
+
+            <v-card-text v-if="feed.description" class="feed-card__description">
               {{ feed.description }}
             </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
-    </div>
+          </div>
+        </v-card>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -71,7 +77,6 @@ export default {
           authorAvatar: require('@/assets/images/avatar.svg'),
           date: '2024-01-14',
         },
-        // 后续可以添加更多动态数据
       ],
     }
   },
@@ -81,7 +86,7 @@ export default {
     toFeedDetail(feedId) {
       this.$router.push({
         name: 'feedDetail',
-        params: { feedId: feedId },
+        params: { feedId },
       })
     },
 
@@ -108,32 +113,113 @@ export default {
 <style scoped>
 @import '../../assets/css/avatar.css';
 
-.feed-list {
-  padding: 20px;
+.feed-page {
+  max-width: 1180px;
+  padding: 24px;
+}
+
+.feed-page__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.feed-page__eyebrow {
+  color: rgba(48, 78, 117, 0.72);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.feed-page__title {
+  margin: 0;
+  color: #1c2b42;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.feed-grid {
+  row-gap: 16px;
 }
 
 .feed-card {
-  margin-bottom: 20px;
+  height: 100%;
   cursor: pointer;
-  transition: transform 0.2s;
+  overflow: hidden;
   background-color: #f4eee1;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .feed-card:hover {
   transform: translateY(-4px);
 }
 
-.feed-image {
-  border-radius: 4px 4px 0 0;
+.feed-card__image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
 }
 
-.v-card-title {
-  font-size: 1.2rem;
+.feed-card__body {
+  padding: 14px 16px 16px;
+}
+
+.feed-card__title {
+  padding: 0;
   color: #1c2b42;
-  line-height: 1.4;
+  font-size: 18px;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
 }
 
-.v-card-text {
+.feed-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
   color: #304e75;
 }
-</style>`
+
+.feed-card__avatar {
+  flex: 0 0 auto;
+}
+
+.feed-card__author {
+  min-width: 0;
+}
+
+.feed-card__description {
+  padding: 12px 0 0;
+  color: #304e75;
+  line-height: 1.55;
+}
+
+:global(body.phone-layout) .feed-page {
+  padding: 12px 8px calc(88px + env(safe-area-inset-bottom));
+}
+
+:global(body.phone-layout) .feed-page__header {
+  margin-bottom: 12px;
+}
+
+:global(body.phone-layout) .feed-page__title {
+  font-size: 22px;
+}
+
+:global(body.phone-layout) .feed-grid {
+  margin: 0;
+}
+
+:global(body.phone-layout) .feed-grid > .v-col {
+  padding: 0 0 12px;
+}
+
+:global(body.phone-layout) .feed-card {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+:global(body.phone-layout) .feed-card__body {
+  padding: 12px;
+}
+</style>

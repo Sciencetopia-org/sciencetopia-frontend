@@ -4,8 +4,8 @@
       <v-card-title class="pb-2">
         <div class="d-flex align-center justify-space-between">
           <div>
-            <div class="text-h6">采用到小组</div>
-            <div class="text-caption text-medium-emphasis">把这个学习计划放到你管理的小组中使用</div>
+            <div class="text-h6">{{ $t('studyplan.shareDialog.title') }}</div>
+            <div class="text-caption text-medium-emphasis">{{ $t('studyplan.shareDialog.subtitle') }}</div>
           </div>
           <v-btn icon="mdi-close" variant="text" :disabled="syncingShare || unsharing || creating || savingSharingSettings" @click="close" />
         </div>
@@ -20,8 +20,8 @@
         <v-card v-if="canEditPlan" class="pa-4 mb-4" variant="outlined">
           <div class="d-flex align-center justify-space-between">
             <div>
-              <div class="text-subtitle-2">允许其他使用者采用到小组</div>
-              <div class="text-caption text-medium-emphasis">开启后，可读此计划的人也能把它采用到自己管理的小组；不会授予编辑计划的权限。</div>
+              <div class="text-subtitle-2">{{ $t('studyplan.shareDialog.allowOthersTitle') }}</div>
+              <div class="text-caption text-medium-emphasis">{{ $t('studyplan.shareDialog.allowOthersText') }}</div>
             </div>
             <v-switch
               v-model="allowCohortSharing"
@@ -33,12 +33,12 @@
             />
           </div>
           <v-alert v-if="sharingSettingsEndpointMissing" type="warning" variant="tonal" density="comfortable" class="mt-3">
-            后端尚未启用计划采用设置接口。请确认后端服务已重启并包含最新代码。
+            {{ $t('studyplan.shareDialog.endpointMissing') }}
           </v-alert>
         </v-card>
 
         <v-card class="pa-4" variant="outlined">
-          <div class="text-subtitle-2 mb-3">选择你管理的小组</div>
+          <div class="text-subtitle-2 mb-3">{{ $t('studyplan.shareDialog.selectManagedGroup') }}</div>
           <v-skeleton-loader v-if="loadingGroups" type="list-item-two-line" />
           <template v-else>
             <v-select
@@ -47,7 +47,7 @@
               :items="manageableGroups"
               item-title="displayName"
               item-value="idValue"
-              label="小组"
+              :label="$t('studygroup.studygroup')"
               density="comfortable"
               variant="outlined"
               hide-details="auto"
@@ -56,7 +56,7 @@
               @update:model-value="selectStudyGroupById"
             />
             <v-alert v-else type="info" variant="tonal" density="comfortable">
-              你目前没有可管理的小组。只有小组 Owner/Admin 可以采用计划。
+              {{ $t('studyplan.shareDialog.noManagedGroups') }}
             </v-alert>
           </template>
 
@@ -69,7 +69,19 @@
             :disabled="actionLocked || !canShareSelectedGroup || isShared"
             @click="shareToGroup"
           >
-            {{ isShared ? '已采用到此小组' : '采用到此小组' }}
+            {{ isShared ? $t('studyplan.shareDialog.adopted') : $t('studyplan.shareDialog.adopt') }}
+          </v-btn>
+          <v-btn
+            v-if="isShared"
+            block
+            color="primary"
+            variant="tonal"
+            class="mt-2"
+            prepend-icon="mdi-account-group-outline"
+            :disabled="actionLocked || !groupPlanRouteId"
+            @click="openGroupPlan"
+          >
+            {{ $t('studyplan.shareDialog.viewInGroup') }}
           </v-btn>
           <div v-if="shareBlockedReason" class="text-caption text-medium-emphasis mt-2 text-center">
             {{ shareBlockedReason }}
@@ -80,25 +92,25 @@
           <div v-if="isShared" class="mt-4">
             <div class="d-flex align-center justify-space-between mb-2">
               <div>
-                <div class="text-subtitle-2">高级设置</div>
-                <div class="text-caption text-medium-emphasis">需要时再调整小组权限或创建班级</div>
+                <div class="text-subtitle-2">{{ $t('studyplan.shareDialog.advancedSettings') }}</div>
+                <div class="text-caption text-medium-emphasis">{{ $t('studyplan.shareDialog.advancedText') }}</div>
               </div>
               <v-btn variant="text" size="small" :disabled="selectionLoading || actionLocked" @click="showAdvancedSettings = !showAdvancedSettings">
-                {{ showAdvancedSettings ? '收起' : '展开' }}
+                {{ showAdvancedSettings ? $t('studyplan.shareDialog.collapse') : $t('studyplan.shareDialog.expand') }}
               </v-btn>
             </div>
 
             <v-expand-transition>
               <div v-if="showAdvancedSettings">
                 <v-card class="pa-4 mb-3" variant="outlined">
-                  <div class="text-subtitle-2 mb-3">小组设置</div>
+                  <div class="text-subtitle-2 mb-3">{{ $t('studyplan.shareDialog.groupSettings') }}</div>
                   <v-select
                     v-model="shareForm.permission"
-                    :items="permissionOptions"
+                    :items="localizedPermissionOptions"
                     item-title="title"
                     item-value="value"
-                    label="小组内权限"
-                    hint="只影响小组和班级内协作，不授予计划内容编辑权"
+                    :label="$t('studyplan.shareDialog.inGroupPermission')"
+                    :hint="$t('studyplan.shareDialog.permissionHint')"
                     persistent-hint
                     density="compact"
                     :disabled="actionLocked"
@@ -111,18 +123,18 @@
                   />
                   <div class="d-flex justify-end">
                     <v-btn color="primary" variant="tonal" :loading="syncingShare" :disabled="actionLocked || !canShareSelectedGroup" @click="shareToGroup">
-                      保存小组设置
+                      {{ $t('studyplan.shareDialog.saveGroupSettings') }}
                     </v-btn>
                     <v-btn class="ml-2" variant="outlined" color="error" :loading="unsharing" :disabled="actionLocked" @click="unshareFromGroup">
-                      取消采用
+                      {{ $t('studyplan.shareDialog.cancelAdoption') }}
                     </v-btn>
                   </div>
                 </v-card>
 
                 <v-card class="pa-4" variant="outlined">
                   <div class="d-flex align-center justify-space-between mb-3">
-                    <div class="text-subtitle-2">班级</div>
-                    <v-chip size="x-small" label>{{ cohorts.length }} 个</v-chip>
+                    <div class="text-subtitle-2">{{ $t('cohort.select') }}</div>
+                    <v-chip size="x-small" label>{{ $t('studyplan.shareDialog.classCount', { count: cohorts.length }) }}</v-chip>
                   </div>
                   <v-skeleton-loader v-if="loadingCohorts" type="list-item-two-line" />
                   <v-list v-else-if="cohorts.length" density="compact" class="mb-3">
@@ -134,12 +146,12 @@
                     </v-list-item>
                   </v-list>
                   <v-alert v-else type="info" variant="tonal" density="comfortable" class="mb-3">
-                    还没有班级。
+                    {{ $t('studyplan.shareDialog.noClasses') }}
                   </v-alert>
 
                   <v-text-field
                     v-model="createForm.title"
-                    label="新班级名称"
+                    :label="$t('studyplan.shareDialog.newClassName')"
                     density="compact"
                     variant="outlined"
                     required
@@ -147,7 +159,7 @@
                   />
                   <div class="d-flex justify-end">
                     <v-btn color="primary" :loading="creating" :disabled="actionLocked || loadingCohorts || !createForm.title" @click="createCohort">
-                      创建班级
+                      {{ $t('studyplan.shareDialog.createClass') }}
                     </v-btn>
                   </div>
                 </v-card>
@@ -213,14 +225,14 @@ export default {
       },
 
       permissionOptions: [
-        { title: '只读', value: 'view' },
-        { title: '可评论', value: 'comment' },
-        { title: '可编辑', value: 'edit' },
-        { title: '管理', value: 'admin' },
+        { titleKey: 'groupSettings.perms.readonly', value: 'view' },
+        { titleKey: 'groupSettings.perms.comment', value: 'comment' },
+        { titleKey: 'groupSettings.perms.editable', value: 'edit' },
+        { titleKey: 'groupSettings.perms.admin', value: 'admin' },
       ],
       enrollModeOptions: [
-        { title: '手动加入', value: 0 },
-        { title: '自动加入', value: 1 },
+        { titleKey: 'groupSettings.enroll.optIn', value: 0 },
+        { titleKey: 'groupSettings.enroll.auto', value: 1 },
       ],
     }
   },
@@ -240,6 +252,12 @@ export default {
           }
         })
     },
+    localizedPermissionOptions() {
+      return this.permissionOptions.map((item) => ({
+        ...item,
+        title: this.$t(item.titleKey),
+      }))
+    },
     sharePlanIdentifier() {
       return this.planStableId || this.planId
     },
@@ -251,16 +269,18 @@ export default {
       return this.canAdoptPlanToCohort ? 'success' : 'warning'
     },
     simpleStatusTitle() {
-      if (this.loadingPermissions) return '正在检查采用权限'
-      if (this.canAdoptPlanToCohort) return '你可以采用此计划'
-      if (this.allowCohortSharing) return '此计划已开放采用'
-      return '此计划暂不能采用'
+      if (this.loadingPermissions) return this.$t('studyplan.shareDialog.status.checking')
+      if (this.canAdoptPlanToCohort) return this.$t('studyplan.shareDialog.status.canAdopt')
+      if (this.allowCohortSharing) return this.$t('studyplan.shareDialog.status.open')
+      return this.$t('studyplan.shareDialog.status.closed')
     },
     simpleStatusText() {
-      if (this.loadingPermissions) return '请稍候。'
-      if (this.canAdoptPlanToCohort) return '选择一个你管理的小组即可采用。采用不会改变原计划的编辑权限。'
-      if (this.allowCohortSharing) return '你仍需要对计划有可读权限，并且选择自己管理的小组。'
-      return this.canEditPlan ? '你可以打开下方开关，让其他使用者也能采用。' : '需要计划编辑团队开放采用，或将你加入编辑团队。'
+      if (this.loadingPermissions) return this.$t('studyplan.shareDialog.status.wait')
+      if (this.canAdoptPlanToCohort) return this.$t('studyplan.shareDialog.status.canAdoptText')
+      if (this.allowCohortSharing) return this.$t('studyplan.shareDialog.status.openText')
+      return this.canEditPlan
+        ? this.$t('studyplan.shareDialog.status.ownerHint')
+        : this.$t('studyplan.shareDialog.status.needPermission')
     },
     canManageSelectedGroup() {
       return !!this.groupId && this.isManageRole(this.selectedGroup?.role)
@@ -283,15 +303,18 @@ export default {
         || this.savingSharingSettings
     },
     shareBlockedReason() {
-      if (this.initialLoading) return '正在加载权限和可管理小组。'
-      if (this.selectionLoading) return '正在刷新当前小组的采用状态。'
-      if (!this.groupId) return '先选择一个你管理的小组。'
-      if (!this.canManageSelectedGroup) return '只有小组 Owner/Admin 可以采用计划或创建班级。'
-      if (!this.canAdoptPlanToCohort) return '当前账号没有此计划的班级采用权限。'
+      if (this.initialLoading) return this.$t('studyplan.shareDialog.blocked.loading')
+      if (this.selectionLoading) return this.$t('studyplan.shareDialog.blocked.refreshing')
+      if (!this.groupId) return this.$t('studyplan.shareDialog.blocked.selectGroup')
+      if (!this.canManageSelectedGroup) return this.$t('studyplan.shareDialog.blocked.needManager')
+      if (!this.canAdoptPlanToCohort) return this.$t('studyplan.shareDialog.blocked.noPermission')
       return ''
     },
     isShared() {
       return !!this.shareRecord
+    },
+    groupPlanRouteId() {
+      return this.cohortPlanIdentifier || this.sharePlanIdentifier
     },
   },
   watch: {
@@ -378,15 +401,15 @@ export default {
         this.planIdentifierCandidates().forEach((id) => invalidateEffectivePermissions(id))
         await this.fetchPlanPermissions()
         this.$emit('permissions-updated')
-        this.$toast?.success?.('计划采用设置已更新')
+        this.$toast?.success?.(this.$t('studyplan.shareDialog.toast.settingsUpdated'))
       } catch (e) {
         console.error('update cohort sharing setting failed', e)
         this.allowCohortSharing = !value
         if (e?.response?.status === 404) {
           this.sharingSettingsEndpointMissing = true
-          this.$toast?.error?.('计划采用设置接口不可用，请确认后端已重启')
+          this.$toast?.error?.(this.$t('studyplan.shareDialog.toast.endpointMissing'))
         } else {
-          this.$toast?.error?.('计划采用设置更新失败')
+          this.$toast?.error?.(this.$t('studyplan.shareDialog.toast.settingsFailed'))
         }
       } finally {
         this.savingSharingSettings = false
@@ -502,11 +525,11 @@ export default {
         await apiClient.post(`/StudyGroups/${this.groupId}/Plans/${this.sharePlanIdentifier}/Share`, payload)
         await this.fetchShareStatus()
         this.showAdvancedSettings = true
-        this.$toast?.success?.('共享设置已保存')
+        this.$toast?.success?.(this.$t('studyplan.shareDialog.toast.shareSaved'))
         return true
       } catch (e) {
         console.error('share failed', e)
-        this.$toast?.error?.('共享失败，请检查权限或数据')
+        this.$toast?.error?.(this.$t('studyplan.shareDialog.toast.shareFailed'))
         return false
       } finally {
         this.syncingShare = false
@@ -520,10 +543,10 @@ export default {
         await apiClient.delete(`/StudyGroups/${this.groupId}/Plans/${this.sharePlanIdentifier}`)
         this.shareRecord = null
         this.cohorts = []
-        this.$toast?.success?.('已取消共享')
+        this.$toast?.success?.(this.$t('studyplan.shareDialog.toast.unshared'))
       } catch (e) {
         console.error('unshare failed', e)
-        this.$toast?.error?.('取消共享失败')
+        this.$toast?.error?.(this.$t('studyplan.shareDialog.toast.unshareFailed'))
       } finally {
         this.unsharing = false
       }
@@ -548,15 +571,15 @@ export default {
         await apiClient.post(`/Groups/${this.groupId}/Plans/${this.cohortPlanIdentifier}/Cohorts`, payload)
         await this.fetchCohorts()
         this.createForm.title = ''
-        this.$toast?.success?.('班级创建成功')
+        this.$toast?.success?.(this.$t('studyplan.shareDialog.toast.classCreated'))
       } catch (e) {
         if (e?.response?.status === 500 && await this.refreshAndDetectCreatedCohort(requestedTitle)) {
           this.createForm.title = ''
-          this.$toast?.success?.('班级已创建；图谱同步可能稍后完成')
+          this.$toast?.success?.(this.$t('studyplan.shareDialog.toast.classCreatedSyncLater'))
           return
         }
         console.error('create cohort failed', e?.response?.data || e)
-        this.$toast?.error?.(this.extractErrorMessage(e) || '创建班级失败')
+        this.$toast?.error?.(this.extractErrorMessage(e) || this.$t('studyplan.shareDialog.toast.createClassFailed'))
       } finally {
         this.creating = false
       }
@@ -576,6 +599,17 @@ export default {
         if (first) return String(first)
       }
       return ''
+    },
+    openGroupPlan() {
+      if (!this.groupId || !this.groupPlanRouteId) return
+      this.internal = false
+      this.$router.push({
+        name: 'GroupPlanWorkspace',
+        params: {
+          groupId: this.groupId,
+          planId: this.groupPlanRouteId,
+        },
+      })
     },
   },
 }

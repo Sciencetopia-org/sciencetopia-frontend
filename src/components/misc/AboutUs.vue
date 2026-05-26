@@ -21,13 +21,11 @@
     <p>{{ $t('about.goal2') }}</p>
     <p>{{ $t('about.goal3') }}</p>
     <p>{{ $t('about.goal4') }}</p>
-    <v-spacer class="my-5"></v-spacer>
+    <v-divider class="my-5"></v-divider>
     <p>{{ $t('about.p8') }}</p>
-    <v-divider class="my-5"></v-divider>
     <p>{{ $t('about.p9') }}</p>
-    <p>{{ $t('about.p10') }}</p>
     <v-divider class="my-5"></v-divider>
-    <p>{{ $t('about.p11') }}</p>
+    <p>{{ $t('about.p10') }}</p>
     <v-spacer class="my-5"></v-spacer>
     <p>
       {{ $t('about.joinPrompt.before') }}

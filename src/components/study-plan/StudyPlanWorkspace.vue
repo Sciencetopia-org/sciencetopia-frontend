@@ -11,6 +11,14 @@
             :disabled="backgroundGenerating || listLoading || detailLoading" />
           <v-btn icon="mdi-robot-outline" variant="text" size="small" @click="openAiDialog"
             :disabled="backgroundGenerating || listLoading || detailLoading" />
+          <v-btn
+            v-if="mobileTab === 'detail' && currentPlan?.id && canEdit(currentPlan.id)"
+            icon="mdi-cog-outline"
+            variant="text"
+            size="small"
+            :disabled="listActionLocked"
+            @click="openSettingsById(currentPlan.id)"
+          />
         </div>
       </div>
 
@@ -78,8 +86,8 @@
                     :loading="progressLoading[plan.studyPlan.id]"
                     :primaryProgress="plan.studyPlan.progress"
                     :advancedProgress="plan.studyPlan.advancedProgress"
-                    :primaryTooltip="`学习进度：${Math.round(plan.studyPlan.progress || 0)} %`"
-                    :advancedTooltip="`额外学习了${Math.round(plan.studyPlan.advancedProgress || 0)} %的进阶内容`"
+                    :primaryTooltip="$t('studyplan.progressTooltip', { percent: Math.round(plan.studyPlan.progress || 0) })"
+                    :advancedTooltip="$t('studyplan.advancedProgressTooltip', { percent: Math.round(plan.studyPlan.advancedProgress || 0) })"
                   />
                 </v-list-item>
               </v-list>
@@ -100,7 +108,7 @@
           <div class="mobile-plan-scroll">
             <PlanDetailPanel ref="centerPanel" v-if="currentPlan?.id" :key="`m-plan:${currentPlan.id}`" :planId="currentPlan.id" :scope="scope" :allowEditControls="true"
               @select-lesson="selectLessonById" @open-share="openShareDialog" @open-progress="mobileProgressSheet = true"
-              @updated-plan="onCenterUpdated" @loaded="onCenterLoaded" />
+              @updated-plan="onCenterUpdated" @loaded="onCenterLoaded" @open-settings="openSettingsFromPanel" />
           </div>
         </section>
 
@@ -204,12 +212,12 @@
                     </v-chip>
                     <v-btn
                       v-if="canEdit(plan.studyPlan.id)"
-                      icon="mdi-pencil"
+                      icon="mdi-cog-outline"
                       variant="text"
                       density="comfortable"
-                      @click.stop="editPlanById(plan.studyPlan.id)"
+                      @click.stop="openSettingsById(plan.studyPlan.id)"
                       :disabled="listActionLocked"
-                      :aria-label="`编辑 ${plan.studyPlan.title}`"
+                      :aria-label="`${$t('setting')} ${plan.studyPlan.title}`"
                     />
                   </div>
                 </div>
@@ -217,8 +225,8 @@
                   :loading="progressLoading[plan.studyPlan.id]"
                   :primaryProgress="plan.studyPlan.progress"
                   :advancedProgress="plan.studyPlan.advancedProgress"
-                  :primaryTooltip="`学习进度：${Math.round(plan.studyPlan.progress || 0)} %`"
-                  :advancedTooltip="`额外学习了${Math.round(plan.studyPlan.advancedProgress || 0)} %的进阶内容`"
+                  :primaryTooltip="$t('studyplan.progressTooltip', { percent: Math.round(plan.studyPlan.progress || 0) })"
+                  :advancedTooltip="$t('studyplan.advancedProgressTooltip', { percent: Math.round(plan.studyPlan.advancedProgress || 0) })"
                 />
               </v-list-item>
             </v-list>
@@ -246,7 +254,7 @@
             @open-group="(gid) => $router.push({ name: 'GroupPlanWorkspace', params: { groupId: gid, planId: currentPlan.id } })" /> -->
           <PlanDetailPanel ref="centerPanel" v-if="currentPlan?.id" :key="`plan:${currentPlan.id}`" :planId="currentPlan.id" :scope="scope" :allowEditControls="true"
             @select-lesson="selectLessonById" @open-share="openShareDialog" @open-progress="showProgressPage = true"
-            @updated-plan="onCenterUpdated" @loaded="onCenterLoaded" />
+            @updated-plan="onCenterUpdated" @loaded="onCenterLoaded" @open-settings="openSettingsFromPanel" />
           <!-- 未选择计划时不显示占位条 -->
           <template v-else></template>
         </v-col>
@@ -276,28 +284,43 @@
     </v-row>
 
     <!-- AI planner dialog -->
-    <v-dialog v-model="aiDialog" max-width="800" theme="light" persistent @update:model-value="onAiDialogChange">
-      <v-card color="white" rounded="xl">
+    <v-dialog
+      v-model="aiDialog"
+      :max-width="isMobile ? '100%' : 800"
+      :fullscreen="isMobile"
+      theme="light"
+      persistent
+      scrollable
+      @update:model-value="onAiDialogChange"
+    >
+      <v-card class="sc-dialog-card study-plan-form-dialog-card" color="white" rounded="xl">
         <v-card-title class="text-h6">{{ $t('studyplan.ai.plannerTitle') }}</v-card-title>
-        <v-card-text>
+        <v-card-text class="sc-dialog-body study-plan-form-dialog-body">
           <!-- 子组件在任一输入变化时 $emit('dirty') -->
           <LearningPlanner @dirty="aiDirty = true" @background="handleBackground" />
         </v-card-text>
-        <v-card-actions class="justify-end">
+        <v-card-actions class="justify-end study-plan-form-dialog-actions">
           <v-btn variant="text" @click="attemptClose('ai')">{{ $t('close') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
 
     <!-- Edit / create dialog -->
-    <v-dialog v-model="editDialog" max-width="800" theme="light" persistent>
-      <v-card color="white" rounded="xl">
+    <v-dialog
+      v-model="editDialog"
+      :max-width="isMobile ? '100%' : 800"
+      :fullscreen="isMobile"
+      theme="light"
+      persistent
+      scrollable
+    >
+      <v-card class="sc-dialog-card study-plan-form-dialog-card" color="white" rounded="xl">
         <v-card-title class="text-h6">{{ $t(editPlan && editPlan.id ? 'studyplan.dialogs.editTitle' : 'studyplan.dialogs.createTitle') }}</v-card-title>
-        <v-card-text>
+        <v-card-text class="sc-dialog-body study-plan-form-dialog-body">
           <!-- 子组件在任一输入变化时 $emit('dirty') -->
           <EditStudyPlanForm :studyPlan="editPlan" :saving="saving" @save="saveStudyPlan" @dirty="editDirty = true" />
         </v-card-text>
-        <v-card-actions class="justify-end">
+        <v-card-actions class="justify-end study-plan-form-dialog-actions">
           <v-btn variant="text" @click="attemptClose('edit')">{{ $t('close') }}</v-btn>
         </v-card-actions>
       </v-card>
@@ -310,6 +333,18 @@
       :planId="currentPlan.id"
       :planStableId="currentPlan.stableId"
       @permissions-updated="onSharePermissionsUpdated"
+    />
+
+    <StudyPlanSettingsDialog
+      v-model="settingsDialog"
+      v-if="settingsPlan"
+      :plan="settingsPlan"
+      :canEdit="settingsCanEdit"
+      :canDelete="settingsCanDelete"
+      :saving="saving"
+      @save="saveStudyPlan"
+      @deleted="onPlanDeleted"
+      @dirty="editDirty = true"
     />
 
     <v-snackbar v-model="backgroundSnackbar" :timeout="backgroundLoading ? -1 : 3000">
@@ -331,6 +366,7 @@ import PlanDetailPanel from '@/components/study-plan/PlanDetailPanel.vue'
 import LessonDetailPanel from '@/components/study-plan/LessonDetailPanel.vue'
 import ProgressPage from '@/components/study-plan/ProgressPage.vue'
 import ShareStudyPlanDialog from '@/components/study-plan/ShareStudyPlanDialog.vue'
+import StudyPlanSettingsDialog from '@/components/study-plan/StudyPlanSettingsDialog.vue'
 import EditStudyPlanForm from '@/components/study-plan/EditStudyPlanForm.vue'
 import StudyPlanProgressFilter from '@/components/study-plan/StudyPlanProgressFilter.vue'
 import { eventBus } from '@/eventBus'
@@ -341,7 +377,7 @@ import confetti from 'canvas-confetti'
 
 export default {
   name: 'StudyPlanWorkspace',
-  components: { LearningPlanner, PlanContextBar, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, ProgressPage, EditStudyPlanForm, PlanProgressBars, StudyPlanProgressFilter },
+  components: { LearningPlanner, PlanContextBar, PlanDetailPanel, LessonDetailPanel, ShareStudyPlanDialog, StudyPlanSettingsDialog, ProgressPage, EditStudyPlanForm, PlanProgressBars, StudyPlanProgressFilter },
   data() {
     return {
       studyPlans: [],
@@ -360,7 +396,9 @@ export default {
       aiDialog: false,
       editDialog: false,
       shareDialog: false,
+      settingsDialog: false,
       editPlan: null,
+      settingsPlan: null,
       isEditing: false,
       aiDirty: false,
       editDirty: false,
@@ -391,6 +429,12 @@ export default {
     },
     canProgressOnCurrentPlan() {
       return !!this.currentPlan?.id && !this.listLoading
+    },
+    settingsCanEdit() {
+      return !!this.settingsPlan?.id && this.canEdit(this.settingsPlan.id)
+    },
+    settingsCanDelete() {
+      return !!this.settingsPlan?.id && this.isOwner(this.settingsPlan.id)
     },
     emptyPlanMessageKey() {
       if (this.progressStatus === 'inProgress') return 'studyplan.noInProgressPlans'
@@ -859,6 +903,40 @@ export default {
       }
       this.aiDialog = true
     },
+    async loadFullPlan(planId) {
+      const res = await apiClient.get('/StudyPlan/GetStudyPlanById', { params: { studyPlanId: planId } })
+      return res?.data?.studyPlan || res?.data || null
+    },
+    async openSettingsById(planId) {
+      if (this.listActionLocked || !planId) return
+      if (!this.getRole(planId)) {
+        await this.refreshEffectiveRole(planId)
+      }
+      if (!this.canEdit(planId)) {
+        alert(this.$t('studyplan.dialogs.noEditPermissionShort'))
+        return
+      }
+      try {
+        this.detailLoading = true
+        const plan = await this.loadFullPlan(planId)
+        if (!plan) throw new Error('Study plan not found')
+        this.settingsPlan = plan
+        this.settingsDialog = true
+        this.editDirty = false
+        if (!this.currentPlan || String(this.currentPlan.id) !== String(planId)) {
+          this.currentPlan = { ...plan }
+        }
+      } catch (error) {
+        console.error('Failed to open study plan settings:', error)
+        alert(this.$t('operationfailedmsg3'))
+      } finally {
+        this.detailLoading = false
+      }
+    },
+    openSettingsFromPanel(plan) {
+      const planId = plan?.id || this.currentPlan?.id
+      if (planId) this.openSettingsById(planId)
+    },
     async saveStudyPlan(plan) {
       try {
         this.saving = true
@@ -875,6 +953,8 @@ export default {
         }
         this.editDirty = false
         this.editDialog = false
+        this.settingsDialog = false
+        this.settingsPlan = null
         this.isEditing = false
         await this.fetchPlans()
         // Re-select the saved/updated plan in the list
@@ -922,6 +1002,20 @@ export default {
       } catch (e) {
         console.error('Error saving study plan:', e)
       } finally { this.saving = false }
+    },
+    async onPlanDeleted(plan) {
+      alert(this.$t('studyplan.deletesuccess'))
+      const deletedId = plan?.id
+      this.settingsDialog = false
+      this.settingsPlan = null
+      if (deletedId && this.currentPlan && String(this.currentPlan.id) === String(deletedId)) {
+        this.currentPlan = null
+        this.currentLesson = null
+        this.currentLessonId = null
+        this.showProgressPage = false
+      }
+      await this.fetchPlans({ reconcileSelection: true })
+      if (this.isMobile) this.mobileTab = 'plans'
     },
     onCenterUpdated(p) {
       if (p) this.currentPlan = p
@@ -1191,6 +1285,23 @@ export default {
   min-height: 0;
   background: #fbf8f2;
   overflow: hidden;
+}
+
+:global(body.phone-layout) .study-plan-form-dialog-card {
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  border-radius: 0 !important;
+}
+
+:global(body.phone-layout) .study-plan-form-dialog-body {
+  min-height: 0 !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+:global(body.phone-layout) .study-plan-form-dialog-actions {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(48, 78, 117, 0.12);
 }
 
 :global(body.phone-layout) .study-plan-workspace {

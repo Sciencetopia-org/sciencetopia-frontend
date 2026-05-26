@@ -295,33 +295,6 @@
 
     </v-row>
 
-    <!-- 移动端：左侧抽屉（卡片风格内容简化版） -->
-    <v-navigation-drawer v-model="leftDrawer" temporary location="start" width="320" class="d-md-none">
-      <v-card flat>
-        <v-card-title class="py-3">{{ $t('home.tags') }}</v-card-title>
-        <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
-        <v-card-text>
-          <v-text-field v-model="tagSearch" density="comfortable" variant="outlined" hide-details clearable
-            :placeholder="$t('home.searchTagsPlaceholder')" prepend-inner-icon="mdi-magnify" />
-          <v-list density="compact" nav class="mt-2">
-            <v-list-item v-for="i in 12" :key="'m-' + i" :title="`${$t('home.tag')} ${i}`" />
-          </v-list>
-        </v-card-text>
-      </v-card>
-    </v-navigation-drawer>
-
-    <!-- 移动端：右侧抽屉（复用右栏模块） -->
-    <v-navigation-drawer v-model="rightDrawer" temporary location="end" width="380" class="d-md-none">
-      <v-card flat>
-        <v-card-title class="py-3">{{ rightPanelTitle }}</v-card-title>
-        <v-divider class="my-0" :thickness="1" opacity="0.08"></v-divider>
-        <v-card-text class="pt-3">
-          <v-slide-y-transition mode="out-in">
-            <component :is="currentRightComponent" :key="currentRightKey + '-m'" />
-          </v-slide-y-transition>
-        </v-card-text>
-      </v-card>
-    </v-navigation-drawer>
   </v-container>
   <v-snackbar v-model="snackOpen" timeout="2200">{{ snackText }}</v-snackbar>
 </template>
@@ -367,8 +340,6 @@ const activeTagSystem = ref()
 const selectedTagSystem = ref('')
 const loadingTagSystemIndex = ref(null)
 const zoomLevel = ref('Field')
-const leftDrawer = ref(false)
-const rightDrawer = ref(false)
 const mobileFilterSheet = ref(false)
 const mobileNodeSheet = ref(false)
 

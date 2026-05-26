@@ -89,7 +89,7 @@ export function useSelectedNodeDetails(options = {}) {
   watch(
     () => store.state.selectedNodes,
     () => { refreshDetails() },
-    { deep: false }
+    { deep: false, immediate: true }
   )
 
   return { detailedSelectedNodes, loading, error, refreshDetails }

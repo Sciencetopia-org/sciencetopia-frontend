@@ -27,15 +27,17 @@
     <v-dialog
       v-model="dialog"
       persistent
+      scrollable
       :max-width="isSmallScreen ? '100%' : '800px'"
       :fullscreen="isSmallScreen"
     >
-      <v-card>
+      <v-card class="sc-dialog-card" color="white" rounded="xl">
         <v-card-title>{{ $t('header.studyplan') }}</v-card-title>
-        <v-card-text>
+        <v-card-text class="sc-dialog-body">
           <LearningPlanner
             ref="learningPlanner"
             @update:showStudyPlan="handleShowStudyPlanUpdate"
+            @update:can-save-study-plan="handleCanSaveStudyPlanUpdate"
             @background="handleBackground"
           />
         </v-card-text>
@@ -45,6 +47,7 @@
             color="red darken-1"
             text
             v-if="showStudyPlan"
+            :disabled="!canSaveStudyPlan"
             @click="triggerSavePlan"
           >
             {{ $t('save') }}{{ $t('wordbreaker') }}{{ $t('header.studyplan') }}
@@ -90,7 +93,7 @@
       @search="showSearchBar"
       @toggle-language="toggleLanguage"
     />
-    <MobileBottomNav v-if="isSmallScreen" />
+    <MobileBottomNav />
   </div>
 </template>
 
@@ -124,6 +127,7 @@ export default {
       isLoading: false,
       dialog: false,
       showStudyPlan: false,
+      canSaveStudyPlan: false,
       showFinalFooter: false,
       isSmallScreen:
         typeof window !== 'undefined' ? isPhoneDevice() : false,
@@ -146,10 +150,10 @@ export default {
   },
   mounted() {
     window.addEventListener('resize', this.handleResize)
-    window.addEventListener('touchstart', this.handleMobileTouchStart, { passive: true })
-    window.addEventListener('touchmove', this.handleMobileTouchMove, { passive: false })
-    window.addEventListener('touchend', this.handleMobileTouchEnd, { passive: true })
-    window.addEventListener('touchcancel', this.handleMobileTouchEnd, { passive: true })
+    window.addEventListener('touchstart', this.handleMobileTouchStart, { passive: true, capture: true })
+    window.addEventListener('touchmove', this.handleMobileTouchMove, { passive: false, capture: true })
+    window.addEventListener('touchend', this.handleMobileTouchEnd, { passive: true, capture: true })
+    window.addEventListener('touchcancel', this.handleMobileTouchEnd, { passive: true, capture: true })
     this.handleResize()
 
     eventBus.on('show-search-bar', this.showSearchBar)
@@ -161,10 +165,10 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.handleResize)
-    window.removeEventListener('touchstart', this.handleMobileTouchStart)
-    window.removeEventListener('touchmove', this.handleMobileTouchMove)
-    window.removeEventListener('touchend', this.handleMobileTouchEnd)
-    window.removeEventListener('touchcancel', this.handleMobileTouchEnd)
+    window.removeEventListener('touchstart', this.handleMobileTouchStart, true)
+    window.removeEventListener('touchmove', this.handleMobileTouchMove, true)
+    window.removeEventListener('touchend', this.handleMobileTouchEnd, true)
+    window.removeEventListener('touchcancel', this.handleMobileTouchEnd, true)
     eventBus.off('show-search-bar', this.showSearchBar)
     eventBus.off('hide-search-bar', this.hideSearchBar)
     eventBus.off('background-plan', this.handleBackground)
@@ -241,20 +245,27 @@ export default {
       }
     },
     triggerSavePlan() {
+      if (!this.canSaveStudyPlan) return
       this.$refs.learningPlanner?.savePlan?.()
     },
     closeDialog() {
       this.showStudyPlan = false
+      this.canSaveStudyPlan = false
       this.dialog = false
     },
     handleShowStudyPlanUpdate(v) {
       this.showStudyPlan = v
+      if (!v) this.canSaveStudyPlan = false
+    },
+    handleCanSaveStudyPlanUpdate(v) {
+      this.canSaveStudyPlan = v === true
     },
     handleDialogClick() {
       if (this.$store.state.backgroundGenerating) {
         alert(this.$t('studyplan.ai.generatingTryLater'))
         return
       }
+      this.canSaveStudyPlan = false
       this.dialog = true
     },
     showSearchBar() {
@@ -409,7 +420,7 @@ export default {
   width: 100%;
   max-width: 100%;
   min-height: 100dvh;
-  padding: 8px 8px calc(72px + env(safe-area-inset-bottom));
+  padding: 8px 8px calc(80px + env(safe-area-inset-bottom));
   overflow-x: hidden;
 }
 
@@ -473,6 +484,33 @@ export default {
   height: 100dvh;
   touch-action: pan-y;
   pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  .footer-container {
+    display: none !important;
+  }
+
+  .layout-wrapper .body-wrapper {
+    min-height: 100dvh;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .layout-wrapper .sidebar-slot {
+    display: none;
+  }
+
+  .layout-wrapper .main-content {
+    --content-padding: 8px;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    padding: 8px 8px calc(80px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+  }
 }
 
 /* 底部动画与配色（保持原样） */

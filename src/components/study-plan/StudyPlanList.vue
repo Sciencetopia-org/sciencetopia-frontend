@@ -40,7 +40,7 @@
           </v-row>
           <!-- Progress bars (match StudyPlanWorkspace left list) -->
           <div class="px-2 pb-2">
-            <v-tooltip :text="`学习进度：${Math.round(sp.studyPlan.progress || 0)} %`" location="right" open-delay="300">
+            <v-tooltip :text="$t('studyplan.progressTooltip', { percent: Math.round(sp.studyPlan.progress || 0) })" location="right" open-delay="300">
               <template #activator="{ props }">
                 <template v-if="progressLoading[sp.studyPlan.id]">
                   <v-skeleton-loader type="text" class="mt-2" style="height:6px" />
@@ -56,7 +56,7 @@
                 />
               </template>
             </v-tooltip>
-            <v-tooltip :text="`额外学习了${Math.round(sp.studyPlan.advancedProgress || 0)} %的进阶内容`" location="right" open-delay="300">
+            <v-tooltip :text="$t('studyplan.advancedProgressTooltip', { percent: Math.round(sp.studyPlan.advancedProgress || 0) })" location="right" open-delay="300">
               <template #activator="{ props }">
                 <template v-if="progressLoading[sp.studyPlan.id]">
                   <v-skeleton-loader type="text" class="mt-1" style="height:6px" />

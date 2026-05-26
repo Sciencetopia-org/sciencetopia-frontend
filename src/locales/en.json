@@ -23,12 +23,15 @@
   "operationfailedmsg3": "Operation failed, please check your network and try again.",
   "add": "Add",
   "about": "About",
+  "more": "More",
+  "overview": "Overview",
   "savesetting": "Save Setting",
   "setting": "Setting",
   "avatar": "Avatar",
   "username": "Username",
   "role": "Role",
   "approve": "Approve",
+  "permit": "Approve",
   "reject": "Reject",
   "close": "Close",
   "showdetail": "Show Detail",
@@ -57,6 +60,9 @@
   "languages": {
     "en": "English",
     "zh": "Chinese"
+  },
+  "mobile": {
+    "slogan": "Learning, for everyone"
   },
   "searchbar": {
     "iwanttolearn": "I want to learn about..."
@@ -93,6 +99,7 @@
     "erroroccur": "An error occurred during logout:"
   },
   "message": {
+    "message": "Messages",
     "privatemessage": "Direct Message",
     "notification": "System Notification",
     "editing": "Editing Message...",
@@ -136,7 +143,9 @@
     "studyplan": "Study Plan",
     "my": "My",
     "their": "Their",
-    "studygroup": "Study Group"
+    "studygroup": "Study Group",
+    "profile": "Me",
+    "account": "Account"
   },
   "register": {
     "title": "Sign Up",
@@ -177,7 +186,9 @@
     "introduction": "Introduction",
     "prerequisites": "Prerequisites",
     "lessonname": "Lesson Name",
+    "lessons": "Lessons",
     "lessondescription": "Lesson Description",
+    "resource": "Resource",
     "resouces": "Resources",
     "resourcename": "Resource Name",
     "resourcelink": "Resource Link",
@@ -210,6 +221,66 @@
     "noCompletedPlans": "You have no completed study plans",
     "noCompletedPlansTheir": "They have no completed study plans",
     "viewInMyPlans": "View in My Study Plans",
+    "progressTooltip": "Learning progress: {percent}%",
+    "advancedProgressTooltip": "Extra advanced learning: {percent}%",
+    "shareDialog": {
+      "title": "Adopt to Group",
+      "subtitle": "Use this study plan in a group you manage",
+      "allowOthersTitle": "Allow others to adopt this plan to groups",
+      "allowOthersText": "When enabled, users who can read this plan can adopt it into groups they manage. This does not grant edit permission on the original plan.",
+      "endpointMissing": "The plan adoption settings API is not enabled yet. Please confirm the backend service has been restarted with the latest code.",
+      "selectManagedGroup": "Choose a group you manage",
+      "noManagedGroups": "You do not currently manage any groups. Only group Owner/Admin users can adopt plans.",
+      "adopt": "Adopt to this group",
+      "adopted": "Adopted to this group",
+      "viewInGroup": "View in Group",
+      "advancedSettings": "Advanced Settings",
+      "advancedText": "Adjust group permissions or create classes only when needed",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "groupSettings": "Group Settings",
+      "inGroupPermission": "Permission in group",
+      "permissionHint": "Only affects collaboration inside the group and classes; it does not grant edit permission on the original plan.",
+      "saveGroupSettings": "Save Group Settings",
+      "cancelAdoption": "Cancel Adoption",
+      "classCount": "{count} class | {count} classes",
+      "noClasses": "No classes yet.",
+      "newClassName": "New class name",
+      "createClass": "Create Class",
+      "adoptionOpen": "Class adoption open",
+      "editorAdoption": "Editor team can adopt",
+      "adoptionClosed": "Class adoption closed",
+      "status": {
+        "checking": "Checking adoption permission",
+        "canAdopt": "You can adopt this plan",
+        "open": "This plan is open for adoption",
+        "closed": "This plan cannot be adopted yet",
+        "wait": "Please wait.",
+        "canAdoptText": "Choose a group you manage to adopt this plan. Adoption does not change edit permissions on the original plan.",
+        "openText": "You still need read permission on the plan and a group you manage.",
+        "ownerHint": "You can turn on the switch below to let other users adopt this plan.",
+        "needPermission": "The plan editing team must open adoption, or add you to the editing team."
+      },
+      "blocked": {
+        "loading": "Loading permissions and manageable groups.",
+        "refreshing": "Refreshing the adoption status for the selected group.",
+        "selectGroup": "Choose a group you manage first.",
+        "needManager": "Only group Owner/Admin users can adopt plans or create classes.",
+        "noPermission": "This account does not have class adoption permission for this plan."
+      },
+      "toast": {
+        "settingsUpdated": "Plan adoption settings updated",
+        "endpointMissing": "Plan adoption settings API is unavailable. Please confirm the backend has been restarted.",
+        "settingsFailed": "Failed to update plan adoption settings",
+        "shareSaved": "Sharing settings saved",
+        "shareFailed": "Sharing failed. Please check permissions or data.",
+        "unshared": "Adoption canceled",
+        "unshareFailed": "Failed to cancel adoption",
+        "classCreated": "Class created",
+        "classCreatedSyncLater": "Class created. Graph sync may complete later.",
+        "createClassFailed": "Failed to create class"
+      }
+    },
     "filters": {
       "all": "All",
       "inProgress": "In Progress",
@@ -228,6 +299,13 @@
       "confirmCloseWithUnsaved": "You have unsaved changes. Close anyway? Unsaved content will be lost.",
       "noEditPermission": "No permission to edit, entering read-only mode.",
       "noEditPermissionShort": "No permission to edit this study plan."
+    },
+    "settings": {
+      "title": "Study Plan Settings",
+      "deleteWarning": "Deleting this study plan cannot be undone. Related learning records and sharing relationships may also be affected.",
+      "confirmNamePrompt": "Type the study plan name to confirm deletion.",
+      "deleteAction": "Delete Study Plan",
+      "noDeletePermission": "Only the study plan owner can delete this study plan."
     }
   },
   "common": {
@@ -325,6 +403,23 @@
     "versionHasUpdate": "Version: {pinned} (new version {current} available)",
     "pinSuccess": "Pinned to current version",
     "pinFailed": "Failed to pin version"
+  },
+  "plan": {
+    "soloStartSuccess": "Solo learning started",
+    "switchSuccess": "Class switched",
+    "scope": { "me": "Personal", "group": "Group" },
+    "openGroupView": "Open group view",
+    "readonly": "Group sharing is read-only"
+  },
+  "memberMgmt": {
+    "title": "Group Member Management",
+    "inviteLabel": "Username or email",
+    "invite": "Invite",
+    "remove": "Remove",
+    "inviteSuccess": "Invitation sent",
+    "inviteFailed": "Invitation failed",
+    "removeSuccess": "Member removed",
+    "removeFailed": "Failed to remove member"
   },
   "accountsetting": {
     "strengthofpassword": "Current Password Strength:",
@@ -464,6 +559,17 @@
     "saveFailed": "Save failed, please try again later",
     "saveSuccess": "Settings saved"
   },
+  "groupPlan": {
+    "sharedPlans": "Group Shared Plans",
+    "backToGroup": "Back to Study Group",
+    "noSharedPlans": "No shared plans yet",
+    "untitledPlan": "Untitled Study Plan",
+    "memberCount": "{count} participant | {count} participants",
+    "avgProgressTooltip": "Group average learning progress: {percent}%",
+    "advancedAvgProgressTooltip": "Group average extra advanced learning: {percent}%",
+    "needJoinToView": "Join this study group before viewing shared plans.",
+    "loadFailed": "Failed to load shared plans. Please refresh or check the backend service."
+  },
   "knowledgeGraph": {
     "knowledgeGraph": "Knowledge Graph",
     "noDescription": "No description available.",
@@ -495,6 +601,7 @@
     "submitnode": "Submit Node Creation",
     "submitlink": "Submit Link Creation",
     "addResource": "Add Knowledge Resource",
+    "filteredTitle": "Hidden resources (may be unavailable in mainland China)",
     "linktype": "Link Type",
     "linktype_items": {
       "CONTAINS": "Contains",
@@ -525,6 +632,7 @@
     "selecttwonodes": "Please select two nodes to create a relationship.",
     "linkSubmitted": "The relationship has been submitted and is awaiting approval.",
     "confirmLinkCancel": "Are you sure you want to leave the create relationship page? The created relationship will not be saved!",
+    "confirmNodeCancel": "Are you sure you want to leave the create node page? The created node will not be saved!",
     "favoriteAdded": "Node added to favorites successfully!",
     "favoriteRemoved": "Node removed from favorites successfully!",
     "favoriteToggleFailed": "Failed to toggle favorite status."
@@ -540,7 +648,9 @@
     "selectLesson": "Please select a lesson",
     "noResources": "No resources",
     "completed": "Completed",
-    "notCompleted": "Not completed"
+    "notCompleted": "Not completed",
+    "regionFiltered": "{count} resource hidden due to regional restrictions | {count} resources hidden due to regional restrictions",
+    "filteredTitle": "Hidden resources (may be unavailable in mainland China)"
   },
   "about": {
     "title": "About Us",
@@ -557,10 +667,9 @@
     "goal2": "2. Design for learners to ignite motivation and learn efficiently.",
     "goal3": "3. Build a community to find peers and progress together.",
     "goal4": "4. Enable everyone to participate in knowledge production and sharing.",
-    "p8": "Looking ahead, we hope to connect practice, learning, and research so everyone can explore, study, and innovate.",
-    "p9": "We hope Sciencetopia becomes a science platform for everyone to find partners, resources, and momentum.",
-    "p10": "That is the meaning of 'topia': an environment, a scene, a place — right here.",
-    "p11": "We strive to build a replicable model for mass learning and innovation and light the way forward.",
+    "p8": "We hope Sciencetopia becomes a science platform for everyone to find partners, resources, and momentum.",
+    "p9": "That is the meaning of 'topia': an environment, a scene, a place — right here.",
+    "p10": "We strive to build a replicable model for mass learning and innovation and light the way forward.",
     "joinPrompt": { "before": "If you are interested, please", "after": ", and build a Sciencetopia for everyone." },
     "joinUs": "join us",
     "team": { "title": "Contributors", "name": "Name", "role": "Role", "contribution": "Contribution" },

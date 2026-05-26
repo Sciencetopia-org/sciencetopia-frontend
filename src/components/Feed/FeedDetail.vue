@@ -1,54 +1,62 @@
-`<template>
-  <div class="feed-detail">
-    <v-container>
-      <v-row>
-        <v-col cols="auto" class="feed-info-container">
-          <v-card class="feed-info-card">
-            <v-img v-if="feed.cover" :src="feed.cover" aspect-ratio="16/9" cover
-              style="max-width: 90%; max-height: 40%"></v-img>
-            <v-card-title>{{ feed.title }}</v-card-title>
-            <v-card-subtitle>
-              <v-row>
-                <v-col cols="auto">
-                  <v-btn icon="dots-vertical" size="40" class="justify-center align-center default-avatar"
-                    @click="navigateToProfile(feed.authorId)">
-                    <v-avatar size="38">
-                      <img :src="feed.authorAvatar" alt="作者头像" />
-                    </v-avatar>
-                  </v-btn>
-                </v-col>
-                <v-col>
-                  {{ feed.author }}
-                  <div class="text-caption">{{ feed.date }}</div>
-                </v-col>
-              </v-row>
-            </v-card-subtitle>
-            <v-card-text>
+<template>
+  <v-container fluid class="feed-detail-page">
+    <v-row class="feed-detail-layout" dense>
+      <v-col cols="12" md="7" lg="8">
+        <v-card class="feed-info-card">
+          <v-img
+            v-if="feed.cover"
+            :src="feed.cover"
+            class="feed-info-card__cover"
+            cover
+          />
+
+          <div class="feed-info-card__body">
+            <v-card-title class="feed-info-card__title">{{ feed.title }}</v-card-title>
+
+            <div class="feed-info-card__meta">
+              <v-btn
+                icon
+                size="40"
+                class="default-avatar feed-info-card__avatar"
+                @click="navigateToProfile(feed.authorId)"
+                :aria-label="feed.author"
+              >
+                <v-avatar size="38">
+                  <img :src="feed.authorAvatar" alt="" />
+                </v-avatar>
+              </v-btn>
+              <div>
+                <div>{{ feed.author }}</div>
+                <div class="text-caption">{{ feed.date }}</div>
+              </div>
+            </div>
+
+            <v-card-text class="feed-info-card__content">
               <div v-html="feed.content"></div>
             </v-card-text>
-          </v-card>
-        </v-col>
+          </div>
+        </v-card>
+      </v-col>
 
-        <v-col cols="auto" class="feed-interaction-container">
-          <v-card class="comments-card">
+      <v-col cols="12" md="5" lg="4">
+        <aside class="feed-side-panel">
+          <v-card class="feed-side-card comments-card">
             <v-card-title>评论</v-card-title>
             <v-card-text>
               <p>评论功能开发中...</p>
             </v-card-text>
           </v-card>
 
-          <v-spacer style="height: 20px"></v-spacer>
-
-          <v-card class="related-feeds-card">
+          <v-card class="feed-side-card related-feeds-card">
             <v-card-title>相关动态</v-card-title>
             <v-card-text>
               <p>相关动态推荐开发中...</p>
             </v-card-text>
           </v-card>
-        </v-col>
-      </v-row>
-    </v-container>
-  </div>
+        </aside>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script>
@@ -87,7 +95,7 @@ export default {
     async fetchFeedDetail() {
       // 后续可以添加从API获取动态详情的逻辑
       // try {
-      //   const response = await apiClient.get(\`/Feed/GetFeedById/\${this.feedId}\`)
+      //   const response = await apiClient.get(`/Feed/GetFeedById/${this.feedId}`)
       //   this.feed = response.data
       // } catch (error) {
       //   console.error('Error fetching feed detail:', error)
@@ -103,50 +111,124 @@ export default {
 <style scoped>
 @import '../../assets/css/avatar.css';
 
-.feed-detail {
-  position: relative;
-  top: -2vh;
+.feed-detail-page {
+  max-width: 1180px;
+  padding: 24px;
 }
 
-.feed-info-container {
-  width: 38.2%;
-  min-height: 84vh;
+.feed-detail-layout {
+  align-items: stretch;
+}
+
+.feed-info-card,
+.feed-side-card {
+  overflow: hidden;
+  background-color: #f4eee1;
 }
 
 .feed-info-card {
+  min-height: calc(100dvh - 160px);
+}
+
+.feed-info-card__cover {
   width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 360px;
+}
+
+.feed-info-card__body {
+  padding: 24px;
+}
+
+.feed-info-card__title {
+  padding: 0;
+  color: #1c2b42;
+  font-size: 26px;
+  line-height: 1.3;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.feed-info-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  color: #304e75;
+}
+
+.feed-info-card__avatar {
+  flex: 0 0 auto;
+}
+
+.feed-info-card__content {
+  padding: 18px 0 0;
+  color: #304e75;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.feed-side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   height: 100%;
-  background-color: #f4eee1;
-  padding: 40px;
 }
 
-.feed-interaction-container {
-  width: 61.8%;
-}
-
-.comments-card,
-.related-feeds-card {
-  background-color: #f4eee1;
-  box-shadow: 8px 0px 8px 0px rgba(0, 0, 0, 0.05) !important;
+.feed-side-card {
+  box-shadow: 8px 0 8px rgba(0, 0, 0, 0.05) !important;
 }
 
 .comments-card {
-  min-height: 52vh;
+  flex: 1 1 55%;
+  min-height: 280px;
 }
 
 .related-feeds-card {
-  min-height: 32vh;
+  flex: 1 1 35%;
+  min-height: 220px;
 }
 
-.v-card-title {
-  font-size: 1.4rem;
-  color: #1c2b42;
-  line-height: 1.4;
+:global(body.phone-layout) .feed-detail-page {
+  padding: 8px 8px calc(88px + env(safe-area-inset-bottom));
 }
 
-.v-card-text {
-  color: #304e75;
-  font-size: 1rem;
-  line-height: 1.6;
+:global(body.phone-layout) .feed-detail-layout {
+  margin: 0;
 }
-</style>`
+
+:global(body.phone-layout) .feed-detail-layout > .v-col {
+  padding: 0 0 12px;
+}
+
+:global(body.phone-layout) .feed-info-card,
+:global(body.phone-layout) .feed-side-card {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+:global(body.phone-layout) .feed-info-card {
+  min-height: 0;
+}
+
+:global(body.phone-layout) .feed-info-card__body {
+  padding: 14px 12px 16px;
+}
+
+:global(body.phone-layout) .feed-info-card__title {
+  font-size: 22px;
+}
+
+:global(body.phone-layout) .feed-info-card__content {
+  font-size: 15px;
+}
+
+:global(body.phone-layout) .feed-side-panel {
+  gap: 12px;
+}
+
+:global(body.phone-layout) .comments-card,
+:global(body.phone-layout) .related-feeds-card {
+  min-height: 160px;
+}
+</style>

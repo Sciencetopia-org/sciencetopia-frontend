@@ -77,11 +77,11 @@
                   :disabled="permissionLoading || !permissionLoaded"
                   @click="$emit('open-share')"
                 >
-                  采用到小组
+                  {{ $t('studyplan.shareDialog.title') }}
                 </v-btn>
-                <v-btn v-if="canEditComputed" icon="mdi-pencil" variant="text" @click="startEdit()"
+                <v-btn v-if="canEditComputed" icon="mdi-cog-outline" variant="text" @click="$emit('open-settings', plan)"
                   :disabled="permissionLoading || !permissionLoaded"
-                  :aria-label="`${$t('edit')} ${plan.title}`" />
+                  :aria-label="`${$t('setting')} ${plan.title}`" />
               </template>
               <v-btn v-if="headerMode !== 'groupShared'" size="small" color="primary" class="ml-2" :disabled="permissionLoading" @click="$emit('open-progress')">
                 {{ $t('cohort.viewStats') }}
@@ -158,7 +158,7 @@ export default {
       default: () => ({ isEnrolled: false, loading: false, disabled: true }),
     },
   },
-  emits: ['select-lesson', 'open-share', 'updated-plan', 'open-progress', 'loaded', 'enroll-cohort', 'open-my-plan'],
+  emits: ['select-lesson', 'open-share', 'updated-plan', 'open-progress', 'loaded', 'enroll-cohort', 'open-my-plan', 'open-settings'],
   data() {
     return {
       loading: false,
@@ -192,8 +192,12 @@ export default {
       return roleAllowsEdit(this.roleLabel)
     },
     cohortAdoptionLabel() {
-      if (this.canAdoptComputed) return this.allowCohortSharing ? '班级采用开放' : '编辑团队可采用'
-      return '班级采用未开放'
+      if (this.canAdoptComputed) {
+        return this.allowCohortSharing
+          ? this.$t('studyplan.shareDialog.adoptionOpen')
+          : this.$t('studyplan.shareDialog.editorAdoption')
+      }
+      return this.$t('studyplan.shareDialog.adoptionClosed')
     },
   },
   watch: {

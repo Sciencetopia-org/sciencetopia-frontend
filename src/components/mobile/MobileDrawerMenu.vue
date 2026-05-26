@@ -11,7 +11,7 @@
       <img :src="logo" alt="Sciencetopia" class="mobile-drawer-menu__logo" />
       <div>
         <div class="mobile-drawer-menu__title">Sciencetopia</div>
-        <div class="mobile-drawer-menu__subtitle">Mobile web</div>
+        <div class="mobile-drawer-menu__subtitle">{{ $t('mobile.slogan') }}</div>
       </div>
     </div>
 

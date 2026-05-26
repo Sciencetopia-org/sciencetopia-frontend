@@ -37,11 +37,11 @@
           :loading="false"
           :primaryProgress="normalizePct(p.avgProgress)"
           :advancedProgress="normalizePct(p.advancedAvgProgress)"
-          :primaryTooltip="`小组平均学习进度：${Math.round(normalizePct(p.avgProgress) || 0)} %`"
-          :advancedTooltip="`小组平均额外学习了${Math.round(normalizePct(p.advancedAvgProgress) || 0)} %的进阶内容`"
+          :primaryTooltip="$t('groupPlan.avgProgressTooltip', { percent: Math.round(normalizePct(p.avgProgress) || 0) })"
+          :advancedTooltip="$t('groupPlan.advancedAvgProgressTooltip', { percent: Math.round(normalizePct(p.advancedAvgProgress) || 0) })"
           :showAdvancedSkeleton="false"
         />
-        <div v-if="p.memberCount" class="text-caption mt-1">{{ p.memberCount }} 人参与</div>
+        <div v-if="p.memberCount" class="text-caption mt-1">{{ $t('groupPlan.memberCount', { count: p.memberCount }) }}</div>
         <div v-if="hasCohorts(p)" class="cohort-strip mt-2">
           <v-chip
             v-for="c in p.cohorts || []"
@@ -51,18 +51,18 @@
             class="mr-1 mb-1"
             variant="tonal"
           >
-            {{ c.title || '班级' }}<span v-if="c.memberCount"> · {{ c.memberCount }} 人</span>
+            {{ c.title || $t('cohort.untitledClass') }}<span v-if="c.memberCount"> · {{ $t('groupPlan.memberCount', { count: c.memberCount }) }}</span>
           </v-chip>
         </div>
       </v-list-item>
       <div v-if="errorText" class="text-caption text-error px-2 py-1">{{ errorText }}</div>
-      <div v-if="!hasDisplayItems && !errorText" class="text-caption text-medium-emphasis">暂无共享计划</div>
+      <div v-if="!hasDisplayItems && !errorText" class="text-caption text-medium-emphasis">{{ $t('groupPlan.noSharedPlans') }}</div>
     </v-list>
   </template>
   <template v-else>
     <v-card class="left-panel panel-card panel-card--beige" rounded="xl" elevation="2">
       <div class="plan-list-header d-flex align-center px-4 py-2">
-        <span class="text-subtitle-1">组共享的计划</span>
+        <span class="text-subtitle-1">{{ $t('groupPlan.sharedPlans') }}</span>
       </div>
       <template v-if="$route.name !== 'studyGroupPage'">
         <v-btn
@@ -72,7 +72,7 @@
           @click="$router.push({ name: 'studyGroupPage', params: { id: groupId } })"
           prepend-icon="mdi-arrow-left"
         >
-          返回学习小组
+          {{ $t('groupPlan.backToGroup') }}
         </v-btn>
       </template>
       <v-divider />
@@ -118,7 +118,7 @@
               rounded
               class="mt-1"
             />
-            <div v-if="p.memberCount" class="text-caption mt-1">{{ p.memberCount }} 人参与</div>
+            <div v-if="p.memberCount" class="text-caption mt-1">{{ $t('groupPlan.memberCount', { count: p.memberCount }) }}</div>
             <div v-if="hasCohorts(p)" class="cohort-strip mt-2">
               <v-chip
                 v-for="c in p.cohorts || []"
@@ -128,12 +128,12 @@
                 class="mr-1 mb-1"
                 variant="tonal"
               >
-                {{ c.title || '班级' }}<span v-if="c.memberCount"> · {{ c.memberCount }} 人</span>
+                {{ c.title || $t('cohort.untitledClass') }}<span v-if="c.memberCount"> · {{ $t('groupPlan.memberCount', { count: c.memberCount }) }}</span>
               </v-chip>
             </div>
           </v-list-item>
           <div v-if="errorText" class="text-caption text-error px-2 py-1">{{ errorText }}</div>
-          <div v-if="!hasDisplayItems && !errorText" class="text-caption text-medium-emphasis">暂无共享计划</div>
+          <div v-if="!hasDisplayItems && !errorText" class="text-caption text-medium-emphasis">{{ $t('groupPlan.noSharedPlans') }}</div>
         </v-list>
       </v-card-text>
     </v-card>
@@ -239,7 +239,7 @@ export default {
             id: planCohorts[0]?.id || null,
             studyPlanId: planVersionId || planCohorts[0]?.studyPlanId || stableId,
             studyPlanStableId: stableId,
-            planTitle: plan.title || plan.planTitle || stableId || '未命名学习计划',
+            planTitle: plan.title || plan.planTitle || stableId || this.$t('groupPlan.untitledPlan'),
             pinnedVersionNumber: plan.pinnedVersionNumber,
             memberCount: Number.isFinite(providedMemberCount)
               ? providedMemberCount
@@ -253,8 +253,8 @@ export default {
         })
       } catch (e) {
         this.errorText = e?.response?.status === 403
-          ? '你需要先加入该学习小组，才能查看共享计划。'
-          : '共享计划加载失败，请刷新或检查后端服务。'
+          ? this.$t('groupPlan.needJoinToView')
+          : this.$t('groupPlan.loadFailed')
         return []
       }
     },

@@ -23,6 +23,8 @@ export function isPhoneDevice() {
   const screenWidth = Math.min(window.screen?.width || viewportWidth, window.screen?.height || viewportHeight)
   const screenHeight = Math.max(window.screen?.width || viewportWidth, window.screen?.height || viewportHeight)
 
+  if (!tabletUa && viewportWidth <= 600) return true
+
   const hasTouch = Number(navigator.maxTouchPoints || 0) > 0
   const coarsePointer = typeof window.matchMedia === 'function'
     && (

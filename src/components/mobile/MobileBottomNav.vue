@@ -5,6 +5,7 @@
     grow
     mandatory
     elevation="8"
+    height="64"
   >
     <v-btn value="plans" @click="goPlans">
       <v-icon>mdi-book-open-variant</v-icon>
@@ -93,22 +94,40 @@ export default {
 </script>
 
 <style scoped>
-.mobile-bottom-nav {
+:global(.mobile-bottom-nav) {
+  display: none !important;
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 1200 !important;
+  width: 100% !important;
+  max-width: 100vw !important;
   height: calc(64px + env(safe-area-inset-bottom)) !important;
   padding-bottom: env(safe-area-inset-bottom);
   background: #fbf8f2 !important;
   border-top: 1px solid rgba(48, 78, 117, 0.12);
 }
 
-.mobile-bottom-nav :deep(.v-btn) {
+@media (max-width: 600px) {
+  :global(.mobile-bottom-nav) {
+    display: flex !important;
+  }
+}
+
+:global(.mobile-bottom-nav .v-bottom-navigation__content) {
+  width: 100%;
+}
+
+:global(.mobile-bottom-nav .v-btn) {
   min-width: 0;
 }
 
-.mobile-bottom-nav :deep(.v-btn__content) {
+:global(.mobile-bottom-nav .v-btn__content) {
   gap: 2px;
 }
 
-.mobile-bottom-nav span {
+:global(.mobile-bottom-nav span) {
   max-width: 68px;
   overflow: hidden;
   text-overflow: ellipsis;

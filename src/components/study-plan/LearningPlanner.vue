@@ -1,6 +1,6 @@
 <!-- Planner.vue -->
 <template>
-  <div>
+  <div class="learning-planner">
     <input
       type="text"
       v-model="learningObjective"
@@ -34,6 +34,7 @@ export default {
   components: {
     StudyPlan,
   },
+  emits: ['dirty', 'update:showStudyPlan', 'background', 'update:can-save-study-plan'],
   data() {
     return {
       learningObjective: '',
@@ -44,7 +45,38 @@ export default {
       background: false,
     }
   },
+  computed: {
+    canSaveStudyPlan() {
+      return this.isSavableStudyPlan(this.studyPlanData)
+    },
+  },
+  watch: {
+    canSaveStudyPlan: {
+      immediate: true,
+      handler(value) {
+        this.$emit('update:can-save-study-plan', value)
+      },
+    },
+  },
   methods: {
+    hasText(value) {
+      return typeof value === 'string' && value.trim().length > 0
+    },
+    hasLessonContent(list) {
+      return Array.isArray(list) && list.some(lesson =>
+        this.hasText(lesson?.name)
+        || this.hasText(lesson?.description)
+        || (Array.isArray(lesson?.resources) && lesson.resources.length > 0)
+      )
+    },
+    isSavableStudyPlan(plan) {
+      if (!plan || typeof plan !== 'object') return false
+      return this.hasText(plan.title)
+        || this.hasText(plan.introduction?.description)
+        || this.hasLessonContent(plan.prerequisite)
+        || this.hasLessonContent(plan.mainCurriculum)
+        || this.hasLessonContent(plan.advancedTopics)
+    },
     async generateStudyPlan() {
       if (this.loading) return
       if (!this.learningObjective) return
@@ -54,6 +86,9 @@ export default {
       }
       this.loading = true
       this.background = false
+      this.showStudyPlan = false
+      this.studyPlanData = null
+      this.$emit('update:showStudyPlan', false)
 
       console.log('Generating study plan for:', this.learningObjective)
 
@@ -96,13 +131,16 @@ export default {
             attach(this.studyPlanData.advancedTopics, 'advancedTopics')
           } catch (_) { /* ignore suggest errors */ }
 
-          this.showStudyPlan = true
-          this.$emit('update:showStudyPlan', true)
+          const canShowPlan = this.isSavableStudyPlan(this.studyPlanData)
+          this.showStudyPlan = canShowPlan
+          this.$emit('update:showStudyPlan', canShowPlan)
           console.log('Study plan generated:', this.studyPlanData)
         } else {
+          this.$emit('update:showStudyPlan', false)
           console.error('Failed to fetch the study plan:', response)
         }
       } catch (error) {
+        this.$emit('update:showStudyPlan', false)
         console.error('Error in fetching study plan:', error)
       } finally {
         this.loading = false
@@ -118,7 +156,7 @@ export default {
     },
     async savePlan() {
       if (this.loading) return
-      if (this.studyPlanData) {
+      if (this.isSavableStudyPlan(this.studyPlanData)) {
         this.loading = true
         try {
           // Construct the studyPlanDTO object
@@ -171,3 +209,14 @@ export default {
   },
 }
 </script>
+
+<style scoped>
+.learning-planner {
+  min-height: min-content;
+  padding-bottom: 16px;
+}
+
+:global(body.phone-layout) .learning-planner {
+  padding-bottom: 32px;
+}
+</style>
