@@ -60,6 +60,7 @@ import { onClickOutside } from '@vueuse/core'
 import { eventBus } from '@/eventBus'
 import { apiClient } from '@/api'
 import { hydrateCompletedStatuses } from '@/utils/resourceProgress'
+import { isSafeUrl, safeUrl } from '@/utils/text'
 
 import SearchResults from './SearchResults.vue'
 
@@ -184,12 +185,12 @@ export default {
     const handleResultClick = (result) => {
       if (!result) return
       if (result.type === 'plan') {
-        window.open(`/plans/${result.id}`, '_blank')
+        window.open(`/plans/${result.id}`, '_blank', 'noopener,noreferrer')
       } else if (result.type === 'group') {
-        window.open(`/studygroup/${result.id}`, '_blank')
+        window.open(`/studygroup/${result.id}`, '_blank', 'noopener,noreferrer')
       } else if (result.type === 'resources') {
-        if (result.link) {
-          window.open(result.link, '_blank')
+        if (isSafeUrl(result.link)) {
+          window.open(safeUrl(result.link), '_blank', 'noopener,noreferrer')
         }
       } else {
         // For knowledge or unknown types, keep the panel open for now

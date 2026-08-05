@@ -46,7 +46,12 @@
           </section>
           <section class="mobile-profile__pane">
             <div class="mobile-profile__scroll">
+              <v-card v-if="!isCurrentUser && !targetUserPrivacy.showStudyPlansPublicly" class="pa-4 text-center">
+                <v-icon size="40" color="grey" class="mb-2">mdi-lock-outline</v-icon>
+                <p class="text-grey">{{ $t('privacy.plansHidden') }}</p>
+              </v-card>
               <StudyPlanList
+                v-else
                 :isCurrentUser="isCurrentUser"
                 :studyPlanDataList="studyPlanDataList"
                 :progressStatus="progressStatus"
@@ -64,7 +69,11 @@
           </section>
           <section class="mobile-profile__pane">
             <div class="mobile-profile__scroll">
-              <template v-if="loadingGroups">
+              <v-card v-if="!isCurrentUser && !targetUserPrivacy.showStudyGroupsPublicly" class="pa-4 text-center">
+                <v-icon size="40" color="grey" class="mb-2">mdi-lock-outline</v-icon>
+                <p class="text-grey">{{ $t('privacy.groupsHidden') }}</p>
+              </v-card>
+              <template v-else-if="loadingGroups">
                 <v-skeleton-loader type="list-item-two-line" class="mb-2" />
                 <v-skeleton-loader type="list-item-two-line" class="mb-2" />
               </template>
@@ -116,7 +125,12 @@
 
       <!-- Study Plans Section -->
       <v-col cols="12" md="5" class="study-plan-container">
+        <v-card v-if="!isCurrentUser && !targetUserPrivacy.showStudyPlansPublicly" class="pa-6 text-center">
+          <v-icon size="48" color="grey" class="mb-3">mdi-lock-outline</v-icon>
+          <p class="text-grey">{{ $t('privacy.plansHidden') }}</p>
+        </v-card>
         <StudyPlanList
+          v-else
           :isCurrentUser="isCurrentUser"
           :studyPlanDataList="studyPlanDataList"
           :progressStatus="progressStatus"
@@ -139,7 +153,11 @@
             {{ isCurrentUser ? $t('usercenter.my') : $t('usercenter.their')
             }}{{ $t('wordbreaker') }}{{ $t('usercenter.studygroup') }}
           </v-card-title>
-          <template v-if="loadingGroups">
+          <v-card v-if="!isCurrentUser && !targetUserPrivacy.showStudyGroupsPublicly" class="pa-6 text-center">
+            <v-icon size="48" color="grey" class="mb-3">mdi-lock-outline</v-icon>
+            <p class="text-grey">{{ $t('privacy.groupsHidden') }}</p>
+          </v-card>
+          <template v-else-if="loadingGroups">
             <v-skeleton-loader type="list-item-two-line" class="mb-2" />
             <v-skeleton-loader type="list-item-two-line" class="mb-2" />
             <v-skeleton-loader type="list-item-two-line" />
@@ -207,6 +225,7 @@ export default {
       currentUserId: this.$store.state.currentUserID,
       loadingPlans: false,
       loadingGroups: false,
+      targetUserPrivacy: { showStudyPlansPublicly: true, showStudyGroupsPublicly: true },
       // paging/filter for lightweight StudyPlans endpoint
       page: 1,
       pageSize: 20,
@@ -300,23 +319,40 @@ export default {
       this.mobileSwipeDeltaX = 0
     },
     async fetchDataForUser() {
+      // When viewing another user, fetch their privacy settings first
+      if (!this.isCurrentUser) {
+        try {
+          const privacyResponse = await apiClient.get(`/AllUsers/GetUserInfoById/${this.userId}`)
+          this.targetUserPrivacy = {
+            showStudyPlansPublicly: privacyResponse.data?.showStudyPlansPublicly ?? true,
+            showStudyGroupsPublicly: privacyResponse.data?.showStudyGroupsPublicly ?? true,
+          }
+        } catch (error) {
+          console.error('Error fetching target user privacy settings:', error)
+        }
+      }
+
       this.loadingGroups = true
       // Fetch study plans and study groups in parallel, but resolve and render independently
-      const plansPromise = this.fetchStudyPlansForUser()
+      const plansPromise = this.targetUserPrivacy.showStudyPlansPublicly || this.isCurrentUser
+        ? this.fetchStudyPlansForUser()
+        : Promise.resolve()
 
-      const groupsPromise = apiClient
-        .get(`/StudyGroup/GetStudyGroup`, {
-          params: { targetUserId: this.userId },
-        })
-        .then((studyGroupResponse) => {
-          this.studyGroupList = studyGroupResponse.data
-        })
-        .catch((error) => {
-          console.error('Error fetching study groups:', error)
-        })
-        .finally(() => {
-          this.loadingGroups = false
-        })
+      const groupsPromise = (this.targetUserPrivacy.showStudyGroupsPublicly || this.isCurrentUser)
+        ? apiClient
+            .get(`/StudyGroup/GetStudyGroup`, {
+              params: { targetUserId: this.userId },
+            })
+            .then((studyGroupResponse) => {
+              this.studyGroupList = studyGroupResponse.data
+            })
+            .catch((error) => {
+              console.error('Error fetching study groups:', error)
+            })
+            .finally(() => {
+              this.loadingGroups = false
+            })
+        : Promise.resolve().then(() => { this.loadingGroups = false })
 
       // Optionally wait for both to settle to avoid unhandled rejections
       await Promise.allSettled([plansPromise, groupsPromise])

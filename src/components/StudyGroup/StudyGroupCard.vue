@@ -82,6 +82,8 @@
 </template>
 
 <script>
+import { safeUrl, stripHtml } from '@/utils/text'
+
 export default {
   name: 'StudyGroupCard',
   props: {
@@ -123,32 +125,23 @@ export default {
   },
   methods: {
     resolveGroupImage(imageUrl) {
-      if (!imageUrl) return require('@/assets/images/default_study_group.png')
+      const fallback = require('@/assets/images/default_study_group.png')
+      if (!imageUrl) return fallback
       const src = String(imageUrl).trim()
-      if (/^(https?:)?\/\//i.test(src) || src.startsWith('data:image/')) return src
+      const safeSrc = safeUrl(src, '')
+      if (safeSrc) return safeSrc
       try {
         return require(`@/assets/images/${src}`)
       } catch (_) {
-        return require('@/assets/images/default_study_group.png')
+        return fallback
       }
     },
     resolveMemberAvatar(avatarUrl) {
       const src = String(avatarUrl || '').trim()
-      if (src) return src
-      return require('@/assets/images/avatar.svg')
+      return safeUrl(src, require('@/assets/images/avatar.svg'))
     },
     stripHtml(html) {
-      try {
-        return (require('@/utils/text.js').stripHtml)(html)
-      } catch (_) {
-        try {
-          const div = document.createElement('div')
-          div.innerHTML = String(html || '')
-          return (div.textContent || div.innerText || '').trim()
-        } catch {
-          return String(html || '')
-        }
-      }
+      return stripHtml(html)
     },
   },
 }

@@ -31,11 +31,23 @@
       <span>{{ $t('usercenter.profile') || $t('usercenter.my') }}</span>
     </v-btn>
   </v-bottom-navigation>
+  <LoginRequiredDialog v-model="loginRequiredDialog" :message="loginRequiredMessage" />
 </template>
 
 <script>
+import LoginRequiredDialog from '@/components/ui/LoginRequiredDialog.vue'
+
 export default {
   name: 'MobileBottomNav',
+  components: {
+    LoginRequiredDialog,
+  },
+  data() {
+    return {
+      loginRequiredDialog: false,
+      loginRequiredMessage: '',
+    }
+  },
   computed: {
     userId() {
       return this.$store.state.currentUserID || this.$store.state.userInfo?.id
@@ -59,8 +71,14 @@ export default {
       if (this.userId) return this.userId
       try {
         await this.$store.dispatch('checkAuthenticationStatus')
-      } catch (_) {}
+      } catch (err) {
+        console.warn('Failed to refresh authentication status before navigation', err)
+      }
       return this.userId
+    },
+    showLoginRequired(message) {
+      this.loginRequiredMessage = message || this.$t('loginRequired.defaultMessage')
+      this.loginRequiredDialog = true
     },
     goHome() {
       this.$router.push({ name: 'HomePage' })
@@ -68,7 +86,7 @@ export default {
     async goPlans() {
       const userId = await this.ensureUserId()
       if (!userId) {
-        this.$router.push({ name: 'login' })
+        this.showLoginRequired(this.$t('loginRequired.studyPlanMessage'))
         return
       }
       this.$router.push({ name: 'StudyPlanWorkspace', params: { userId } })
@@ -76,7 +94,7 @@ export default {
     async goMessages() {
       const userId = await this.ensureUserId()
       if (!userId) {
-        this.$router.push({ name: 'login' })
+        this.showLoginRequired(this.$t('loginRequired.messagesMessage'))
         return
       }
       this.$router.push({ name: 'directMessages', params: { userId } })
@@ -84,7 +102,7 @@ export default {
     async goProfile() {
       const userId = await this.ensureUserId()
       if (!userId) {
-        this.$router.push({ name: 'login' })
+        this.showLoginRequired(this.$t('loginRequired.profileMessage'))
         return
       }
       this.$router.push({ name: 'personalcenter', params: { userId } })

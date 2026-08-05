@@ -16,6 +16,7 @@ import CreateStudyGroup from '@/components/StudyGroup/CreateStudyGroup.vue'
 import SponsorShip from '@/components/misc/SponsorShip.vue'
 import AboutUs from '@/components/misc/AboutUs.vue'
 import ContactUs from '@/components/misc/ContactUs.vue'
+import UserAgreement from '@/components/misc/UserAgreement.vue'
 import TestHeight from '@/components/misc/TestHeight.vue'
 import StudyPlanDetail from '@/components/study-plan/StudyPlanDetail.vue'
 import StudyPlanWorkspace from '@/components/study-plan/StudyPlanWorkspace.vue'
@@ -88,6 +89,12 @@ const routes = [
     path: '/register',
     name: 'register',
     component: ReGister,
+    meta: { layout: 'simplest' },
+  },
+  {
+    path: '/terms',
+    name: 'terms',
+    component: UserAgreement,
     meta: { layout: 'simplest' },
   },
   {

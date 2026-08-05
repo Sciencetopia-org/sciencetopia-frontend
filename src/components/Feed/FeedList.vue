@@ -215,7 +215,7 @@ export default {
 }
 
 :global(body.phone-layout) .feed-card {
-  border-radius: 0 !important;
+  border-radius: 12px !important;
   box-shadow: none !important;
 }
 

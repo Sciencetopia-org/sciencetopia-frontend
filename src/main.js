@@ -112,5 +112,26 @@ app.config.globalProperties.$i18n = i18n.global
 // If you later change i18n locale at runtime, also update Vuetify:
 // e.g., i18n.global.locale = 'en'; vuetify.locale.current = 'en'
 
+app.config.errorHandler = (err) => {
+  const div = document.createElement('div')
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:white;padding:12px;font-size:14px;z-index:99999;word-break:break-all;white-space:pre-wrap;max-height:50vh;overflow:auto;'
+  div.textContent = '[Vue Error] ' + (err?.stack || err?.message || String(err))
+  document.body.appendChild(div)
+}
+
+window.addEventListener('error', (e) => {
+  const div = document.createElement('div')
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;background:darkred;color:white;padding:12px;font-size:14px;z-index:99999;word-break:break-all;white-space:pre-wrap;max-height:50vh;overflow:auto;'
+  div.textContent = '[JS Error] ' + (e?.error?.stack || e?.message || String(e))
+  document.body.appendChild(div)
+})
+
+window.addEventListener('unhandledrejection', (e) => {
+  const div = document.createElement('div')
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;background:maroon;color:white;padding:12px;font-size:14px;z-index:99999;word-break:break-all;white-space:pre-wrap;max-height:50vh;overflow:auto;'
+  div.textContent = '[Promise Error] ' + (e?.reason?.stack || e?.reason?.message || String(e?.reason))
+  document.body.appendChild(div)
+})
+
 app.mount('#app')
 

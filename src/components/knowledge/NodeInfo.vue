@@ -6,7 +6,9 @@
         <v-card-title>{{ node.name }}</v-card-title>
 
         <!-- 描述：允许换行；避免 node.description 为空时报错 -->
-        <v-card-text v-if="node.description" v-html="sanitizeDescription(node.description)"></v-card-text>
+        <v-card-text v-if="node.description">
+          <span v-html="sanitizeDescription(node.description)"></span>
+        </v-card-text>
         <v-card-text v-else class="text-grey">
           {{ $t('knowledgeGraph.noDescription') || 'No description.' }}
         </v-card-text>
@@ -68,6 +70,7 @@ import LinkPreview from '@/components/knowledge/LinkPreview.vue'
 import ResourceLearnToggle from '@/components/resources/ResourceLearnToggle.vue'
 import { isMainlandChina } from '@/utils/region'
 import { isAccessibleInChina } from '@/utils/resourceFilter'
+import { textWithLineBreaks } from '@/utils/text'
 
 export default {
   name: 'NodeInfo',
@@ -100,9 +103,7 @@ export default {
     const keyOf = (node) => (node && (node.id || node.name)) || ''
     const isExpanded = (node) => !!expanded[keyOf(node)]
     const toggleHidden = (node) => { const k = keyOf(node); expanded[k] = !expanded[k] }
-    const sanitizeDescription = (desc) => {
-      try { return String(desc || '').replace(/\r?\n/g, '<br>') } catch { return '' }
-    }
+    const sanitizeDescription = (desc) => textWithLineBreaks(desc)
     const canToggleResources = computed(() => Boolean(store.state.currentUserID || store.state.userInfo?.id))
     const syncNodeCache = (node) => {
       if (!node?.id) return

@@ -32,7 +32,7 @@
             </div>
 
             <v-card-text class="feed-info-card__content">
-              <div v-html="feed.content"></div>
+              <div v-html="sanitizeHtml(feed.content)"></div>
             </v-card-text>
           </div>
         </v-card>
@@ -61,6 +61,7 @@
 
 <script>
 import { mapActions } from 'vuex'
+import { sanitizeHtml } from '@/utils/text'
 // import { apiClient } from '@/api'
 
 export default {
@@ -87,6 +88,7 @@ export default {
   },
   methods: {
     ...mapActions(['goToProfile']),
+    sanitizeHtml,
 
     async navigateToProfile(userId) {
       this.goToProfile({ userId, router: this.$router })
@@ -203,7 +205,7 @@ export default {
 
 :global(body.phone-layout) .feed-info-card,
 :global(body.phone-layout) .feed-side-card {
-  border-radius: 0 !important;
+  border-radius: 12px !important;
   box-shadow: none !important;
 }
 

@@ -10,7 +10,7 @@
       />
     </template>
     <v-list-item-title>
-      <a :href="link" target="_blank" rel="noopener noreferrer">{{ displayTitle }}</a>
+      <a :href="safeLink" target="_blank" rel="noopener noreferrer">{{ displayTitle }}</a>
     </v-list-item-title>
   </v-list-item>
 </template>
@@ -18,6 +18,7 @@
 <script>
 import { apiClient } from '@/api'
 import { getResourceId } from '@/utils/resourceProgress'
+import { safeUrl } from '@/utils/text'
 
 export default {
   name: 'ResourceItem',
@@ -43,6 +44,9 @@ export default {
     },
     link() {
       return this.resource.link || this.resource.url || '#'
+    },
+    safeLink() {
+      return safeUrl(this.link)
     },
     displayTitle() {
       return this.resource.title || this.link

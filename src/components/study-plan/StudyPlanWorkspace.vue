@@ -1290,7 +1290,7 @@ export default {
 :global(body.phone-layout) .study-plan-form-dialog-card {
   height: 100dvh !important;
   max-height: 100dvh !important;
-  border-radius: 0 !important;
+  border-radius: 16px !important;
 }
 
 :global(body.phone-layout) .study-plan-form-dialog-body {

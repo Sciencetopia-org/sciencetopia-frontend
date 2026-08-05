@@ -457,10 +457,6 @@ export default {
   flex: 0 0 100% !important;
 }
 
-:global(body.phone-layout .v-card),
-:global(body.phone-layout .panel-card),
-:global(body.phone-layout .left-panel),
-:global(body.phone-layout .v-sheet),
 :global(body.phone-layout .v-window),
 :global(body.phone-layout .v-window__container),
 :global(body.phone-layout .mobile-plan-card),
@@ -471,7 +467,6 @@ export default {
 :global(body.phone-layout .mobile-group-page),
 :global(body.phone-layout .mobile-plan-workspace),
 :global(body.phone-layout .mobile-plan-page) {
-  border-radius: 0 !important;
   clip-path: none !important;
 }
 
@@ -484,33 +479,6 @@ export default {
   height: 100dvh;
   touch-action: pan-y;
   pointer-events: none;
-}
-
-@media (max-width: 600px) {
-  .footer-container {
-    display: none !important;
-  }
-
-  .layout-wrapper .body-wrapper {
-    min-height: 100dvh;
-    flex-direction: column;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  .layout-wrapper .sidebar-slot {
-    display: none;
-  }
-
-  .layout-wrapper .main-content {
-    --content-padding: 8px;
-    width: 100%;
-    max-width: 100%;
-    min-height: 100dvh;
-    padding: 8px 8px calc(80px + env(safe-area-inset-bottom));
-    overflow-x: hidden;
-  }
 }
 
 /* 底部动画与配色（保持原样） */

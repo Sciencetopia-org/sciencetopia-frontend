@@ -9,7 +9,7 @@ export function getStudyHub() {
 export async function ensureStudyHubConnection() {
   if (studyHub && studyHub.state !== 'Disconnected') return studyHub
   studyHub = new HubConnectionBuilder()
-    .withUrl('http://localhost:5085/hubs/study')
+    .withUrl('/hubs/study')
     .withAutomaticReconnect()
     .configureLogging(LogLevel.Information)
     .build()

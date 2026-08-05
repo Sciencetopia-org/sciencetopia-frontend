@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-const apiBaseUrl = process.env.VUE_APP_API_BASE_URL || 'http://localhost:5085/api'
-const pyApiBaseUrl = process.env.VUE_APP_PY_API_BASE_URL || 'http://localhost:5086/api'
+const apiBaseUrl = process.env.VUE_APP_API_BASE_URL || '/api'
+const pyApiBaseUrl = process.env.VUE_APP_PY_API_BASE_URL || '/py-api'
 
 const apiClient = axios.create({
   baseURL: apiBaseUrl,

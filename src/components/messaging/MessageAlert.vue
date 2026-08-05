@@ -62,13 +62,18 @@
     </v-menu>
 
     <!-- 移除文字说明部分 -->
+    <LoginRequiredDialog v-model="loginRequiredDialog" :message="$t('loginRequired.messagesMessage')" />
   </div>
 </template>
 <script>
 import { mapState } from 'vuex'
+import LoginRequiredDialog from '@/components/ui/LoginRequiredDialog.vue'
 
 export default {
   name: 'MessageAlert',
+  components: {
+    LoginRequiredDialog,
+  },
   props: {
     isSmallScreen: {
       type: Boolean,
@@ -84,6 +89,7 @@ export default {
       isSmallScreenLocal: window.innerWidth <= 1200, // 初始判断屏幕大小
       menuOpen: false,
       menuHoverBlocked: false,
+      loginRequiredDialog: false,
     }
   },
   computed: {
@@ -151,7 +157,7 @@ export default {
 
       const isAuthenticated = this.$store.state.isAuthenticated
       if (!isAuthenticated || !userId) {
-        alert(this.$t('header.pleaselogin') + this.$t('header.toseemessage'))
+        this.loginRequiredDialog = true
         return null
       }
 
@@ -289,5 +295,4 @@ export default {
   .message-alert-container { --outer-ring-size: 44px; }
 }
 </style>
-
 

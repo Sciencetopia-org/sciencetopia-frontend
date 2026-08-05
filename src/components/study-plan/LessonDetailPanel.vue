@@ -39,7 +39,7 @@
           <!-- Single-line clickable title: prefer name; fallback to link -->
           <div class="resource-title">
             <template v-if="resource.link">
-              <a class="resource-title-link" :href="resource.link" target="_blank" rel="noopener">{{ resource.name || resource.link }}</a>
+              <a class="resource-title-link" :href="safeResourceUrl(resource.link)" target="_blank" rel="noopener noreferrer">{{ resource.name || resource.link }}</a>
             </template>
             <template v-else>
               <span class="resource-title-text">{{ resource.name || '' }}</span>
@@ -76,7 +76,7 @@
             <!-- Single-line clickable title for blocked resources as well -->
             <div class="resource-title">
               <template v-if="resource.link">
-                <a class="resource-title-link" :href="resource.link" target="_blank" rel="noopener">{{ resource.name || resource.link }}</a>
+                <a class="resource-title-link" :href="safeResourceUrl(resource.link)" target="_blank" rel="noopener noreferrer">{{ resource.name || resource.link }}</a>
               </template>
               <template v-else>
                 <span class="resource-title-text">{{ resource.name || '' }}</span>
@@ -119,6 +119,7 @@ import TagChips from '@/components/common/TagChips.vue'
 import { isMainlandChina } from '@/utils/region'
 import { filterResourcesForChina, isAccessibleInChina } from '@/utils/resourceFilter'
 import { getResourceId } from '@/utils/resourceProgress'
+import { safeUrl } from '@/utils/text'
 
 const lessonDetailCache = new Map()
 const lessonDetailInflight = new Map()
@@ -256,6 +257,9 @@ export default {
       if (!n) return ''
       const p = n.properties || {}
       return p.name || p.Id || p.id || p.link || ''
+    },
+    safeResourceUrl(url) {
+      return safeUrl(url)
     },
     mergeLessons(lessons) {
       if (!Array.isArray(lessons)) return []

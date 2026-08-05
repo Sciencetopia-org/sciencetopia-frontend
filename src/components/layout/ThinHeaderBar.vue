@@ -33,6 +33,7 @@
       </div>
     </v-container>
   </div>
+  <LoginRequiredDialog v-model="loginRequiredDialog" :message="loginRequiredMessage" />
 </template>
 
 <script>
@@ -40,6 +41,7 @@ import { debounce } from 'lodash-es'
 import MessageAlert from '@/components/messaging/MessageAlert.vue'
 import LogInPartial from '@/components/auth/LogInPartial.vue'
 import ReusableIconButton from '@/components/ui/ReusableIconButton.vue'
+import LoginRequiredDialog from '@/components/ui/LoginRequiredDialog.vue'
 
 export default {
   name: 'ThinHeaderBar',
@@ -48,6 +50,7 @@ export default {
     MessageAlert,
     LogInPartial,
     ReusableIconButton,
+    LoginRequiredDialog,
   },
 
   data() {
@@ -59,6 +62,8 @@ export default {
       isSmallScreen: window.innerWidth <= 1200,
       currentLocale: this.$i18n.locale,
       langTextWidth: 0,
+      loginRequiredDialog: false,
+      loginRequiredMessage: '',
     }
   },
 
@@ -161,21 +166,43 @@ export default {
       }
     },
 
-    handleStudyPlan() {
-      if (!this.isAuthenticated) {
-        this.alertMessage = this.$t('header.pleaseLoginToViewStudyPlan')
+    showLoginRequired(message) {
+      this.loginRequiredMessage = message || this.$t('loginRequired.defaultMessage')
+      this.loginRequiredDialog = true
+    },
+
+    async ensureUserId() {
+      let userId = this.$store.state.currentUserID || this.$store.state.userInfo?.id
+      if (!userId) {
+        try {
+          await this.$store.dispatch('checkAuthenticationStatus')
+        } catch (err) {
+          console.error('Failed to refresh authentication status before navigation', err)
+        }
+        userId = this.$store.state.currentUserID || this.$store.state.userInfo?.id
+      }
+      if (!this.$store.state.isAuthenticated || !userId) {
+        this.showLoginRequired(this.$t('loginRequired.studyPlanMessage'))
+        return null
+      }
+      return userId
+    },
+
+    async handleStudyPlan() {
+      const userId = await this.ensureUserId()
+      if (!userId) {
         return
       }
-      this.$router.push({ name: 'StudyPlanWorkspace' })
+      this.$router.push({ name: 'StudyPlanWorkspace', params: { userId } })
     },
 
     handleLanguageChange(val) {
       this.currentLocale = val
       this.$i18n.locale = val
       this.$vuetify.locale.current = val
-      try { localStorage.setItem('locale', val) } catch (_) {}
+      try { localStorage.setItem('locale', val) } catch (err) { console.warn('Failed to persist locale', err) }
       // Notify app parts (e.g., KnowledgeGraph) to refresh with new lang
-      try { window.dispatchEvent(new CustomEvent('app:lang-changed', { detail: val })) } catch (_) {}
+      try { window.dispatchEvent(new CustomEvent('app:lang-changed', { detail: val })) } catch (err) { console.warn('Failed to notify locale change', err) }
       this.$nextTick(() => {
         this.measureLangTextWidth()
       })

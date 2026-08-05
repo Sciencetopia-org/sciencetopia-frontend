@@ -280,6 +280,85 @@
     <div v-if="weChatSummary" class="text-danger">{{ weChatSummary }}</div>
   </v-container>
   <v-divider></v-divider>
+
+  <!-- 隐私设置 -->
+  <v-container>
+    <v-row align="center">
+      <h1>🔒</h1>
+      <v-col>
+        <h4>{{ $t('privacy.settings') }}</h4>
+        <p class="text-grey">{{ $t('privacy.settingsdesc') }}</p>
+      </v-col>
+    </v-row>
+
+    <v-divider class="my-2" />
+
+    <!-- 学习计划可见性 -->
+    <v-row align="center" class="privacy-row">
+      <v-col class="d-flex align-center">
+        <v-icon size="22" color="grey-darken-1" class="mr-3">mdi-book-open-variant</v-icon>
+        <div>
+          <div class="text-body-1 font-weight-medium">{{ $t('privacy.showstudyplans') }}</div>
+          <div class="text-body-2 text-medium-emphasis">{{ $t('privacy.showstudyplansdesc') }}</div>
+        </div>
+      </v-col>
+      <v-col cols="auto" class="d-flex align-center">
+        <v-chip
+          :color="showStudyPlansPublicly ? 'success' : 'default'"
+          size="small"
+          variant="tonal"
+          class="mr-3"
+        >
+          {{ showStudyPlansPublicly ? $t('privacy.public') : $t('privacy.private') }}
+        </v-chip>
+        <v-switch
+          v-model="showStudyPlansPublicly"
+          color="primary"
+          hide-details
+          :disabled="savingPrivacy"
+          @update:model-value="savePrivacySettings"
+        />
+      </v-col>
+    </v-row>
+
+    <v-divider class="my-1" />
+
+    <!-- 学习小组可见性 -->
+    <v-row align="center" class="privacy-row">
+      <v-col class="d-flex align-center">
+        <v-icon size="22" color="grey-darken-1" class="mr-3">mdi-account-group</v-icon>
+        <div>
+          <div class="text-body-1 font-weight-medium">{{ $t('privacy.showstudygroups') }}</div>
+          <div class="text-body-2 text-medium-emphasis">{{ $t('privacy.showstudygroupsdesc') }}</div>
+        </div>
+      </v-col>
+      <v-col cols="auto" class="d-flex align-center">
+        <v-chip
+          :color="showStudyGroupsPublicly ? 'success' : 'default'"
+          size="small"
+          variant="tonal"
+          class="mr-3"
+        >
+          {{ showStudyGroupsPublicly ? $t('privacy.public') : $t('privacy.private') }}
+        </v-chip>
+        <v-switch
+          v-model="showStudyGroupsPublicly"
+          color="primary"
+          hide-details
+          :disabled="savingPrivacy"
+          @update:model-value="savePrivacySettings"
+        />
+      </v-col>
+    </v-row>
+
+    <v-snackbar v-model="privacySnackbar" :timeout="2500" color="success" location="bottom">
+      {{ $t('privacy.saved') }}
+    </v-snackbar>
+    <v-snackbar v-model="privacyErrorSnackbar" :timeout="3000" color="error" location="bottom">
+      {{ $t('privacy.savefailed') }}
+    </v-snackbar>
+  </v-container>
+  <v-divider></v-divider>
 </template>
 
 <script>
@@ -293,6 +372,11 @@ export default {
       showChangePasswordForm: false,
       showChangeEmailForm: false,
       showChangePhoneNumberForm: false,
+      showStudyPlansPublicly: true,
+      showStudyGroupsPublicly: true,
+      savingPrivacy: false,
+      privacySnackbar: false,
+      privacyErrorSnackbar: false,
       currentPassword: '',
       newPassword: '',
       newPasswordRepeat: '',
@@ -502,6 +586,25 @@ export default {
         this.loading = false
       }
     },
+    async savePrivacySettings() {
+      this.savingPrivacy = true
+      try {
+        const current = this.userInfo
+        await apiClient.put('/users/UserInformation/Update', {
+          selfIntroduction: current.selfIntroduction,
+          gender: current.gender,
+          birthDate: current.birth || current.Birth || new Date().toISOString(),
+          showStudyPlansPublicly: this.showStudyPlansPublicly,
+          showStudyGroupsPublicly: this.showStudyGroupsPublicly,
+        })
+        this.privacySnackbar = true
+      } catch (error) {
+        console.error('Error saving privacy settings:', error)
+        this.privacyErrorSnackbar = true
+      } finally {
+        this.savingPrivacy = false
+      }
+    },
     startCountdown() {
       this.resendDisabled = true
       this.countdown = 30 // 重置倒计时为 30 秒
@@ -521,7 +624,13 @@ export default {
   },
   async mounted() {
     await this.fetchUserInfo()
-    await this.fetchCurrentPasswordStrength() // 获取当前密码强度
+    await this.fetchCurrentPasswordStrength()
+
+    // Load privacy settings from fetched user info
+    if (this.userInfo) {
+      this.showStudyPlansPublicly = this.userInfo.showStudyPlansPublicly ?? true
+      this.showStudyGroupsPublicly = this.userInfo.showStudyGroupsPublicly ?? true
+    }
 
     if (this.$route?.query?.wechatBind === 'success') {
       alert('微信账号绑定成功！')
@@ -534,5 +643,8 @@ export default {
 </script>
 
 <style scoped>
-/* Add any custom styles here */
+.privacy-row {
+  min-height: 64px;
+  padding: 4px 0;
+}
 </style>

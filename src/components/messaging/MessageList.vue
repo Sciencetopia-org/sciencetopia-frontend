@@ -78,6 +78,7 @@
 
 <script>
 import { mapActions } from 'vuex'
+import { sanitizeHtml, safeUrl } from '@/utils/text'
 
 export default {
   props: {
@@ -127,29 +128,15 @@ export default {
     },
     isImageMessage(content) {
       if (!content || typeof content !== 'string') return false
-      if (content.startsWith('data:image/')) return true
+      if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(content)) return true
       return /^(https?:)\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i.test(content)
     },
     imageSrc(content) {
-      return String(content)
+      if (/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(String(content))) return String(content)
+      return safeUrl(content)
     },
     sanitize(html) {
-      if (!html) return ''
-      try {
-        const div = document.createElement('div')
-        div.innerHTML = String(html)
-        div.querySelectorAll('script,style,iframe,object,embed,link').forEach(n => n.remove())
-        div.querySelectorAll('*').forEach(el => {
-          ;[...el.attributes].forEach(attr => {
-            const name = attr.name.toLowerCase()
-            const value = String(attr.value || '')
-            if (name.startsWith('on') || value.replace(/\s/g,'').toLowerCase().startsWith('javascript:')) {
-              el.removeAttribute(attr.name)
-            }
-          })
-        })
-        return div.innerHTML
-      } catch (_) { return '' }
+      return sanitizeHtml(html)
     },
     shouldShowAvatar(messages, index) {
       // 如果是第一条消息，始终显示头像

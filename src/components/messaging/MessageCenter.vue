@@ -269,6 +269,7 @@
 </template>
 
 <script>
+import axios from 'axios'
 import { apiClient } from '@/api'
 import { connection } from '@/services/signalr-service'
 import MessageList from '@/components/messaging/MessageList.vue'
@@ -583,25 +584,28 @@ export default {
 
       try {
         this.sendingImage = true
-        const form = new FormData()
-        form.append('file', file)
-        const resp = await apiClient.post('/Message/UploadAttachment', form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+        const resp = await apiClient.post('/Message/CreateAttachmentUpload', {
+          fileName: file.name,
+          contentType: file.type || 'image/jpeg',
         })
-        const url = resp?.data?.url
-        if (!url) throw new Error('No URL returned')
+        const uploadUrl = resp?.data?.uploadUrl
+        const blobUrl = resp?.data?.blobUrl
+        const readUrl = resp?.data?.readUrl || blobUrl
+        const headers = resp?.data?.headers || {}
+        if (!uploadUrl || !blobUrl) throw new Error('No upload URL returned')
+        await axios.put(uploadUrl, file, { headers, withCredentials: false })
         const receiverId = this.selectedConversation.partnerId
         await connection.invoke(
           'SendMessage',
           this.selectedConversation.conversationId,
           this.userId,
           receiverId,
-          String(url)
+          String(blobUrl)
         )
         const newMessage = {
           id: Date.now().toString(),
           senderName: 'You',
-          content: String(url),
+          content: String(readUrl),
           sentTime: DateTime.utc().toISO(),
           sender: {
             id: this.userId,

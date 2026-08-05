@@ -69,7 +69,7 @@
                 :class="{ 'kgp-filter-chip--active': graphNodeFilterDisplay === option.value }"
                 :variant="graphNodeFilterDisplay === option.value ? 'flat' : 'outlined'"
                 :disabled="graphActionPending || graphFilterLoading"
-                @click="applyNodeStateFilter(option.value); mobileFilterSheet = false"
+                @click="onNodeStateFilterClick(option.value, { closeMobileSheet: true })"
               >
                 {{ option.title }}
               </v-chip>
@@ -180,7 +180,7 @@
                   :class="{ 'kgp-filter-chip--active': graphNodeFilterDisplay === option.value }"
                   :variant="graphNodeFilterDisplay === option.value ? 'flat' : 'outlined'"
                   :disabled="graphActionPending || graphFilterLoading"
-                  @click="applyNodeStateFilter(option.value)"
+                  @click="onNodeStateFilterClick(option.value)"
                 >
                   {{ option.chipTitle }}
                 </v-chip>
@@ -296,6 +296,7 @@
     </v-row>
 
   </v-container>
+  <LoginRequiredDialog v-model="loginRequiredDialog" :message="$t('loginRequired.knowledgeGraphMessage')" />
   <v-snackbar v-model="snackOpen" timeout="2200">{{ snackText }}</v-snackbar>
 </template>
 
@@ -305,6 +306,7 @@ import KnowledgeNetwork from '@/components/knowledge/KnowledgeNetwork.vue'
 import NodeInfo from '@/components/knowledge/NodeInfo.vue'
 import NodeCreationForm from '@/components/knowledge/NodeCreationForm.vue'
 import LinkCreationForm from '@/components/knowledge/LinkCreationForm.vue'
+import LoginRequiredDialog from '@/components/ui/LoginRequiredDialog.vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import { eventBus } from '@/eventBus'
@@ -349,6 +351,16 @@ const graph = ref(null)
 
 const snackOpen = ref(false)
 const snackText = ref('')
+const loginRequiredDialog = ref(false)
+const isAuthenticated = computed(() => Boolean(
+  store.state.isAuthenticated || store.state.currentUserID || store.state.userInfo?.id
+))
+
+const requiresAuthNodeStateFilters = new Set(['favorited', 'learned', 'favorited-or-learned'])
+
+function showLoginRequiredDialog() {
+  loginRequiredDialog.value = true
+}
 
 // Safely call methods exposed from KnowledgeNetwork via the graph ref
 function callGraphMethod(name, ...args) {
@@ -360,8 +372,6 @@ function callGraphMethod(name, ...args) {
   }
 }
 
-const toggleFavorites = () => callGraphMethod('toggleFavorites')
-const showFavoritedNodes = () => callGraphMethod('setNodeStateFilter', 'favorited')
 const centerGraphView = () => callGraphMethod('resetView')
 const startGraphEditing = () => callGraphMethod('startEditing')
 const submitGraphEditing = () => callGraphMethod('submitEditing')
@@ -416,7 +426,26 @@ async function applyNodeStateFilter(filter, options = {}) {
   }
 }
 
+async function onNodeStateFilterClick(filter, options = {}) {
+  const { closeMobileSheet = false } = options || {}
+  const targetFilter = filter || 'all'
+  if (requiresAuthNodeStateFilters.has(targetFilter) && !isAuthenticated.value) {
+    showLoginRequiredDialog()
+    return
+  }
+
+  await applyNodeStateFilter(targetFilter)
+  if (closeMobileSheet) {
+    mobileFilterSheet.value = false
+  }
+}
+
 async function onToggleFavorites() {
+  if (!isAuthenticated.value) {
+    showLoginRequiredDialog()
+    return
+  }
+
   try {
     const result = await callGraphMethod('toggleFavorites')
     if (result && result.success === true) {
@@ -1033,7 +1062,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   width: 100vw;
   max-width: 100vw;
-  border-radius: 0 !important;
+  border-radius: 12px !important;
   overflow: hidden;
 }
 

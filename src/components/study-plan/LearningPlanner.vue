@@ -28,7 +28,7 @@
 
 <script>
 import StudyPlan from './StudyPlan.vue'
-import { apiClient, pyApiClient } from '@/api'
+import { apiClient } from '@/api'
 
 export default {
   components: {
@@ -92,7 +92,7 @@ export default {
 
       console.log('Generating study plan for:', this.learningObjective)
 
-      const request = pyApiClient.post('/studyplan', {
+      const request = apiClient.post('/Ai/StudyPlan', {
         Name: this.learningObjective,
       })
       this.currentRequest = request

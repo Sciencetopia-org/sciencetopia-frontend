@@ -58,6 +58,7 @@
       <img :src="smallLogo" alt="Logo" class="responsive-logo" />
     </v-btn>
   </div>
+  <LoginRequiredDialog v-model="loginRequiredDialog" :message="loginRequiredMessage" />
 </template>
 
 <script>
@@ -65,6 +66,7 @@ import { debounce } from 'lodash-es'
 import MessageAlert from '@/components/messaging/MessageAlert.vue'
 import LogInPartial from '@/components/auth/LogInPartial.vue'
 import ReusableIconButton from '@/components/ui/ReusableIconButton.vue'
+import LoginRequiredDialog from '@/components/ui/LoginRequiredDialog.vue'
 import { eventBus } from '@/eventBus'
 
 export default {
@@ -74,6 +76,7 @@ export default {
     MessageAlert,
     LogInPartial,
     ReusableIconButton,
+    LoginRequiredDialog,
   },
   data() {
     return {
@@ -84,6 +87,8 @@ export default {
       isSmallScreen: window.innerWidth <= 1200,
       langTextWidth: 0,
       activeKey: '',
+      loginRequiredDialog: false,
+      loginRequiredMessage: '',
     }
   },
   computed: {
@@ -187,6 +192,10 @@ export default {
       this.activeKey = 'studygroup'
       this.$router.push({ name: 'studyGroupList' })
     },
+    showLoginRequired(message) {
+      this.loginRequiredMessage = message || this.$t('loginRequired.defaultMessage')
+      this.loginRequiredDialog = true
+    },
     async handleStudyPlan() {
       const userId = await this.ensureUserId()
       if (!userId) return
@@ -203,10 +212,10 @@ export default {
       this.$i18n.locale = next
       // Map app locale to Vuetify built-in locale keys
       const vLocale = next === 'zh' ? 'zhHans' : 'en'
-      try { this.$vuetify.locale.current = vLocale } catch (_) {}
-      try { localStorage.setItem('locale', next) } catch (_) {}
+      try { this.$vuetify.locale.current = vLocale } catch (err) { console.warn('Failed to update Vuetify locale', err) }
+      try { localStorage.setItem('locale', next) } catch (err) { console.warn('Failed to persist locale', err) }
       // Notify app parts (e.g., KnowledgeGraph) to refresh with new lang
-      try { window.dispatchEvent(new CustomEvent('app:lang-changed', { detail: next })) } catch (_) {}
+      try { window.dispatchEvent(new CustomEvent('app:lang-changed', { detail: next })) } catch (err) { console.warn('Failed to notify locale change', err) }
     },
     measureLangTextWidth() {
       const tempSpan = document.createElement('span')
@@ -237,7 +246,7 @@ export default {
 
       const isAuthenticated = this.$store.state.isAuthenticated
       if (!isAuthenticated || !userId) {
-        alert(this.$t('header.pleaseLoginToViewStudyPlan'))
+        this.showLoginRequired(this.$t('loginRequired.studyPlanMessage'))
         return null
       }
 

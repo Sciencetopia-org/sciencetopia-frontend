@@ -64,6 +64,6 @@ export default {
 @font-face {
   font-family: 'Chinese-font';
   src: url('./assets/fonts/SiYuanHeiTiGoogleBan/NotoSansCJK-Regular-1.otf') format('opentype');
+  font-display: swap;
 }
 </style>
-

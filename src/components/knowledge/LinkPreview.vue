@@ -3,11 +3,11 @@
     <LoadingSpinner v-if="isLoading" />
     <a
       v-else-if="preview"
-      :href="preview.url"
-      target="_blank" rel="noopener" class="link-preview"
+      :href="safeUrl(preview.url)"
+      target="_blank" rel="noopener noreferrer" class="link-preview"
     >
       <h3 class="preview-title">{{ preview.title || preview.url }}</h3>
-      <img v-if="preview.image" :src="preview.image" alt="preview" class="preview-image" />
+      <img v-if="safeUrl(preview.image, '')" :src="safeUrl(preview.image, '')" alt="preview" class="preview-image" />
       <p v-if="preview.description">{{ preview.description }}</p>
     </a>
   </div>
@@ -16,6 +16,7 @@
 <script>
 import { fetchLinkPreview } from '@/services/linkPreviewService'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue' // Import the Spinner component
+import { safeUrl } from '@/utils/text'
 
 export default {
   name: 'LinkPreview',
@@ -35,6 +36,7 @@ export default {
     this.loadPreview()
   },
   methods: {
+    safeUrl,
     async loadPreview() {
       this.isLoading = true // Set loading to true when fetching starts
       try {

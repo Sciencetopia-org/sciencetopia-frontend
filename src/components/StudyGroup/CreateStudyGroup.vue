@@ -55,6 +55,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Quill from 'quill'
 import 'quill/dist/quill.snow.css' // Ensure you import Quill's CSS
+import { sanitizeHtml } from '@/utils/text'
 
 export default {
   name: 'CreateStudyGroup',
@@ -94,7 +95,7 @@ export default {
 
       // Listen for text change to update groupDescription
       quillInstance.on('text-change', function () {
-        groupDescription.value = quillInstance.root.innerHTML
+        groupDescription.value = sanitizeHtml(quillInstance.root.innerHTML)
       })
     })
 
@@ -174,7 +175,7 @@ export default {
 
         const payload = {
           name: groupName.value,
-          description: groupDescription.value, // Use innerHTML of Quill editor
+          description: sanitizeHtml(groupDescription.value),
           tagIds: Array.from(new Set(ids.filter(Boolean))),
           newTagNames: names.filter(Boolean),
         }

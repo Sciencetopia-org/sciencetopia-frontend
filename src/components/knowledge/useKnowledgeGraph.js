@@ -445,6 +445,10 @@ export default function useKnowledgeGraph(endpoint) {
         if (lastClick.id === d.id && (now - lastClick.t) < DOUBLE_CLICK_MS) {
           // —— 识别为双击 —— 
           lastClick.id = null
+          if (clickTimeout) {
+            clearTimeout(clickTimeout)
+            clickTimeout = null
+          }
           // 双击只做展开，不触发单击逻辑
           if (!isEditing.value) {
             expandNodeChildren(d)        // 走你的懒加载
@@ -453,7 +457,18 @@ export default function useKnowledgeGraph(endpoint) {
           // —— 单击 —— 
           lastClick.id = d.id
           lastClick.t = now
-          handleNodeClick(event, d)
+          if (isEditing.value) {
+            handleNodeClick(event, d)
+          } else {
+            if (clickTimeout) clearTimeout(clickTimeout)
+            clickTimeout = setTimeout(() => {
+              clickTimeout = null
+              if (lastClick.id === d.id) {
+                lastClick.id = null
+              }
+              handleNodeClick(event, d)
+            }, DOUBLE_CLICK_MS + 20)
+          }
         }
       }
     }
@@ -597,6 +612,11 @@ export default function useKnowledgeGraph(endpoint) {
       })
       .on('dblclick', (event, d) => {
         event.stopPropagation()  // prevent zoom or other handlers from firing
+        if (clickTimeout) {
+          clearTimeout(clickTimeout)
+          clickTimeout = null
+        }
+        lastClick.id = null
         if (!isEditing.value) {
           expandNodeChildren(d)   // Load children of this node’s next level
         }
@@ -768,13 +788,6 @@ export default function useKnowledgeGraph(endpoint) {
   let clickTimeout = null
 
   async function handleNodeClick(event, d) {
-    // 如果已经有 clickTimeout，说明可能是双击 → 延迟取消
-    if (clickTimeout) {
-      clearTimeout(clickTimeout)
-      clickTimeout = null
-      return
-    }
-
     // —— 保留你的点击逻辑不变 —— 
     if (store.state.isEditing) {
       if (store.state.displayNodeCreationForm) {

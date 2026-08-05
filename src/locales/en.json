@@ -57,6 +57,14 @@
     "switchTo": "Switch to",
     "pleaseLoginToViewStudyPlan": "Please log in to view study plans"
   },
+  "loginRequired": {
+    "title": "Login required",
+    "defaultMessage": "Please log in before continuing.",
+    "studyPlanMessage": "Please log in before viewing study plans.",
+    "messagesMessage": "Please log in before viewing messages.",
+    "knowledgeGraphMessage": "Please log in before using favorites and learning status features.",
+    "profileMessage": "Please log in before viewing your profile."
+  },
   "languages": {
     "en": "English",
     "zh": "Chinese"
@@ -82,6 +90,20 @@
       "resources": "Resources",
       "group": "Study Group"
     }
+  },
+  "privacy": {
+    "settings": "Privacy Settings",
+    "settingsdesc": "Control what others can see on your profile",
+    "showstudyplans": "Show study plans publicly",
+    "showstudyplansdesc": "When enabled, visitors can see your study plans on your profile",
+    "showstudygroups": "Show study groups publicly",
+    "showstudygroupsdesc": "When enabled, visitors can see the study groups you have joined",
+    "saved": "Privacy settings saved",
+    "savefailed": "Failed to save, please try again",
+    "public": "Public",
+    "private": "Private",
+    "plansHidden": "This user has chosen to keep their study plans private",
+    "groupsHidden": "This user has chosen to keep their study groups private"
   },
   "footer": {
     "about": "About Us",
@@ -170,6 +192,12 @@
     "failed": "Login failed",
     "dontHaveAccount": "Don't have an account?",
     "clickHere": "Click here to register"
+  },
+  "authAgreement": {
+    "prefix": "I have read and agree to the",
+    "terms": "User Agreement",
+    "suffix": ".",
+    "required": "Please read and agree to the User Agreement before continuing."
   },
   "studyplan": {
     "inprogress": "In Progress",
@@ -635,7 +663,9 @@
     "confirmNodeCancel": "Are you sure you want to leave the create node page? The created node will not be saved!",
     "favoriteAdded": "Node added to favorites successfully!",
     "favoriteRemoved": "Node removed from favorites successfully!",
-    "favoriteToggleFailed": "Failed to toggle favorite status."
+    "favoriteToggleFailed": "Failed to toggle favorite status.",
+    "loginRequiredTitle": "Login required",
+    "loginRequiredMessage": "Please log in before using favorites and learning status features."
   },
   "validation": {
     "required": "This field is required.",

@@ -240,28 +240,26 @@ export default {
   max-width: 640px;
 }
 
-@media (max-width: 600px) {
-  .plan-settings-card {
-    height: 100dvh;
-    max-height: 100dvh;
-    border-radius: 0 !important;
-  }
+:global(body.phone-layout) .plan-settings-card {
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 16px !important;
+}
 
-  .plan-settings-layout {
-    flex-direction: column;
-  }
+:global(body.phone-layout) .plan-settings-layout {
+  flex-direction: column;
+}
 
-  .plan-settings-tabs {
-    flex: 0 0 auto;
-    padding: 0 8px;
-  }
+:global(body.phone-layout) .plan-settings-tabs {
+  flex: 0 0 auto;
+  padding: 0 8px;
+}
 
-  .plan-settings-body {
-    min-height: 0;
-  }
+:global(body.phone-layout) .plan-settings-body {
+  min-height: 0;
+}
 
-  .plan-settings-actions {
-    padding-bottom: calc(8px + env(safe-area-inset-bottom));
-  }
+:global(body.phone-layout) .plan-settings-actions {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
 }
 </style>

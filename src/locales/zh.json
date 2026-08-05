@@ -57,6 +57,14 @@
     "switchTo": "切换至",
     "pleaseLoginToViewStudyPlan": "请先登录再查看学习计划"
   },
+  "loginRequired": {
+    "title": "需要先登录",
+    "defaultMessage": "请先登录后继续使用此功能。",
+    "studyPlanMessage": "请先登录后再查看学习计划。",
+    "messagesMessage": "请先登录后再查看消息。",
+    "knowledgeGraphMessage": "请先登录后再使用收藏和学习状态功能。",
+    "profileMessage": "请先登录后再查看个人中心。"
+  },
   "languages": {
     "en": "English",
     "zh": "中文"
@@ -82,6 +90,20 @@
       "resources": "资源",
       "group": "小组"
     }
+  },
+  "privacy": {
+    "settings": "隐私设置",
+    "settingsdesc": "控制其他用户在您的主页上可以看到的内容",
+    "showstudyplans": "公开展示学习计划",
+    "showstudyplansdesc": "开启后，其他用户可在您的主页看到您的学习计划",
+    "showstudygroups": "公开展示学习小组",
+    "showstudygroupsdesc": "开启后，其他用户可在您的主页看到您加入的学习小组",
+    "saved": "隐私设置已保存",
+    "savefailed": "保存失败，请稍后再试",
+    "public": "公开",
+    "private": "不公开",
+    "plansHidden": "该用户已将学习计划设为不公开",
+    "groupsHidden": "该用户已将学习小组设为不公开"
   },
   "footer": {
     "about": "关于我们",
@@ -170,6 +192,12 @@
     "failed": "登录失败",
     "dontHaveAccount": "没有账号？",
     "clickHere": "点击这里注册"
+  },
+  "authAgreement": {
+    "prefix": "我已阅读并同意",
+    "terms": "《用户协议》",
+    "suffix": "",
+    "required": "请先阅读并勾选同意《用户协议》后继续。"
   },
   "studyplan": {
     "inprogress": "进行中",
@@ -631,7 +659,9 @@
     "confirmNodeCancel": "确定离开创建节点页面？创建的节点将不会被保存！",
     "favoriteAdded": "已添加到收藏夹",
     "favoriteRemoved": "已从收藏夹移除",
-    "favoriteToggleFailed": "收藏状态切换失败"
+    "favoriteToggleFailed": "收藏状态切换失败",
+    "loginRequiredTitle": "需要先登录",
+    "loginRequiredMessage": "请先登录后再使用收藏和学习状态功能。"
   },
   "validation": {
     "required": "此项为必填项",

@@ -107,7 +107,7 @@ export default {
     async ensureEditorReady() {
       if (this.quillInstance || !this.$refs.quillEditor) {
         if (this.quillInstance) {
-          this.quillInstance.root.innerHTML = this.groupDescription || this.group?.description || ''
+          this.quillInstance.root.innerHTML = sanitizeHtml(this.groupDescription || this.group?.description || '')
         }
         return
       }
@@ -134,9 +134,9 @@ export default {
           ],
         },
       })
-      this.quillInstance.root.innerHTML = this.groupDescription || this.group?.description || ''
+      this.quillInstance.root.innerHTML = sanitizeHtml(this.groupDescription || this.group?.description || '')
       this.quillInstance.on('text-change', () => {
-        this.groupDescription = this.quillInstance.root.innerHTML
+        this.groupDescription = sanitizeHtml(this.quillInstance.root.innerHTML)
       })
     },
     async fetchGroupData() {
@@ -172,7 +172,7 @@ export default {
         this.saving = true
         // Pull HTML from Quill if present
         if (this.quillInstance) {
-          this.groupDescription = this.quillInstance.root.innerHTML
+          this.groupDescription = sanitizeHtml(this.quillInstance.root.innerHTML)
         }
         // 1) Rename if changed
         if ((this.groupName || '') !== (this.group?.name || '')) {

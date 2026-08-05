@@ -8,7 +8,14 @@
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <div class="mobile-drawer-menu__header">
-      <img :src="logo" alt="Sciencetopia" class="mobile-drawer-menu__logo" />
+      <button
+        class="mobile-drawer-menu__logo-button"
+        type="button"
+        aria-label="Sciencetopia"
+        @click="goHome"
+      >
+        <img :src="logo" alt="Sciencetopia" class="mobile-drawer-menu__logo" />
+      </button>
       <div>
         <div class="mobile-drawer-menu__title">Sciencetopia</div>
         <div class="mobile-drawer-menu__subtitle">{{ $t('mobile.slogan') }}</div>
@@ -45,6 +52,12 @@ export default {
       logo: require('@/assets/images/logo.png'),
     }
   },
+  methods: {
+    goHome() {
+      this.$emit('update:modelValue', false)
+      this.$router.push({ name: 'HomePage' })
+    },
+  },
 }
 </script>
 
@@ -60,10 +73,24 @@ export default {
   padding: 18px 16px 12px;
 }
 
+.mobile-drawer-menu__logo-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
 .mobile-drawer-menu__logo {
   width: 44px;
   height: 44px;
   border-radius: 50%;
+  display: block;
 }
 
 .mobile-drawer-menu__title {

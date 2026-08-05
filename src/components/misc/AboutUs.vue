@@ -33,7 +33,7 @@
       {{ $t('about.joinPrompt.after') }}
     </p>
     <v-spacer class="my-10"></v-spacer>
-    <v-row justify="left">
+    <!-- <v-row justify="left">
       <v-col cols="12" md="8">
         <v-simple-table>
           <thead>
@@ -76,7 +76,7 @@
           </tbody>
         </v-simple-table>
       </v-col>
-    </v-row>
+    </v-row> -->
   </v-container>
 </template>
 

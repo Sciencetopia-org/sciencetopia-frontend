@@ -12,7 +12,7 @@ const initializeSignalRConnection = (
 ) => {
   if (!connection || connection.state === 'Disconnected') {
     connection = new HubConnectionBuilder()
-      .withUrl('http://localhost:5085/chathub')
+      .withUrl('/chathub')
       .build()
 
     connection.on('ReceiveMessage', (conversationId, message) => {

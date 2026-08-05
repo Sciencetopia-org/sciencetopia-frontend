@@ -128,6 +128,7 @@
 </template>
 
 <script>
+import axios from 'axios'
 import { apiClient } from '@/api'
 import { mapState, mapActions } from 'vuex'
 import { normalizeDateString } from '@/utils/date'
@@ -253,21 +254,22 @@ export default {
         return
       }
 
-      const formData = new FormData()
-      formData.append('avatarFile', this.selectedFile)
-
       this.loading = true // Start loading
 
       try {
-        const response = await apiClient.post(
-          '/users/UserInformation/UploadAvatar',
-          formData,
-          {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          }
-        )
+        const uploadTicket = await apiClient.post('/users/UserInformation/CreateAvatarUpload', {
+          fileName: this.selectedFile.name,
+          contentType: this.selectedFile.type || 'image/jpeg',
+        })
+        const uploadUrl = uploadTicket?.data?.uploadUrl
+        const blobUrl = uploadTicket?.data?.blobUrl
+        const headers = uploadTicket?.data?.headers || {}
+        if (!uploadUrl || !blobUrl) throw new Error('No upload URL returned')
+
+        await axios.put(uploadUrl, this.selectedFile, { headers, withCredentials: false })
+        const response = await apiClient.post('/users/UserInformation/CompleteAvatarUpload', {
+          blobUrl,
+        })
         this.loading = false // End loading
 
         if (response.status === 200) {
@@ -275,7 +277,7 @@ export default {
             text: 'Avatar uploaded successfully',
             color: 'success',
           })
-          this.avatarUrl = response.data.AvatarUrl // Update avatar URL
+          await this.$store.dispatch('fetchUserAvatar')
         }
       } catch (error) {
         console.error('Error uploading avatar:', error)

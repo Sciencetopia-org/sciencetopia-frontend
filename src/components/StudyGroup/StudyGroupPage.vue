@@ -28,7 +28,7 @@
               <template v-else>
                 <v-img aspect-ratio="16/9" cover :src="groupImageSrc" />
                 <v-card-title>{{ group.name }}</v-card-title>
-                <v-card-subtitle v-html="group.bio"></v-card-subtitle>
+                <v-card-subtitle>{{ group.bio }}</v-card-subtitle>
                 <v-card-text>
                   <span v-html="sanitizeHtml(group.description)"></span>
                   <div class="mt-2">
@@ -117,8 +117,7 @@
                 />
               </div>
               <v-card-title>{{ group.name }}</v-card-title>
-              <!-- eslint-disable-next-line vue/no-v-text-v-html-on-component -->
-              <v-card-subtitle v-html="group.bio"></v-card-subtitle>
+              <v-card-subtitle>{{ group.bio }}</v-card-subtitle>
               <v-card-text>
                 <span v-html="sanitizeHtml(group.description)"></span>
               </v-card-text>
@@ -320,6 +319,7 @@ import ManagePanel from './ManagePanel.vue'
 import GroupPlansList from '@/components/StudyGroup/GroupPlansList.vue'
 import { mapActions } from 'vuex'
 import { isPhoneDevice, phoneDeviceRevision } from '@/utils/device'
+import { sanitizeHtml } from '@/utils/text'
 
 export default {
   props: {
@@ -398,9 +398,7 @@ export default {
   },
   methods: {
     ...mapActions(['goToProfile']), // Map the Vuex action
-    sanitizeHtml(html) {
-      try { return (require('@/utils/text.js').sanitizeHtml)(html) } catch (_) { return '' }
-    },
+    sanitizeHtml,
 
     updateActiveTab(route = this.$route) {
       if (route.name === 'studyGroupSpace') {

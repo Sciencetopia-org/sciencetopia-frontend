@@ -16,7 +16,7 @@
     </div> -->
   <v-container class="login-container d-flex align-center justify-center">
     <v-row no-gutters="true">
-      <v-col cols="6" class="d-flex justify-center">
+      <v-col cols="6" class="auth-visual-col d-flex justify-center">
         <!-- left card -->
         <v-card class="left-card">
           <div class="logo-front">
@@ -34,7 +34,7 @@
           </div>
         </v-card>
       </v-col>
-      <v-col cols="6" class="d-flex justify-center">
+      <v-col cols="6" class="auth-form-col d-flex justify-center">
         <!-- Right card -->
         <v-card class="right-card">
           <v-card-title>
@@ -75,10 +75,10 @@
               ></v-checkbox>
 
               <!-- Login button -->
-              <button class="login-button" type="submit" block>
+              <button class="login-button" type="submit" :disabled="isSubmitting" :aria-busy="isSubmitting">
                 <div class="login-arrow"></div>
                 <div class="login-whitebox"></div>
-                <span class="login-text">{{ $t('header.login') }}</span>
+                <span class="login-text">{{ isSubmitting ? $t('loading') : $t('header.login') }}</span>
               </button>
             </v-form>
           </v-card-text>
@@ -110,10 +110,15 @@ export default {
       validationSummary: '',
       userNameError: '',
       passwordError: '',
+      isSubmitting: false,
     }
   },
   methods: {
     async handleSubmit() {
+      if (this.isSubmitting) return
+      this.isSubmitting = true
+      this.validationSummary = ''
+
       try {
         const response = await apiClient.post('/users/Account/Login', {
           userName: this.userName,
@@ -134,6 +139,8 @@ export default {
         } else {
           this.validationSummary = this.$t('login.failed')
         }
+      } finally {
+        this.isSubmitting = false
       }
     },
 
@@ -303,5 +310,123 @@ export default {
 
 .v-alert {
   border-radius: 8px;
+}
+:global(body.phone-layout) .background-decor-line1,
+:global(body.phone-layout) .background-decor-line3,
+:global(body.phone-layout) .background-decor-line4,
+:global(body.phone-layout) .background-decor-line5,
+:global(body.phone-layout) .background-decor-circle,
+:global(body.phone-layout) .background-decor-box1,
+:global(body.phone-layout) .background-decor-box2,
+:global(body.phone-layout) .background-decor-box3,
+:global(body.phone-layout) .background-decor-box4 {
+  display: none;
+}
+
+.login-button:disabled {
+  cursor: default;
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+:global(body.phone-layout) .background-decor-line2 {
+  top: 80px;
+  left: 0;
+  width: 100vw;
+  z-index: 0;
+}
+
+:global(body.phone-layout) .login-container {
+  position: relative;
+  top: auto;
+  left: auto;
+  box-sizing: border-box;
+  width: 100vw;
+  min-height: calc(100dvh - 80px);
+  height: auto;
+  padding: 24px 16px;
+  background-color: transparent;
+  box-shadow: none;
+  overflow-x: hidden;
+}
+
+:global(body.phone-layout) .login-container :deep(.v-row) {
+  width: 100%;
+  max-width: min(430px, 100%);
+  margin: 0;
+}
+
+:global(body.phone-layout) .auth-visual-col {
+  display: none !important;
+}
+
+:global(body.phone-layout) .auth-form-col {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+:global(body.phone-layout) .right-card {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-height: auto;
+  padding: 20px 16px !important;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
+}
+
+:global(body.phone-layout) .right-card :deep(.v-card-title) {
+  padding-bottom: 8px;
+}
+
+:global(body.phone-layout) .right-card h2 {
+  width: 100%;
+  font-size: 26px;
+}
+
+:global(body.phone-layout) .to-register-text {
+  position: static;
+  padding: 8px 0 0 !important;
+}
+
+:global(body.phone-layout) .login-button {
+  position: relative;
+  top: auto;
+  right: auto;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 8px;
+  border-radius: 6px;
+  background-color: #ec0017;
+  color: #fff;
+}
+
+:global(body.phone-layout) .login-button:hover {
+  background-color: #c90014;
+}
+
+:global(body.phone-layout) .login-arrow,
+:global(body.phone-layout) .login-whitebox {
+  display: none;
+}
+
+:global(body.phone-layout) .login-text {
+  font-size: 18px;
+  font-weight: 600;
+  transform: none;
+}
+
+:global(body.phone-layout) .horizontal-line {
+  display: none;
+}
+
+:global(body.phone-layout) .login-container {
+  padding: clamp(16px, 6vw, 24px) clamp(12px, 4vw, 16px);
+}
+
+:global(body.phone-layout) .right-card {
+  padding: clamp(16px, 5vw, 20px) clamp(12px, 4vw, 16px) !important;
 }
 </style>
